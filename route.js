@@ -283,8 +283,8 @@ const RouteModule = {
       // Keep the line clear of the route bar up top and the big FAB columns
       // down the sides — otherwise A and B end up hidden behind buttons.
       MapModule.map.fitBounds(L.latLngBounds(sel.coords), {
-        paddingTopLeft: [96, 130],
-        paddingBottomRight: [96, 60],
+        paddingTopLeft: [104, 130],
+        paddingBottomRight: [104, 96],
       });
     }
   },
