@@ -328,6 +328,7 @@ const AlertsModule = {
     for (const h of candidates) {
       if (h.expiresAt !== Infinity && h.expiresAt <= now) continue;
       if (this.alerted[h.id] && now - this.alerted[h.id] < this.DEDUPE_MS) continue; // item 9
+      if (h.mine) continue; // you filed it — you already saw it, don't shout at yourself
       const d = Geo.distMi(loc.lat, loc.lon, h.lat, h.lon);
       if (d > this.ALERT_DIST_MI) continue;
       // item 8: must be roughly ahead of us
@@ -352,8 +353,10 @@ const AlertsModule = {
       this.tone(600, 460);
     } else {
       const t = this.TYPES[h.type] || this.TYPES.hazard;
-      const ageMin = Math.round((now - h.ts) / 60000);
-      text = `${t.spoken}, ${distMi.toFixed(1)} miles. Reported ${ageMin < 1 ? 'just now' : ageMin + ' minutes ago'}.`;
+      const ageMin = h.ts ? Math.round((now - h.ts) / 60000) : null;
+      const where = distMi != null ? `${distMi.toFixed(1)} miles ahead` : 'just ahead';
+      const when = ageMin == null ? '' : ` Reported ${ageMin < 1 ? 'just now' : ageMin + ' minutes ago'}.`;
+      text = `${t.spoken}, ${where}.${when}`;
       icon = t.icon; color = t.color;
       this.tone(t.tone[0], t.tone[1]);
     }
