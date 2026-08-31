@@ -354,7 +354,7 @@ const AlertsModule = {
     } else {
       const t = this.TYPES[h.type] || this.TYPES.hazard;
       const ageMin = h.ts ? Math.round((now - h.ts) / 60000) : null;
-      const where = distMi != null ? `${distMi.toFixed(1)} miles ahead` : 'just ahead';
+      const where = distMi != null ? `${distMi.toFixed(1)} miles` : 'just ahead';
       const when = ageMin == null ? '' : ` Reported ${ageMin < 1 ? 'just now' : ageMin + ' minutes ago'}.`;
       text = `${t.spoken}, ${where}.${when}`;
       icon = t.icon; color = t.color;

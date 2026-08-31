@@ -280,7 +280,12 @@ const RouteModule = {
     if (this.to) pin(this.to, 'B', 'route-pin-end');
 
     if (fit && sel) {
-      MapModule.map.fitBounds(L.latLngBounds(sel.coords), { padding: [40, 40] });
+      // Keep the line clear of the route bar up top and the big FAB columns
+      // down the sides — otherwise A and B end up hidden behind buttons.
+      MapModule.map.fitBounds(L.latLngBounds(sel.coords), {
+        paddingTopLeft: [96, 130],
+        paddingBottomRight: [96, 60],
+      });
     }
   },
 
