@@ -235,18 +235,20 @@ const App = {
      you tapped a row. PoiModule now owns the list and shows an in-app card. */
   async loadStops() {
     const listEl = document.getElementById('stopsList');
-    const cat = PoiModule.CATS[this.currentStopType] ? this.currentStopType : 'fuel';
+    const has = PoiModule.CATS.some(c => c.id === this.currentStopType);
+    const cat = has ? this.currentStopType : 'fuel';
+    const catLabel = PoiModule.cat(cat).label.toLowerCase();
 
     if (this.stopScope === 'route') {
       const route = RouteModule.activeRoute();
       if (!route) {
-        listEl.innerHTML = `<div class="empty-state-container"><p class="empty-state">No route planned yet. Tap <strong>Where to?</strong> on the map to build one, then come back and I'll find ${PoiModule.CATS[cat].label.toLowerCase()} along the whole line.</p></div>`;
+        listEl.innerHTML = `<div class="empty-state-container"><p class="empty-state">No route planned yet. Tap <strong>Where to?</strong> on the map to build one, then come back and I'll find ${catLabel} along the whole line.</p></div>`;
         return;
       }
       listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching along your route…</div>';
       try {
         const pois = await PoiModule.searchAlongRoute(cat, route.coords, route.cum);
-        PoiModule.display(listEl, pois, `No ${PoiModule.CATS[cat].label.toLowerCase()} found within 3 miles of your route.`);
+        PoiModule.display(listEl, pois, `No ${catLabel} found within 3 miles of your route.`);
         PoiModule.showMarkers(pois);
       } catch (e) {
         this.poiError(listEl, e);
@@ -264,7 +266,7 @@ const App = {
     listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching nearby…</div>';
     try {
       const pois = await PoiModule.searchNearby(cat, loc.lat, loc.lon, 15);
-      PoiModule.display(listEl, pois, `No ${PoiModule.CATS[cat].label.toLowerCase()} found within 15 miles.`);
+      PoiModule.display(listEl, pois, `No ${catLabel} found within 15 miles.`);
       PoiModule.showMarkers(pois);
     } catch (e) {
       this.poiError(listEl, e);

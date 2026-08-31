@@ -386,12 +386,12 @@ const PoiModule = {
     if (t.brand) facts.push(['Brand', t.brand]);
     if (t['fuel:diesel']) facts.push(['Diesel', t['fuel:diesel'] === 'yes' ? 'Yes' : 'No']);
     if (t['fuel:octane_91'] || t['fuel:octane_92'] || t['fuel:octane_93']) facts.push(['Premium', 'Yes']);
-    if (t.internet_access) facts.push(['Wi-Fi', t.internet_access]);
+    if (t.internet_access) facts.push(['Wi-Fi', t.internet_access === 'wlan' ? 'Yes' : t.internet_access]);
     if (t.outdoor_seating) facts.push(['Outdoor seating', t.outdoor_seating]);
     if (t.drive_through) facts.push(['Drive-through', t.drive_through]);
     if (t.wheelchair) facts.push(['Wheelchair', t.wheelchair]);
     if (t.cuisine) facts.push(['Cuisine', t.cuisine.replace(/;/g, ', ')]);
-    if (t.stars) facts.push(['Stars', t.stars]);
+    if (t.stars) facts.push(['Star rating', t.stars + ' star' + (t.stars === '1' ? '' : 's')]);
     if (t.tents || t.caravans) facts.push(['Sites', [t.tents ? 'tents' : '', t.caravans ? 'RV' : ''].filter(Boolean).join(', ')]);
     if (t.shower) facts.push(['Showers', t.shower]);
     if (t.compressed_air) facts.push(['Air pump', t.compressed_air]);
@@ -474,7 +474,7 @@ const PoiModule = {
         })
       : list;
     const msg = openOnly && list.length && !shown.length
-      ? 'Everything nearby is closed right now. Switch off "Open Now Only" to see them anyway.'
+      ? `All ${list.length} of these are closed right now. Switch off "Open Now Only" to see them anyway.`
       : emptyMsg;
     this.renderList(listEl, shown, msg);
   },
