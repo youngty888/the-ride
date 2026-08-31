@@ -210,6 +210,8 @@ const RouteModule = {
           candidates: candidates.slice(0, 8),
         });
       } catch (e) {
+        // Overpass is down or rate-limited. The rider still gets the mileage
+        // math — we just can't name the station. Say which it is.
         errors.push(t.targetMile);
         stops.push({ targetMile: t.targetMile, chosen: null, candidates: [], failed: true });
       }
@@ -485,6 +487,10 @@ const RouteModule = {
     this.status('', '');
     this.drawRoutes(true);
     this.renderResults();
+    // Bring the results into view — the form is long and the rider shouldn't
+    // have to hunt for the answer.
+    const results = document.getElementById('planResults');
+    if (results) results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // Fuel plan and hazards are cheap-ish; weather is opt-in per tap.
     this.renderFuelPlan(true);
@@ -648,16 +654,22 @@ const RouteModule = {
           <div class="fuel-chip-meta">Mile ${Math.round(s.chosen.routeMile)} · +${(s.chosen.detourMi || 0).toFixed(1)} mi off route</div>
           <div class="fuel-chip-swap">${s.candidates.length > 1 ? `Tap: ${s.candidates.length - 1} alternates` : 'Tap for details'}</div>
         </button>`);
+      } else if (s.failed) {
+        chips.push(`<div class="fuel-chip fuel-chip-unknown">
+          <div class="fuel-chip-name">Fuel by mile ${Math.round(s.targetMile)}</div>
+          <div class="fuel-chip-meta">Couldn't reach the station database — the mileage still holds, fill up here.</div>
+        </div>`);
       } else {
         chips.push(`<div class="fuel-chip fuel-chip-none">
           <div class="fuel-chip-name">No station found</div>
-          <div class="fuel-chip-meta">Near mile ${Math.round(s.targetMile)} — searched 20 mi</div>
+          <div class="fuel-chip-meta">Near mile ${Math.round(s.targetMile)} — searched out to 20 mi</div>
         </div>`);
       }
     });
     chips.push(`<div class="fuel-chip fuel-chip-end"><div class="fuel-chip-name">${App.escapeHtml(this.to.name)}</div><div class="fuel-chip-meta">Mile ${Math.round(fp.total)}</div></div>`);
 
-    const warnings = fp.gaps.map(g => `
+    const lookupFailed = fp.errors.length > 0;
+    const warnings = (lookupFailed ? [] : fp.gaps).map(g => `
       <div class="warn-box">
         <strong>No fuel for ${Math.round(g.gapMi)} mi</strong> between mile ${Math.round(g.from)} and mile ${Math.round(g.to)}.
         Your effective range is ${Math.round(fp.eff.rangeMi)} mi. Carry fuel, top off early, or reroute.
@@ -665,11 +677,18 @@ const RouteModule = {
 
     el.innerHTML = head +
       (fp.stops.length === 0 ? `<p class="plan-section-note">This ride is inside one tank. No fuel stop needed.</p>` : '') +
+      (lookupFailed ? `<div class="warn-box">Couldn't reach the gas-station database for ${fp.errors.length} of ${fp.stops.length} stops, so the stations below aren't named. The <strong>${Math.round(fp.eff.rangeMi)} mi</strong> spacing is still right — plan to fill up at those mile marks. <button type="button" class="btn-secondary" id="fuelRetry2">Retry lookup</button></div>` : '') +
       warnings +
       `<div class="fuel-strip">${chips.join('<span class="fuel-arrow">→</span>')}</div>`;
 
     el.querySelectorAll('.fuel-chip[data-stop]').forEach(btn => {
       btn.addEventListener('click', () => this.showFuelStopOptions(+btn.dataset.stop));
+    });
+    const retry2 = document.getElementById('fuelRetry2');
+    if (retry2) retry2.addEventListener('click', () => {
+      this.renderFuelPlan(true);
+      this.computeFuelPlan(this.routes[this.selectedIdx])
+        .then(() => this.renderFuelPlan(false)).catch(() => this.renderFuelPlan(false, true));
     });
   },
 

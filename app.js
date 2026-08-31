@@ -299,6 +299,15 @@ const App = {
       if (e.target.id === 'poiSheet') e.target.classList.remove('active');
     });
 
+    // Escape closes whichever sheet is up — handy on desktop, harmless on a phone.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const poi = document.getElementById('poiSheet');
+      if (poi && poi.classList.contains('active')) { poi.classList.remove('active'); return; }
+      const rep = document.getElementById('reportSheet');
+      if (rep && rep.classList.contains('active')) AlertsModule.closeReportSheet();
+    });
+
     document.getElementById('closeReportSheet').addEventListener('click', () => {
       AlertsModule.closeReportSheet();
     });

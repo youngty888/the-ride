@@ -2349,3 +2349,4 @@ a {
   .poi-actions { flex-direction: row; flex-wrap: wrap; }
   .poi-btn { width: auto; flex: 1 1 180px; }
 }
+.fuel-chip-unknown { border-left-color: var(--color-warning); background: rgba(245, 166, 35, 0.10); }

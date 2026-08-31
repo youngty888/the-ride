@@ -11,9 +11,13 @@
    ============================================ */
 
 const PoiModule = {
+  /* Overpass mirrors, tried in order. The main instance is rate-limited and
+     occasionally down, so a couple of community mirrors follow it. */
   ENDPOINTS: [
     'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter', // fallback mirror
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass.osm.ch/api/interpreter',
   ],
 
   // --- Categories (spec A3) ---
@@ -52,6 +56,7 @@ const PoiModule = {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'data=' + encodeURIComponent(body),
         }, 25000);
+        if (!res.ok) throw new Error('Overpass ' + res.status);
         const json = await res.json();
         return json.elements || [];
       } catch (e) { lastErr = e; }
