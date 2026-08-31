@@ -4,7 +4,9 @@
    ============================================ */
 
 const App = {
+  currentScreen: 'map',
   currentStopType: 'fuel',
+  stopScope: 'near',
   currentBlogCategory: 'all',
   emergencyContacts: [],
   currentRating: { safe: 0, formation: 0, comms: 0, onTime: 0, withinAbility: 0 },
@@ -16,6 +18,13 @@ const App = {
 
     // Init map
     MapModule.init();
+
+    // Phase 1 + 2 modules (planner, POIs, weather, crash data, alerts)
+    RouteModule.init();
+    RouteModule.setupUI();
+    HazardModule.hotspots = null;
+    AlertsModule.init();
+    this.setupRideButtons();
 
     // Set up navigation
     this.setupNavigation();
@@ -71,6 +80,7 @@ const App = {
   },
 
   switchScreen(screenName) {
+    this.currentScreen = screenName;
     // Update nav
     document.querySelectorAll('.nav-item').forEach((item) => {
       item.classList.toggle('active', item.dataset.screen === screenName);
@@ -104,6 +114,7 @@ const App = {
       if (MapModule.isTracking) {
         // Stop ride
         const result = MapModule.stopRideTracking();
+        MapModule.setNavigating(false);
         btn.classList.remove('recording');
         label.textContent = 'Start Ride';
         idleStats.style.display = '';
@@ -121,8 +132,12 @@ const App = {
           alert(`Ride saved: ${result.miles} miles, ${result.duration} min`);
         }
       } else {
-        // Start ride
+        // Start ride. BATTERY: this is the one place high-accuracy GPS turns
+        // on, and the one place we hit the network — everything for the route
+        // is cached up front so the ride itself needs zero requests.
         MapModule.startRideTracking();
+        MapModule.setNavigating(true);
+        AlertsModule.prefetchCorridor(RouteModule.activeRoute());
         btn.classList.add('recording');
         label.textContent = 'Stop Ride';
         idleStats.style.display = 'none';
@@ -134,6 +149,11 @@ const App = {
     document.getElementById('btnAddStop').addEventListener('click', () => {
       this.showOverlay('overlay-addstop');
       this.loadStops();
+    });
+
+    // Report a hazard — the whole flow is two taps and no typing
+    document.getElementById('btnReport').addEventListener('click', () => {
+      AlertsModule.openReportSheet();
     });
 
     // Emergency
@@ -163,9 +183,19 @@ const App = {
       });
     });
 
+    // Near me / along my route
+    document.querySelectorAll('#stopScope .toggle-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#stopScope .toggle-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.stopScope = btn.dataset.scope;
+        this.loadStops();
+      });
+    });
+
     // Open now toggle
     document.getElementById('openNowToggle').addEventListener('change', () => {
-      this.loadStops();
+      PoiModule.refreshOpenList();
     });
 
     // Emergency actions
@@ -200,72 +230,112 @@ const App = {
     document.getElementById(id).classList.remove('active');
   },
 
-  // --- Add Stop ---
+  /* --- Add Stop -> POI search (in-app cards, no Google redirect) ---
+     The old version rendered its own list and auto-opened Google Maps when
+     you tapped a row. PoiModule now owns the list and shows an in-app card. */
   async loadStops() {
     const listEl = document.getElementById('stopsList');
-    listEl.innerHTML = '<div class="loading-state">Searching nearby...</div>';
+    const cat = PoiModule.CATS[this.currentStopType] ? this.currentStopType : 'fuel';
 
-    const openNow = document.getElementById('openNowToggle').checked;
-    const result = await MapModule.findNearbyStops(this.currentStopType, openNow);
-
-    if (result.error) {
-      listEl.innerHTML = `<div class="loading-state">${result.error}</div>`;
+    if (this.stopScope === 'route') {
+      const route = RouteModule.activeRoute();
+      if (!route) {
+        listEl.innerHTML = `<div class="empty-state-container"><p class="empty-state">No route planned yet. Tap <strong>Where to?</strong> on the map to build one, then come back and I'll find ${PoiModule.CATS[cat].label.toLowerCase()} along the whole line.</p></div>`;
+        return;
+      }
+      listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching along your route…</div>';
+      try {
+        const pois = await PoiModule.searchAlongRoute(cat, route.coords, route.cum);
+        PoiModule.display(listEl, pois, `No ${PoiModule.CATS[cat].label.toLowerCase()} found within 3 miles of your route.`);
+        PoiModule.showMarkers(pois);
+      } catch (e) {
+        this.poiError(listEl, e);
+      }
       return;
     }
 
-    if (!result.stops || result.stops.length === 0) {
-      listEl.innerHTML = '<div class="loading-state">No places found nearby. Try expanding your search.</div>';
+    const loc = MapModule.currentLocation;
+    if (!loc) {
+      listEl.innerHTML = `<div class="empty-state-container"><p class="empty-state">No GPS fix yet, so I can't search around you. Allow location access, or switch to <strong>Along my route</strong> after you plan a ride.</p></div>`;
+      MapModule.requestOneFix(() => this.loadStops());
       return;
     }
 
-    // Show markers on map
-    MapModule.showStopMarkers(result.stops);
+    listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching nearby…</div>';
+    try {
+      const pois = await PoiModule.searchNearby(cat, loc.lat, loc.lon, 15);
+      PoiModule.display(listEl, pois, `No ${PoiModule.CATS[cat].label.toLowerCase()} found within 15 miles.`);
+      PoiModule.showMarkers(pois);
+    } catch (e) {
+      this.poiError(listEl, e);
+    }
+  },
 
-    // Render list
-    listEl.innerHTML = result.stops
-      .slice(0, 30)
-      .map((stop) => {
-        const openClass = stop.isOpen === true ? 'stop-open' : stop.isOpen === false ? 'stop-closed' : '';
-        const openText = stop.isOpen === true ? 'Open' : stop.isOpen === false ? 'Closed' : 'Unknown';
-        return `
-        <div class="stop-item" data-lat="${stop.lat}" data-lon="${stop.lon}">
-          <div class="stop-icon">${MapModule.getStopIcon(stop.type)}</div>
-          <div class="stop-info">
-            <div class="stop-name">${this.escapeHtml(stop.name)}</div>
-            <div class="stop-meta">
-              <span>${stop.distance} mi</span>
-              <span class="${openClass}">${openText}</span>
-            </div>
-          </div>
-          <button class="stop-navigate" data-lat="${stop.lat}" data-lon="${stop.lon}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-            </svg>
-          </button>
-        </div>
-      `;
-      })
-      .join('');
+  poiError(listEl, e) {
+    listEl.innerHTML = `<div class="err-box">Couldn't reach the map data server${e && e.message ? ' (' + this.escapeHtml(e.message) + ')' : ''}. <button type="button" class="btn-secondary" id="poiRetry">Retry</button></div>`;
+    const btn = document.getElementById('poiRetry');
+    if (btn) btn.addEventListener('click', () => this.loadStops());
+  },
 
-    // Add click handlers for navigation
-    listEl.querySelectorAll('.stop-navigate').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const lat = parseFloat(btn.dataset.lat);
-        const lon = parseFloat(btn.dataset.lon);
-        MapModule.navigateTo(lat, lon);
-      });
+  /* --- Phase 1 + 2 buttons: planner, sheets, crash layer, settings --- */
+  setupRideButtons() {
+    document.getElementById('routeBar').addEventListener('click', () => {
+      RouteModule.openPanel(RouteModule.routes.length ? 'plan' : 'plan');
     });
 
-    // Click to center map on stop
-    listEl.querySelectorAll('.stop-item').forEach((item) => {
-      item.addEventListener('click', (e) => {
-        if (e.target.closest('.stop-navigate')) return;
-        const lat = parseFloat(item.dataset.lat);
-        const lon = parseFloat(item.dataset.lon);
-        MapModule.map.setView([lat, lon], 16, { animate: true });
-        this.hideOverlay('overlay-addstop');
-      });
+    document.getElementById('btnHazardToggle').addEventListener('click', () => {
+      HazardModule.toggleLayer();
     });
+
+    document.getElementById('btnMapSettings').addEventListener('click', () => {
+      this.showOverlay('overlay-settings');
+      AlertsModule.renderSettings();
+    });
+
+    document.getElementById('closePoiSheet').addEventListener('click', () => {
+      document.getElementById('poiSheet').classList.remove('active');
+    });
+    document.getElementById('poiSheet').addEventListener('click', (e) => {
+      if (e.target.id === 'poiSheet') e.target.classList.remove('active');
+    });
+
+    document.getElementById('closeReportSheet').addEventListener('click', () => {
+      AlertsModule.closeReportSheet();
+    });
+    document.getElementById('reportSheet').addEventListener('click', (e) => {
+      if (e.target.id === 'reportSheet') AlertsModule.closeReportSheet();
+    });
+    document.querySelectorAll('.report-btn').forEach((btn) => {
+      btn.addEventListener('click', () => AlertsModule.fileReport(btn.dataset.report));
+    });
+  },
+
+  /* Reflects the planned route on the map screen's top bar. */
+  updateRouteBar() {
+    const bar = document.getElementById('routeBar');
+    const title = document.getElementById('routeBarTitle');
+    const sub = document.getElementById('routeBarSub');
+    const route = RouteModule.activeRoute();
+    if (!route || !RouteModule.to) {
+      bar.classList.remove('has-route');
+      title.textContent = 'Where to?';
+      sub.textContent = 'Plan a ride, fuel stops and all';
+      return;
+    }
+    bar.classList.add('has-route');
+    title.textContent = RouteModule.to.name;
+    const stops = RouteModule.fuelPlan ? RouteModule.fuelPlan.stops.length : 0;
+    sub.textContent = `${Geo.fmtMi(route.distanceMi)} mi · ${Geo.fmtDuration(route.durationSec)}` +
+      (stops ? ` · ${stops} fuel stop${stops === 1 ? '' : 's'}` : '');
+  },
+
+  toast(message) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('active');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove('active'), 4500);
   },
 
   // --- Emergency ---

@@ -26,6 +26,23 @@
   <div id="screen-map" class="screen active">
     <div id="map"></div>
 
+    <!-- Proximity alert banner (audio + vibration fire alongside this) -->
+    <div id="alertBanner" class="alert-banner" role="status" aria-live="assertive"></div>
+
+    <!-- Where to? / active route summary -->
+    <button type="button" class="route-bar" id="routeBar">
+      <span class="route-bar-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </span>
+      <span class="route-bar-body">
+        <span class="route-bar-title" id="routeBarTitle">Where to?</span>
+        <span class="route-bar-sub" id="routeBarSub">Plan a ride, fuel stops and all</span>
+      </span>
+      <span class="route-bar-chevron" aria-hidden="true">›</span>
+    </button>
+
+    <span id="batteryBadge" class="battery-badge" hidden></span>
+
     <!-- Top bar -->
     <div class="map-topbar">
       <div class="ride-stats" id="rideStats" style="display:none">
@@ -82,13 +99,37 @@
       </button>
     </div>
 
-    <!-- GPS center button -->
-    <button class="gps-center-btn" id="btnGpsCenter" aria-label="Center on my location">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    <!-- Left-side controls: report a hazard, one-handed, two taps total -->
+    <button type="button" class="fab fab-report" id="btnReport" aria-label="Report a hazard">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 9v5M12 17.5v.01"/>
       </svg>
+      <span>Report</span>
     </button>
+
+    <!-- Right-side map controls -->
+    <div class="map-side-controls">
+      <button class="map-side-btn" id="btnHazardToggle" aria-label="Show motorcycle crash history" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 9v5M12 17.5v.01"/>
+        </svg>
+        <span class="map-side-label">Crashes</span>
+      </button>
+      <button class="map-side-btn" id="btnMapSettings" aria-label="Ride settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 3 15a1.7 1.7 0 0 0-1.7-1.4H1a2 2 0 1 1 0-4h.3A1.7 1.7 0 0 0 3 8.4a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 8.4 3H8.5A1.7 1.7 0 0 0 10 1.3V1a2 2 0 1 1 4 0v.3A1.7 1.7 0 0 0 15.6 3a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 21 8.4v.1a1.7 1.7 0 0 0 1.7 1.5H23a2 2 0 1 1 0 4h-.3a1.7 1.7 0 0 0-1.3 1.1z"/>
+        </svg>
+        <span class="map-side-label">Settings</span>
+      </button>
+      <button class="map-side-btn" id="btnGpsCenter" aria-label="Center on my location">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        </svg>
+        <span class="map-side-label">Me</span>
+      </button>
+    </div>
   </div>
 
   <!-- ===== ADD STOP OVERLAY ===== -->
@@ -101,12 +142,21 @@
     </div>
     <div class="overlay-content">
       <div class="filter-chips" id="stopFilters">
-        <button class="chip active" data-type="fuel">Gas</button>
-        <button class="chip" data-type="restaurant">Food</button>
-        <button class="chip" data-type="cafe">Coffee</button>
-        <button class="chip" data-type="car_repair">Mechanic</button>
-        <button class="chip" data-type="convenience">Store</button>
-        <button class="chip" data-type="toilets">Restroom</button>
+        <button class="chip active" data-type="fuel">⛽ Gas</button>
+        <button class="chip" data-type="fast_food">🍟 Fast Food</button>
+        <button class="chip" data-type="restaurant">🍽 Sit-Down</button>
+        <button class="chip" data-type="cafe">☕ Coffee</button>
+        <button class="chip" data-type="hotel">🛏 Hotel</button>
+        <button class="chip" data-type="campsite">⛺ Camping</button>
+        <button class="chip" data-type="mechanic">🔧 Mechanic</button>
+        <button class="chip" data-type="toilets">🚻 Restroom</button>
+        <button class="chip" data-type="store">🛒 Store</button>
+        <button class="chip" data-type="viewpoint">🏞 Viewpoint</button>
+        <button class="chip" data-type="hospital">🏥 Hospital</button>
+      </div>
+      <div class="stop-scope" id="stopScope">
+        <button type="button" class="toggle-btn active" data-scope="near">Near me</button>
+        <button type="button" class="toggle-btn" data-scope="route">Along my route</button>
       </div>
       <div class="open-now-toggle">
         <label class="switch">
@@ -471,6 +521,142 @@
     <div class="overlay-content" id="packRatingContent"></div>
   </div>
 
+  <!-- ===== ROUTE PLANNER OVERLAY ===== -->
+  <div id="overlay-plan" class="overlay">
+    <div class="overlay-header">
+      <button class="overlay-close" id="closePlan" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <h2>Plan a Ride</h2>
+    </div>
+    <div class="overlay-content">
+      <div class="community-toggle" id="planTabs">
+        <button type="button" class="toggle-btn active" data-view="plan">Plan</button>
+        <button type="button" class="toggle-btn" data-view="trips">Trip Library</button>
+        <button type="button" class="toggle-btn" data-view="saved">Saved</button>
+      </div>
+
+      <!-- ---- Plan ---- -->
+      <div id="planView">
+        <form class="form" id="planForm" autocomplete="off">
+          <div class="form-group">
+            <label for="planFrom">Starting from</label>
+            <div class="input-with-btn">
+              <input type="text" id="planFrom" placeholder="Tucson, AZ" inputmode="search">
+              <button type="button" class="btn-secondary input-btn" id="btnUseGps">Use My Location</button>
+            </div>
+            <div class="geo-results" id="planFromResults"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="planTo">Where to</label>
+            <input type="text" id="planTo" placeholder="Search a town, park, or address" inputmode="search">
+            <div class="geo-results" id="planToResults"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Stops along the way</label>
+            <div id="viaList"></div>
+            <button type="button" class="btn-secondary" id="btnAddVia">+ Add a stop</button>
+          </div>
+
+          <div class="form-group">
+            <label for="planDepart">Rolling out at</label>
+            <input type="datetime-local" id="planDepart">
+            <p class="field-note">Weather and sun glare are checked for the time you'll actually be at each point.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="planBike">Bike</label>
+            <select id="planBike"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="planPack">Riding with</label>
+            <select id="planPack"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="planReserve">Fuel reserve rule</label>
+            <input type="range" min="65" max="90" step="5" id="planReserve" class="range-input">
+            <p class="field-note" id="planReserveLabel"></p>
+          </div>
+
+          <button type="submit" class="btn-primary btn-large" id="btnPlanRoute">Build My Route</button>
+        </form>
+        <div class="plan-status" id="planStatus"></div>
+        <div id="planResults"></div>
+      </div>
+
+      <!-- ---- Trip library ---- -->
+      <div id="tripsView" style="display:none">
+        <div id="tripsList"></div>
+      </div>
+
+      <!-- ---- Saved routes ---- -->
+      <div id="savedView" style="display:none">
+        <div id="savedRoutesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RIDE SETTINGS OVERLAY ===== -->
+  <div id="overlay-settings" class="overlay">
+    <div class="overlay-header">
+      <button class="overlay-close" id="closeSettings" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <h2>Ride Settings</h2>
+    </div>
+    <div class="overlay-content" id="settingsBody"></div>
+  </div>
+
+  <!-- ===== POI / HAZARD DETAIL SHEET (in-app, never redirects out) ===== -->
+  <div id="poiSheet" class="sheet" role="dialog" aria-label="Details">
+    <div class="sheet-panel">
+      <div class="sheet-grabber"></div>
+      <button class="sheet-close" id="closePoiSheet" aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="sheet-body" id="poiSheetBody"></div>
+    </div>
+  </div>
+
+  <!-- ===== REPORT SHEET — two taps, no typing ===== -->
+  <div id="reportSheet" class="sheet" role="dialog" aria-label="Report a hazard">
+    <div class="sheet-panel">
+      <div class="sheet-grabber"></div>
+      <button class="sheet-close" id="closeReportSheet" aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="sheet-body">
+        <h3 class="sheet-title">What did you see?</h3>
+        <p class="sheet-sub">One tap files it right here. No typing, no confirmation.</p>
+        <div class="report-grid">
+          <button type="button" class="report-btn report-btn-officer" data-report="officer">
+            <span class="report-btn-icon">👮</span><span class="report-btn-label">Officer</span><span class="report-btn-ttl">45 min</span>
+          </button>
+          <button type="button" class="report-btn report-btn-crash" data-report="crash">
+            <span class="report-btn-icon">💥</span><span class="report-btn-label">Crash</span><span class="report-btn-ttl">2 hr</span>
+          </button>
+          <button type="button" class="report-btn report-btn-hazard" data-report="hazard">
+            <span class="report-btn-icon">⚠</span><span class="report-btn-label">Road Hazard</span><span class="report-btn-ttl">12 hr</span>
+          </button>
+          <button type="button" class="report-btn report-btn-closure" data-report="closure">
+            <span class="report-btn-icon">🚧</span><span class="report-btn-label">Closed</span><span class="report-btn-ttl">24 hr</span>
+          </button>
+        </div>
+        <p class="report-legal">
+          Ride legal, ride aware. Noting an officer you actually saw in public is
+          factual speech and <a href="https://www.aclunorcal.org/news/waze-blog/" target="_blank" rel="noopener">generally protected</a>.
+          This is a sighting log, not a way to run from anybody.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <!-- ===== BOTTOM NAV ===== -->
   <nav class="bottom-nav">
     <button class="nav-item active" data-screen="map" aria-label="Map">
@@ -514,7 +700,13 @@
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="storage.js"></script>
+  <script src="geo.js"></script>
   <script src="map.js"></script>
+  <script src="route.js"></script>
+  <script src="poi.js"></script>
+  <script src="weather.js"></script>
+  <script src="hazards.js"></script>
+  <script src="alerts.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -15,6 +15,9 @@ const MapModule = {
   rideDistance: 0,
   lastPosition: null,
   speed: 0,
+  lastHeading: null,
+  paused: false,          // set by AlertsModule on Page Visibility change
+  navigating: false,      // high-accuracy GPS only while true
   ridePath: null,
   ridePathCoords: [],
 
@@ -40,21 +43,61 @@ const MapModule = {
     this.startGPS();
   },
 
-  // --- GPS ---
+  /* --- GPS ---
+     BATTERY: this is the ONE and ONLY watchPosition in the whole app.
+     Nothing else may open a watch or poll getCurrentPosition on a timer.
+     High accuracy is requested only while actively navigating a route;
+     otherwise we accept coarser, cheaper fixes and reuse cached ones. */
   startGPS() {
     if (!navigator.geolocation) {
       console.warn('Geolocation not supported');
       return;
     }
+    this.restartWatch();
+  },
 
+  gpsOptions() {
+    const saver = typeof AlertsModule !== 'undefined' && AlertsModule.batteryHeavy && AlertsModule.batteryHeavy();
+    if (saver) {
+      // Cheapest useful tier: coarse fixes, happily reuse a 30 s old one.
+      return { enableHighAccuracy: false, maximumAge: 30000, timeout: 20000 };
+    }
+    if (this.navigating) {
+      return { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 };
+    }
+    return { enableHighAccuracy: false, maximumAge: 15000, timeout: 15000 };
+  },
+
+  restartWatch() {
+    if (!navigator.geolocation) return;
+    if (this.watchId != null) navigator.geolocation.clearWatch(this.watchId);
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => this.onPositionUpdate(pos),
       (err) => console.warn('GPS error:', err.message),
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 10000,
-      }
+      this.gpsOptions()
+    );
+  },
+
+  setNavigating(on) {
+    if (this.navigating === !!on) return;
+    this.navigating = !!on;
+    this.restartWatch();
+  },
+
+  /* One-shot fix for a user-initiated action (Use My Location, Center on me).
+     Never called on a timer. */
+  requestOneFix(cb) {
+    if (!navigator.geolocation) return;
+    if (this._oneFixPending) return;
+    this._oneFixPending = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this._oneFixPending = false;
+        this.onPositionUpdate(pos);
+        if (cb) cb(this.currentLocation);
+      },
+      () => { this._oneFixPending = false; },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
     );
   },
 
@@ -62,10 +105,23 @@ const MapModule = {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const accuracy = pos.coords.accuracy || 0;
-    this.currentLocation = { lat, lon, accuracy };
     this.speed = pos.coords.speed ? Math.round(pos.coords.speed * 2.23694) : 0; // m/s to mph
+    if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
+      this.lastHeading = pos.coords.heading;
+    } else if (this.currentLocation && typeof Geo !== 'undefined') {
+      const moved = Geo.distMi(this.currentLocation.lat, this.currentLocation.lon, lat, lon);
+      if (moved > 0.01) this.lastHeading = Geo.bearing(this.currentLocation.lat, this.currentLocation.lon, lat, lon);
+    }
+    this.currentLocation = { lat, lon, accuracy, speedMph: this.speed, heading: this.lastHeading };
 
-    this.updateUserMarker(lat, lon, accuracy);
+    // BATTERY: marker redraws are skipped while the page is hidden or the map
+    // screen isn't the one on screen.
+    if (!this.paused && App.currentScreen === 'map') {
+      this.updateUserMarker(lat, lon, accuracy);
+    }
+
+    // Local, network-free proximity check against the prefetched cache.
+    if (typeof AlertsModule !== 'undefined') AlertsModule.onPosition(this.currentLocation);
 
     // If tracking a ride, update distance
     if (this.isTracking) {
@@ -105,19 +161,10 @@ const MapModule = {
         animate: true,
       });
     } else {
-      // Try one-shot position
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          this.map.setView([lat, lon], 16, { animate: true });
-          this.onPositionUpdate(pos);
-        },
-        (err) => {
-          alert('Unable to get your location. Make sure location services are enabled.');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+      this.requestOneFix((loc) => {
+        if (loc) this.map.setView([loc.lat, loc.lon], 16, { animate: true });
+        else App.toast('Unable to get your location. Make sure location services are enabled.');
+      });
     }
   },
 

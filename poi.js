@@ -454,10 +454,30 @@ const PoiModule = {
     this.sheetPoi = null;
   },
 
+  /* Store the full result set, then render it through the "Open Now" filter.
+     Keeping the unfiltered set means toggling Open Now costs nothing — no
+     second network call. */
+  display(listEl, list, emptyMsg) {
+    this.allResults = list;
+    this.lastEmptyMsg = emptyMsg;
+    this.lastListEl = listEl;
+    const openOnly = (document.getElementById('openNowToggle') || {}).checked;
+    const shown = openOnly
+      ? list.filter(p => {
+          const st = this.parseHours(p.hours, new Date()).state;
+          return st !== 'closed';
+        })
+      : list;
+    const msg = openOnly && list.length && !shown.length
+      ? 'Everything nearby is closed right now. Switch off "Open Now Only" to see them anyway.'
+      : emptyMsg;
+    this.renderList(listEl, shown, msg);
+  },
+
   refreshOpenList() {
-    const listEl = document.getElementById('stopsList');
-    if (listEl && document.getElementById('overlay-addstop').classList.contains('active')) {
-      this.renderList(listEl, this.rank(this.lastResults));
+    const listEl = this.lastListEl || document.getElementById('stopsList');
+    if (listEl && this.allResults && document.getElementById('overlay-addstop').classList.contains('active')) {
+      this.display(listEl, this.allResults, this.lastEmptyMsg);
     }
   },
 };
