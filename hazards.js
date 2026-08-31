@@ -155,6 +155,32 @@ const HazardModule = {
   },
 
   /* ---------- cards ---------- */
+
+  /* FARS uses bureaucratic label text. Riders need plain English. */
+  COLL_PLAIN: {
+    'The First Harmful Event was Not a Collision with a Motor Vehicle in Transport': 'Single vehicle — no other car involved',
+    'Angle': 'Angle collision — someone crossed or turned across the rider',
+    'Front-to-Rear': 'Rear-end',
+    'Front-to-Front': 'Head-on',
+    'Sideswipe - Same Direction': 'Sideswipe, same direction',
+    'Sideswipe - Opposite Direction': 'Sideswipe, oncoming',
+    'Not Reported': 'Not reported',
+    'Reported as Unknown': 'Unknown',
+  },
+  HARM_PLAIN: {
+    'Motor Vehicle In-Transport': 'Another moving vehicle',
+    'Rollover/Overturn': 'Went down / rolled over',
+    'Guardrail Face': 'Guardrail',
+    'Concrete Traffic Barrier': 'Concrete barrier',
+    'Bridge Rail (Includes parapet)': 'Bridge rail',
+    'Tree (Standing Only)': 'Tree',
+    'Fell/Jumped from Vehicle': 'Rider came off the bike',
+    'Other Object (not fixed)': 'Loose object in the road',
+    'Other Fixed Object': 'A fixed roadside object',
+  },
+  plainColl(v) { return v ? (this.COLL_PLAIN[v] || v) : '—'; },
+  plainHarm(v) { return v ? (this.HARM_PLAIN[v] || v) : '—'; },
+
   hourLabel(h) {
     if (h == null) return 'unknown time';
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -174,8 +200,8 @@ const HazardModule = {
       </div>
       <div class="hz-count">${h.n} fatal motorcycle crashes here, 2021-2023</div>
       <div class="poi-facts">
-        <div class="poi-fact"><span class="poi-fact-k">Most common</span><span class="poi-fact-v">${App.escapeHtml(h.coll || '—')}</span></div>
-        <div class="poi-fact"><span class="poi-fact-k">First thing hit</span><span class="poi-fact-v">${App.escapeHtml(h.top || '—')}</span></div>
+        <div class="poi-fact"><span class="poi-fact-k">What happened</span><span class="poi-fact-v">${App.escapeHtml(this.plainColl(h.coll))}</span></div>
+        <div class="poi-fact"><span class="poi-fact-k">First thing hit</span><span class="poi-fact-v">${App.escapeHtml(this.plainHarm(h.top))}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">Worst hour</span><span class="poi-fact-v">${this.hourLabel(h.hr)}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">In the dark</span><span class="poi-fact-v">${Math.round((h.dark || 0) * 100)}% of them</span></div>
       </div>
@@ -211,7 +237,7 @@ const HazardModule = {
         <div class="poi-fact"><span class="poi-fact-k">When</span><span class="poi-fact-v">${this.monthName(p.mo)} ${p.y}, ${this.dowName(p.dw)} around ${this.hourLabel(p.hr)}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">Light</span><span class="poi-fact-v">${App.escapeHtml(p.lgt || '—')}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">Weather</span><span class="poi-fact-v">${App.escapeHtml(p.wx || '—')}</span></div>
-        <div class="poi-fact"><span class="poi-fact-k">Hit</span><span class="poi-fact-v">${App.escapeHtml(p.harm || '—')}</span></div>
+        <div class="poi-fact"><span class="poi-fact-k">Hit</span><span class="poi-fact-v">${App.escapeHtml(this.plainHarm(p.harm))}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">Where</span><span class="poi-fact-v">${App.escapeHtml(p.itype || '—')} · ${App.escapeHtml(p.rd || '—')} · ${App.escapeHtml(p.rur || '')}</span></div>
         <div class="poi-fact"><span class="poi-fact-k">Fatalities</span><span class="poi-fact-v">${p.fat}</span></div>
       </div>
@@ -277,7 +303,7 @@ const HazardModule = {
             <span class="hz-row-badge">${h.n}</span>
             <span class="hz-row-body">
               <span class="hz-row-name">${App.escapeHtml(h.way || 'Unnamed road')}</span>
-              <span class="hz-row-meta">Mile ${Math.round(h.routeMile)} · ${App.escapeHtml(h.cty || '')} Co, ${App.escapeHtml(h.st)} · ${App.escapeHtml(h.coll || '')}</span>
+              <span class="hz-row-meta">Mile ${Math.round(h.routeMile)} · ${App.escapeHtml(h.cty || '')} Co, ${App.escapeHtml(h.st)} · ${App.escapeHtml(this.plainColl(h.coll))}</span>
             </span>
             <span class="poi-row-chevron">›</span>
           </button>`).join('')}
