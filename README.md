@@ -33,3 +33,14 @@ A motorcycle pack riding app built for real riders. Large buttons for gloved han
 ## License
 
 MIT
+
+## Data sources
+
+- Routing: OSRM (https://router.project-osrm.org/) on OpenStreetMap data
+- Geocoding: Nominatim (https://nominatim.openstreetmap.org/)
+- Places: Overpass API (https://overpass-api.de/) on OpenStreetMap data
+- Weather: NOAA / National Weather Service (https://api.weather.gov/)
+- Motorcycle crash history: NHTSA Fatality Analysis Reporting System (FARS),
+  2021-2023, motorcycle-involved crashes only
+  (https://www.nhtsa.gov/file-downloads?p=nhtsa/downloads/FARS/)
+- Map tiles: (c) OpenStreetMap contributors
