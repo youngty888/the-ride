@@ -48,7 +48,7 @@
 const AlertsModule = {
   /* Stub for the future server. When a backend exists, set this to the POST
      URL and flushOutbox() starts working — nothing else needs to change.
-     Until then every queued report just sits in localStorage. */
+     Until then every queued report just sits in the local Storage layer. */
   SYNC_ENDPOINT: null,
 
   TYPES: {

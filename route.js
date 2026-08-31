@@ -5,7 +5,7 @@
    Routing             : OSRM public server, alternatives=true
    Fuel planning       : walks the decoded polyline against the bike's real
                          effective range and finds actual stations via Overpass
-   Persistence         : Storage (localStorage with in-memory fallback)
+   Persistence         : Storage module (browser storage with in-memory fallback)
 
    No API keys. No build step. Nothing here fires a request per keystroke.
    ============================================ */
