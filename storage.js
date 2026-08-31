@@ -32,6 +32,15 @@ const Storage = {
     RATINGS: 'rideflow_ratings',
     EVENTS: 'rideflow_events',
     SETTINGS: 'rideflow_settings',
+    // --- Phase 1 / 2 additions (same rideflow_ prefix) ---
+    ROUTES: 'rideflow_routes',            // saved routes
+    TRIP_REVIEWS: 'rideflow_trip_reviews',// ratings/comments on recommended trips
+    POI_PREFS: 'rideflow_poi_prefs',      // favorite / blocked brands, categories, max detour
+    GEOCACHE: 'rideflow_geocache',        // Nominatim result cache
+    WEATHER_CACHE: 'rideflow_weather_cache',
+    HAZARD_REPORTS: 'rideflow_hazard_reports',
+    HAZARD_OUTBOX: 'rideflow_hazard_outbox', // stub sync queue, see alerts.js
+    RIDE_SETTINGS: 'rideflow_ride_settings', // battery saver, refresh interval, wake lock
   },
 
   // --- Generic ---
@@ -190,6 +199,84 @@ const Storage = {
     const events = this.getEvents();
     events.push(event);
     return this.set(this.KEYS.EVENTS, events);
+  },
+
+  // --- Saved Routes (Phase 1) ---
+  getRoutes() {
+    return this.get(this.KEYS.ROUTES, []);
+  },
+
+  getRoute(id) {
+    return this.getRoutes().find(r => r.id === id);
+  },
+
+  saveRoute(route) {
+    const routes = this.getRoutes();
+    const idx = routes.findIndex(r => r.id === route.id);
+    if (idx >= 0) routes[idx] = route;
+    else routes.unshift(route);
+    return this.set(this.KEYS.ROUTES, routes);
+  },
+
+  deleteRoute(id) {
+    return this.set(this.KEYS.ROUTES, this.getRoutes().filter(r => r.id !== id));
+  },
+
+  // --- Trip library reviews ---
+  getTripReviews(tripId) {
+    const all = this.get(this.KEYS.TRIP_REVIEWS, {});
+    return tripId ? (all[tripId] || []) : all;
+  },
+
+  saveTripReview(tripId, review) {
+    const all = this.get(this.KEYS.TRIP_REVIEWS, {});
+    if (!all[tripId]) all[tripId] = [];
+    all[tripId].unshift(review);
+    return this.set(this.KEYS.TRIP_REVIEWS, all);
+  },
+
+  // --- POI preferences ---
+  getPoiPrefs() {
+    return this.get(this.KEYS.POI_PREFS, {
+      favorites: [],       // lowercase brand/name fragments to rank first
+      blocked: [],         // lowercase brand/name fragments to hide
+      preferredCats: [],   // category ids shown by default in along-route mode
+      maxDetourMi: 5,
+    });
+  },
+
+  savePoiPrefs(prefs) {
+    return this.set(this.KEYS.POI_PREFS, prefs);
+  },
+
+  // --- Hazard reports (rider-reported, single device for now) ---
+  getHazardReports() {
+    return this.get(this.KEYS.HAZARD_REPORTS, []);
+  },
+
+  saveHazardReport(report) {
+    const reports = this.getHazardReports();
+    reports.unshift(report);
+    return this.set(this.KEYS.HAZARD_REPORTS, reports);
+  },
+
+  setHazardReports(reports) {
+    return this.set(this.KEYS.HAZARD_REPORTS, reports);
+  },
+
+  // --- Ride / battery settings ---
+  getRideSettings() {
+    return this.get(this.KEYS.RIDE_SETTINGS, {
+      batterySaver: false,     // user-visible toggle
+      refreshIntervalMin: 0,   // 0 = off (default). 5 or 15 allowed.
+      wakeLock: false,         // off by default — biggest battery cost
+      voiceAlerts: true,
+      reserveFactor: 0.80,     // fuel reserve, 0.65 - 0.90
+    });
+  },
+
+  saveRideSettings(s) {
+    return this.set(this.KEYS.RIDE_SETTINGS, s);
   },
 
   // --- Utility ---
