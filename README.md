@@ -1,6 +1,6 @@
 # The Ride
 
-A motorcycle pack riding app built for real riders. Large buttons for gloved hands, dark mode for sunlight readability, and features that matter on the road.
+An intuitive social network built for motorcycle riders. Connect with riders, plan group rides, discover events, share routes, and build your riding community.
 
 ## Features
 
