@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="robots" content="noindex">
+  <title>SICC RIDE — Rider access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="brand-panel" aria-label="SICC RIDE">
+      <div class="brand-mark">SR</div>
+      <p class="eyebrow">BY SIC CYCLES</p>
+      <h1>SICC<br>RIDE</h1>
+      <p class="brand-copy">Your motorcycle. Your route. Your pack.</p>
+      <div class="road-line" aria-hidden="true"></div>
+    </section>
+    <section class="auth-panel">
+      <div class="pilot-badge">INVITATION-ONLY PILOT</div>
+      <form class="auth-form" data-view="login">
+        <header><p class="step">RIDER ACCESS</p><h2>Get back on the road.</h2><p>Sign in with the email connected to your invitation.</p></header>
+        <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="12" required></label>
+        <button class="primary" type="submit">Sign in</button>
+        <button class="text-action" type="button" data-show="recovery">Forgot password?</button>
+        <p class="support">No invitation yet? Public registration is closed during testing.</p>
+      </form>
+      <form class="auth-form" data-view="invite" hidden>
+        <header><p class="step">INVITATION ACCEPTED</p><h2>Secure your rider account.</h2><p>Create a strong password for this invited account.</p></header>
+        <label>New password<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+        <label>Confirm password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required></label>
+        <p class="password-rule">Use at least 12 characters. A password manager is recommended.</p>
+        <button class="primary" type="submit">Save password</button>
+      </form>
+      <form class="auth-form" data-view="recovery" hidden>
+        <header><p class="step">ACCOUNT RECOVERY</p><h2>Reset your password.</h2><p>We’ll send a private reset link if the address belongs to an account.</p></header>
+        <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+        <button class="primary" type="submit">Send reset link</button>
+        <button class="text-action" type="button" data-show="login">Back to sign in</button>
+        <p class="support">For privacy, the response will not reveal whether an account exists.</p>
+      </form>
+      <div id="authStatus" class="auth-status" role="status" aria-live="polite" hidden></div>
+      <button id="signOutButton" class="text-action" type="button" hidden>Sign out</button>
+      <footer>Ride aware. Protect your account. Never share a login code.</footer>
+    </section>
+  </main>
+  <script src="supabase-config.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>
