@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" class="auth-pending">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,6 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="Motorcycle group riding app with maps, pack tracking, mileage, and emergency features">
   <title>The Ride — Motorcycle Pack Riding</title>
+  <style>.auth-pending body{visibility:hidden}</style>
+  <script defer src="supabase-config.js?v=72624a2"></script>
+  <script defer src="auth-guard.js?v=1"></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
