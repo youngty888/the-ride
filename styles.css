@@ -1506,6 +1506,13 @@ a {
   background: color-mix(in srgb, var(--color-error) 12%, transparent);
 }
 
+.profile-account {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
 /* --- Leaderboard --- */
 .leaderboard-section {
   margin-top: var(--space-6);

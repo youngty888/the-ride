@@ -20,8 +20,11 @@
       apikey: config.anonKey,
       Authorization: `Bearer ${session.access_token}`
     }
-  }).then(response => {
+  }).then(async response => {
     if (!response.ok) throw new Error('Invalid session');
+    const user = await response.json();
+    session.user = user;
+    sessionStorage.setItem(sessionKey, JSON.stringify(session));
     document.documentElement.classList.remove('auth-pending');
   }).catch(() => {
     sessionStorage.removeItem(sessionKey);

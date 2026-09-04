@@ -1163,6 +1163,10 @@ const App = {
   renderProfile() {
     const profile = Storage.getProfile();
     const contentEl = document.getElementById('profileContent');
+    let accountEmail = '';
+    try {
+      accountEmail = JSON.parse(sessionStorage.getItem('sicc-ride-auth-session'))?.user?.email || '';
+    } catch {}
 
     const initials = (profile.name || 'R')[0].toUpperCase();
 
@@ -1175,6 +1179,7 @@ const App = {
         <div class="profile-name">${this.escapeHtml(profile.name || 'Rider')}</div>
         <div class="profile-level ${profile.level || 'Novice'}">${profile.level || 'Novice'}</div>
         <div class="profile-region">${this.escapeHtml(profile.region || 'Set your region')}</div>
+        ${accountEmail ? `<div class="profile-account">Signed in as ${this.escapeHtml(accountEmail)}</div>` : ''}
       </div>
 
       <div class="profile-stats">
