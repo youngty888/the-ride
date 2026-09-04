@@ -288,3 +288,14 @@ The crash data was already committed and was not regenerated.
 On the legality of noting police you actually saw in public, see the
 [ACLU of Northern California](https://www.aclunorcal.org/news/waze-blog/), linked
 inside the Report sheet.
+## 2026-09-04 - Owner pilot Shop and revenue path
+
+- Added the **RIDE By SIC Cycles** customer-facing lockup.
+- Added a public Shop screen to the advanced rider build without exposing private service operations.
+- Added the verified ThunderMax published part price, Garage-assisted fitment context, and Tucson installation positioning.
+- Added an account-isolated quote list and local draft record.
+- Added a prefilled install-quote email to `info@siccycles.com` and one-tap calling to `(520) 420-4214`.
+- Kept map startup failures from blocking Garage, Shop, Profile, and navigation.
+- Verified the complete quote flow at 390x844 and 1280x800 in installed Microsoft Edge.
+
+---

@@ -10,21 +10,29 @@ const App = {
   currentBlogCategory: 'all',
   emergencyContacts: [],
   currentRating: { safe: 0, formation: 0, comms: 0, onTime: 0, withinAbility: 0 },
+  shopCategory: 'all',
+  shopProducts: [
+    { id: 'thundermax', name: 'ThunderMax Engine Control Module Kit', category: 'performance', price: 1170.95, fit: 'Fitment must be confirmed for your motorcycle', install: 'Quote required', icon: 'TM', description: 'The RIDE flagship performance path. Submit your motorcycle details for fitment and installed pricing from SIC Cycles.' },
+    { id: 'service', name: 'Motorcycle service request', category: 'service', price: null, fit: 'Appointment request - Tucson, Arizona', install: 'Quote required', icon: 'SVC', description: 'Describe what your motorcycle needs. SIC Cycles confirms scope, availability, and price privately.' }
+  ],
 
   // --- Init ---
   init() {
     // Seed demo data on first load
     Storage.seedDemoData();
 
-    // Init map
-    MapModule.init();
-
-    // Phase 1 + 2 modules (planner, POIs, weather, crash data, alerts)
-    RouteModule.init();
-    RouteModule.setupUI();
-    HazardModule.hotspots = null;
-    AlertsModule.init();
-    this.setupRideButtons();
+    // Map features depend on third-party assets. Keep the rest of the rider app
+    // usable if those assets are unavailable on a weak or offline connection.
+    try {
+      MapModule.init();
+      RouteModule.init();
+      RouteModule.setupUI();
+      HazardModule.hotspots = null;
+      AlertsModule.init();
+      this.setupRideButtons();
+    } catch (error) {
+      console.warn('Map features are temporarily unavailable.', error);
+    }
 
     // Set up navigation
     this.setupNavigation();
@@ -52,6 +60,7 @@ const App = {
 
     // Set up profile
     this.setupProfile();
+    this.setupShop();
 
     // Render initial screens
     this.renderGarage();
@@ -59,6 +68,7 @@ const App = {
     this.renderBlog();
     this.renderEvents();
     this.renderProfile();
+    this.renderShop();
     this.updateTotalMiles();
 
     // Check for profile setup
@@ -1244,6 +1254,104 @@ const App = {
     document.getElementById('lbNational').addEventListener('click', () => {
       this.setLeaderboardTab('national');
     });
+  },
+
+  setupShop() {
+    document.getElementById('closeShopDetail')?.addEventListener('click', () => this.hideOverlay('overlay-shop-detail'));
+    document.getElementById('closeCart')?.addEventListener('click', () => this.hideOverlay('overlay-cart'));
+    document.getElementById('btnCart')?.addEventListener('click', () => { this.renderCart(); this.showOverlay('overlay-cart'); });
+    document.getElementById('btnBookInstall')?.addEventListener('click', () => this.openInstallRequest());
+    document.getElementById('btnShopGarage')?.addEventListener('click', () => this.switchScreen('garage'));
+    document.querySelectorAll('[data-product]').forEach(button => button.addEventListener('click', () => this.openShopProduct(button.dataset.product)));
+    document.querySelectorAll('#serviceRail [data-category]').forEach(button => button.addEventListener('click', () => {
+      this.shopCategory = button.dataset.category;
+      document.querySelectorAll('#serviceRail button').forEach(item => item.classList.toggle('active', item === button));
+      this.renderShopProducts();
+    }));
+    document.querySelectorAll('#serviceRail [data-link]').forEach(button => button.addEventListener('click', () => window.open(button.dataset.link, '_blank', 'noopener')));
+  },
+
+  renderShop() {
+    const bike = Storage.getBikes()[0];
+    const bikeName = document.getElementById('shopBikeName');
+    if (bikeName) bikeName.textContent = bike ? `${bike.year || ''} ${bike.make || ''} ${bike.model || ''}`.trim() : 'Add a bike to check fit';
+    this.renderShopProducts();
+    this.updateCartCount();
+  },
+
+  renderShopProducts() {
+    const target = document.getElementById('shopProducts');
+    if (!target) return;
+    const products = this.shopCategory === 'all' ? this.shopProducts : this.shopProducts.filter(product => product.category === this.shopCategory);
+    target.innerHTML = products.map(product => `
+      <button class="shop-product-row" data-shop-id="${product.id}">
+        <span class="shop-product-icon">${product.icon}</span>
+        <span class="shop-product-copy"><strong>${this.escapeHtml(product.name)}</strong><small>${this.escapeHtml(product.fit)}</small></span>
+        <span class="shop-product-price">${product.price !== null ? '$' + product.price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 'Quote'}<small>${product.install}</small></span>
+        <span class="row-chevron">&rsaquo;</span>
+      </button>`).join('') || '<p class="empty-state">More compatible options are being curated.</p>';
+    target.querySelectorAll('[data-shop-id]').forEach(button => button.addEventListener('click', () => this.openShopProduct(button.dataset.shopId)));
+  },
+
+  openShopProduct(id) {
+    const product = this.shopProducts.find(item => item.id === id);
+    if (!product) return;
+    const target = document.getElementById('shopDetailContent');
+    target.innerHTML = `<div class="shop-detail-mark">${product.icon}</div><h2>${this.escapeHtml(product.name)}</h2><p>${this.escapeHtml(product.description)}</p><div class="detail-price"><span>Published part price</span><strong>${product.price !== null ? '$' + product.price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 'Not published'}</strong></div><div class="detail-price"><span>Fitment / service</span><strong>${product.install}</strong></div><p class="fit-note">${this.escapeHtml(product.fit)}<br>No appointment or installed price is promised until SIC Cycles confirms it.</p><button class="btn-primary btn-large" id="addShopItem">Add to quote request</button>`;
+    document.getElementById('addShopItem').addEventListener('click', () => {
+      const cart = Storage.getCart();
+      if (!cart.includes(id)) cart.push(id);
+      Storage.saveCart(cart);
+      this.updateCartCount();
+      this.hideOverlay('overlay-shop-detail');
+    });
+    this.showOverlay('overlay-shop-detail');
+  },
+
+  updateCartCount() {
+    const count = document.getElementById('cartCount');
+    if (count) count.textContent = Storage.getCart().length;
+  },
+
+  renderCart() {
+    const items = Storage.getCart().map(id => this.shopProducts.find(product => product.id === id)).filter(Boolean);
+    const target = document.getElementById('cartContent');
+    target.innerHTML = items.length ? `${items.map(product => `<div class="cart-row"><div><strong>${this.escapeHtml(product.name)}</strong><small>${this.escapeHtml(product.install)}</small></div><button data-remove-cart="${product.id}">Remove</button></div>`).join('')}<button class="btn-primary btn-large" id="cartBookInstall">Email quote to SIC Cycles</button><a class="btn-secondary btn-large shop-call" href="tel:+15204204214">Call (520) 420-4214</a>` : '<div class="empty-state-container"><p class="empty-state">Your quote list is empty. Add a verified product or service request first.</p></div>';
+    target.querySelectorAll('[data-remove-cart]').forEach(button => button.addEventListener('click', () => {
+      Storage.saveCart(Storage.getCart().filter(id => id !== button.dataset.removeCart));
+      this.updateCartCount();
+      this.renderCart();
+    }));
+    document.getElementById('cartBookInstall')?.addEventListener('click', () => this.openInstallRequest());
+  },
+
+  openInstallRequest() {
+    const items = Storage.getCart();
+    if (!items.length) {
+      this.showOverlay('overlay-cart');
+      this.renderCart();
+      return;
+    }
+    const profile = Storage.getProfile();
+    const bike = Storage.getBikes()[0] || null;
+    const products = items.map(id => this.shopProducts.find(product => product.id === id)).filter(Boolean);
+    const request = { id: Storage.genId(), createdAt: new Date().toISOString(), items, rider: profile.name, bike, status: 'email-opened' };
+    Storage.saveInstallRequest(request);
+    Storage.saveCart([]);
+    this.updateCartCount();
+    this.hideOverlay('overlay-cart');
+    const bikeLine = bike ? `${bike.year || ''} ${bike.make || ''} ${bike.model || ''}`.trim() : 'Motorcycle details not added yet';
+    const body = [
+      'RIDE By SIC Cycles - install quote request',
+      '',
+      `Rider: ${profile.name || 'Rider'}`,
+      `Motorcycle: ${bikeLine}`,
+      `Requested: ${products.map(product => product.name).join(', ')}`,
+      '',
+      'Please contact me to confirm fitment, installed price, and availability.'
+    ].join('\n');
+    const mailtoUrl = `mailto:info@siccycles.com?subject=${encodeURIComponent('RIDE install quote request')}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoUrl, '_self');
   },
 
   async signOut() {

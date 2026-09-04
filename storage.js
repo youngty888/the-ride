@@ -68,6 +68,8 @@ const Storage = {
     HAZARD_REPORTS: 'rideflow_hazard_reports',
     HAZARD_OUTBOX: 'rideflow_hazard_outbox', // stub sync queue, see alerts.js
     RIDE_SETTINGS: 'rideflow_ride_settings', // battery saver, refresh interval, wake lock
+    CART: 'rideflow_shop_cart',
+    INSTALL_REQUESTS: 'rideflow_install_requests',
   },
 
   // --- Generic ---
@@ -309,6 +311,20 @@ const Storage = {
 
   saveRideSettings(s) {
     return this.set(this.KEYS.RIDE_SETTINGS, s);
+  },
+
+  getCart() {
+    return this.get(this.KEYS.CART, []);
+  },
+
+  saveCart(cart) {
+    return this.set(this.KEYS.CART, cart);
+  },
+
+  saveInstallRequest(request) {
+    const requests = this.get(this.KEYS.INSTALL_REQUESTS, []);
+    requests.unshift(request);
+    return this.set(this.KEYS.INSTALL_REQUESTS, requests);
   },
 
   // --- Utility ---

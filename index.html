@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="Motorcycle group riding app with maps, pack tracking, mileage, and emergency features">
-  <title>The Ride — Motorcycle Pack Riding</title>
+  <title>RIDE By SIC Cycles — Motorcycle Riding</title>
   <style>.auth-pending body{visibility:hidden}</style>
   <script defer src="supabase-config.js?v=72624a2"></script>
   <script defer src="auth-guard.js?v=1"></script>
@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=20260904-profile1">
+  <link rel="stylesheet" href="styles.css?v=20260904-shop1">
   <meta name="app-version" content="202608311533">
 </head>
 <body>
@@ -454,6 +454,57 @@
     </div>
   </div>
 
+  <!-- ===== SHOP SCREEN ===== -->
+  <div id="screen-shop" class="screen">
+    <div class="screen-header shop-header">
+      <h1>Shop</h1>
+      <div class="shop-brand">RIDE <span>By SIC Cycles</span></div>
+      <button class="shop-cart-button" id="btnCart" aria-label="Open quote list">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H6"/></svg>
+        <span id="cartCount">0</span>
+      </button>
+    </div>
+    <div class="shop-content">
+      <section class="shop-hero">
+        <div class="shop-hero-copy">
+          <div class="shop-product-mark">THUNDER<span>MAX</span></div>
+          <h2>ThunderMax<br>Installation</h2>
+          <p>Self-tuning performance with local fitment support.</p>
+          <strong>$1,170.95 <small>published part price</small></strong>
+          <button class="btn-primary shop-primary" data-product="thundermax">See installed price <span aria-hidden="true">&rarr;</span></button>
+          <div class="shop-local">Installed in Tucson</div>
+        </div>
+        <div class="shop-hero-art" aria-hidden="true"><span>TM</span><b>AUTO<br>TUNE</b></div>
+      </section>
+      <section class="shop-section">
+        <h2>Shop by need</h2>
+        <div class="service-rail" id="serviceRail">
+          <button data-category="performance"><span>HP</span>Performance</button>
+          <button data-link="https://www.siccycles.com/collections/desert-gear"><span>AZ</span>Desert Gear</button>
+          <button data-link="https://www.siccycles.com/collections/daytona-helmets"><span>DOT</span>Helmets</button>
+          <button data-category="service"><span>SVC</span>Service</button>
+        </div>
+      </section>
+      <section class="shop-section bike-fit-section">
+        <div class="shop-section-title"><h2>Parts for your bike</h2><button id="btnShopGarage">Open Garage</button></div>
+        <div class="shop-bike"><span>BIKE</span><div><strong id="shopBikeName">Your motorcycle</strong><small>Garage details help SIC Cycles verify fitment</small></div></div>
+        <div class="shop-products" id="shopProducts"></div>
+        <button class="btn-primary btn-large" id="btnBookInstall">Email install quote <span aria-hidden="true">&rarr;</span></button>
+        <a class="btn-secondary btn-large shop-call" href="tel:+15204204214">Call SIC Cycles</a>
+      </section>
+      <section class="shop-note"><strong>Parts and service, explained straight.</strong><p>Send the bike and part details. SIC Cycles confirms fitment and pricing before any appointment.</p></section>
+    </div>
+  </div>
+
+  <div id="overlay-shop-detail" class="overlay">
+    <div class="overlay-header"><button class="overlay-close" id="closeShopDetail" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button><h2>Quote details</h2></div>
+    <div class="overlay-content" id="shopDetailContent"></div>
+  </div>
+  <div id="overlay-cart" class="overlay">
+    <div class="overlay-header"><button class="overlay-close" id="closeCart" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button><h2>Your install list</h2></div>
+    <div class="overlay-content" id="cartContent"></div>
+  </div>
+
   <!-- ===== PROFILE SCREEN ===== -->
   <div id="screen-profile" class="screen">
     <div class="screen-header">
@@ -692,6 +743,10 @@
       </svg>
       <span>Community</span>
     </button>
+    <button class="nav-item" data-screen="shop" aria-label="Shop">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18l-1 12H4L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg>
+      <span>Shop</span>
+    </button>
     <button class="nav-item" data-screen="profile" aria-label="Profile">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -703,7 +758,7 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="storage.js?v=20260904-account1"></script>
+  <script src="storage.js?v=20260904-shop1"></script>
   <script src="geo.js?v=202608311533"></script>
   <script src="map.js?v=202608311533"></script>
   <script src="route.js?v=202608311533"></script>
@@ -711,6 +766,6 @@
   <script src="weather.js?v=202608311533"></script>
   <script src="hazards.js?v=202608311533"></script>
   <script src="alerts.js?v=202608311533"></script>
-  <script src="app.js?v=20260904-profile1"></script>
+  <script src="app.js?v=20260904-lead1"></script>
 </body>
 </html>

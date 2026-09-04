@@ -1496,6 +1496,61 @@ a {
   text-transform: uppercase;
 }
 
+/* --- RIDE By SIC Cycles Shop / install lead path --- */
+.shop-header { gap: var(--space-3); }
+.shop-header h1 { font-size: 2rem; }
+.shop-brand { margin-left: auto; font-family: var(--font-display); font-weight: 700; font-style: italic; letter-spacing: -.04em; color: #fff; }
+.shop-brand span { color: var(--color-primary); }
+.shop-cart-button { position: relative; width: var(--touch-min); height: var(--touch-min); border: 1px solid var(--color-border); border-radius: var(--radius-sm); display: grid; place-items: center; }
+.shop-cart-button span { position: absolute; top: -7px; right: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--color-primary); color: #fff; font-size: 11px; font-weight: 700; }
+.shop-content { padding: 0 var(--space-4) var(--space-16); max-width: 720px; margin: 0 auto; }
+.shop-hero { min-height: 390px; position: relative; overflow: hidden; border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: #101012; display: flex; align-items: stretch; }
+.shop-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #101012 0%, #101012 48%, rgba(16,16,18,.88) 63%, rgba(16,16,18,.2) 100%); pointer-events: none; }
+.shop-hero-copy { position: relative; z-index: 2; width: 70%; padding: var(--space-6); display: flex; flex-direction: column; align-items: flex-start; }
+.shop-product-mark { font: 700 14px/1 var(--font-display); letter-spacing: .06em; color: var(--color-text-muted); }
+.shop-product-mark span { display: block; font-size: 22px; color: #fff; }
+.shop-hero h2 { margin-top: var(--space-8); font-size: clamp(2rem,10vw,3rem); line-height: .98; letter-spacing: -.05em; }
+.shop-hero p { max-width: 250px; margin-top: var(--space-4); color: var(--color-text-muted); line-height: 1.4; }
+.shop-hero strong { margin-top: auto; font: 700 1.85rem/1 var(--font-display); color: #fff; }
+.shop-hero strong small { display: block; margin-top: 7px; color: var(--color-text-muted); font: 500 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; }
+.shop-primary { min-height: 60px; width: 100%; margin-top: var(--space-4); padding: 0 var(--space-4); display: flex; justify-content: space-between; align-items: center; text-align: left; font-weight: 700; }
+.shop-local { margin-top: var(--space-3); color: var(--color-text-muted); font-size: 13px; }
+.shop-hero-art { position: absolute; right: -40px; top: 58px; width: 190px; height: 270px; padding: 25px; border: 2px solid #404045; border-radius: 28px 28px 18px 18px; transform: rotate(8deg); background: #17171a; color: #55555c; box-shadow: 0 25px 60px #000; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+.shop-hero-art span { font: 700 50px/1 var(--font-display); letter-spacing: -.1em; }
+.shop-hero-art b { font: 700 12px/1.1 var(--font-display); text-align: center; letter-spacing: .12em; }
+.shop-section { margin-top: var(--space-4); padding: var(--space-5); border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface); }
+.shop-section h2 { font-size: 1.15rem; }
+.service-rail { margin-top: var(--space-4); display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--space-2); }
+.service-rail button { min-height: 92px; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: var(--color-text); font-size: 12px; font-weight: 600; }
+.service-rail button span { color: var(--color-primary); font: 700 18px/1 var(--font-display); }
+.service-rail button.active { border-color: var(--color-primary); background: rgba(255,107,26,.08); }
+.shop-section-title { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.shop-section-title button { color: var(--color-primary); min-height: 44px; font-size: 13px; }
+.shop-bike { min-height: 70px; display: flex; align-items: center; gap: var(--space-3); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider); }
+.shop-bike > span { color: var(--color-primary); font: 700 12px/1 var(--font-display); }
+.shop-bike div, .shop-product-copy, .shop-product-price, .cart-row div { display: flex; flex-direction: column; }
+.shop-bike small, .shop-product-copy small, .shop-product-price small, .cart-row small { color: var(--color-text-muted); font-size: 11px; line-height: 1.35; }
+.shop-products { margin: var(--space-2) 0 var(--space-4); }
+.shop-product-row { width: 100%; min-height: 82px; padding: var(--space-2) 0; display: grid; grid-template-columns: 48px minmax(0,1fr) auto 16px; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); text-align: left; }
+.shop-product-icon, .shop-detail-mark { display: grid; place-items: center; background: #242427; border: 1px solid #3a3a3f; color: var(--color-primary); font: 700 13px/1 var(--font-display); }
+.shop-product-icon { width: 46px; height: 46px; border-radius: var(--radius-sm); }
+.shop-product-copy strong { font-size: 14px; line-height: 1.25; }
+.shop-product-price { text-align: right; color: #fff; font-weight: 700; font-size: 13px; }
+.shop-note { margin: var(--space-6) var(--space-2) 0; padding-left: var(--space-4); border-left: 3px solid var(--color-primary); }
+.shop-note p { color: var(--color-text-muted); font-size: 13px; margin-top: 4px; }
+.shop-detail-mark { width: 88px; height: 88px; margin: var(--space-4) 0; border-radius: var(--radius-md); font-size: 22px; }
+.detail-price { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-top: 1px solid var(--color-divider); }
+.detail-price span { color: var(--color-text-muted); }
+.fit-note { padding: var(--space-4); border-radius: var(--radius-sm); background: var(--color-surface); font-size: 13px; }
+.cart-row { min-height: 76px; display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); border-bottom: 1px solid var(--color-divider); }
+.cart-row button { min-height: 44px; color: var(--color-error); }
+.shop-call { margin-top: var(--space-3); display: flex; align-items: center; justify-content: center; text-decoration: none; }
+
+@media (max-width: 430px) {
+  .service-rail { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .shop-hero-copy { width: 78%; padding: var(--space-5); }
+}
+
 .btn-sign-out {
   border-color: color-mix(in srgb, var(--color-error) 55%, transparent);
   color: var(--color-error);

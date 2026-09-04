@@ -1,4 +1,4 @@
-# The Ride
+# RIDE By SIC Cycles
 
 An intuitive social network built for motorcycle riders. Connect with riders, plan group rides, discover events, share routes, and build your riding community.
 
@@ -15,6 +15,8 @@ An intuitive social network built for motorcycle riders. Connect with riders, pl
 - **Social Feed** — Post your bike, pack, and ride photos with likes and comments
 - **Event Calendar** — Motorcycle rallies, charity rides, and local bike nights
 - **Profile** — Picture upload and riding stats
+- **SIC Cycles Shop** — Garage-assisted fitment requests, installed-quote email, and one-tap calling
+- **Invitation-only access** — Authenticated owner pilot with account-isolated browser data
 - **Leaderboards** — Local, regional, and national mileage rankings
 
 ## Run It
