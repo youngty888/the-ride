@@ -21,6 +21,33 @@ function getStorage() {
 
 const _ls = getStorage();
 
+function getAccountId() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem('sicc-ride-auth-session'));
+    if (session?.user?.id) return session.user.id;
+    const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.sub || '';
+  } catch {
+    return '';
+  }
+}
+
+function accountKey(key) {
+  const accountId = getAccountId();
+  return accountId ? `${key}:${accountId}` : key;
+}
+
+function migrateLegacyValue(key, scopedKey) {
+  if (!_ls || key === scopedKey || _ls.getItem(scopedKey)) return;
+  const accountId = getAccountId();
+  const ownerKey = 'rideflow_legacy_owner';
+  const owner = _ls.getItem(ownerKey);
+  if (!owner && _ls.getItem(key)) _ls.setItem(ownerKey, accountId);
+  if (_ls.getItem(ownerKey) === accountId && _ls.getItem(key)) {
+    _ls.setItem(scopedKey, _ls.getItem(key));
+  }
+}
+
 const Storage = {
   // --- Keys ---
   KEYS: {
@@ -46,30 +73,35 @@ const Storage = {
   // --- Generic ---
   get(key, defaultValue = null) {
     try {
-      const data = _ls ? _ls.getItem(key) : _memStore[key];
+      const scopedKey = accountKey(key);
+      migrateLegacyValue(key, scopedKey);
+      const data = _ls ? _ls.getItem(scopedKey) : _memStore[scopedKey];
       return data ? JSON.parse(data) : defaultValue;
     } catch (e) {
       console.error('Storage.get error:', e);
-      return _memStore[key] ? JSON.parse(_memStore[key]) : defaultValue;
+      const scopedKey = accountKey(key);
+      return _memStore[scopedKey] ? JSON.parse(_memStore[scopedKey]) : defaultValue;
     }
   },
 
   set(key, value) {
     try {
+      const scopedKey = accountKey(key);
       const str = JSON.stringify(value);
-      if (_ls) _ls.setItem(key, str);
-      else _memStore[key] = str;
+      if (_ls) _ls.setItem(scopedKey, str);
+      else _memStore[scopedKey] = str;
       return true;
     } catch (e) {
       console.error('Storage.set error:', e);
-      _memStore[key] = JSON.stringify(value);
+      _memStore[accountKey(key)] = JSON.stringify(value);
       return false;
     }
   },
 
   remove(key) {
-    if (_ls) _ls.removeItem(key);
-    else delete _memStore[key];
+    const scopedKey = accountKey(key);
+    if (_ls) _ls.removeItem(scopedKey);
+    else delete _memStore[scopedKey];
   },
 
   // --- Profile ---
