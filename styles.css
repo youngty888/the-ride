@@ -1496,6 +1496,16 @@ a {
   text-transform: uppercase;
 }
 
+.btn-sign-out {
+  border-color: color-mix(in srgb, var(--color-error) 55%, transparent);
+  color: var(--color-error);
+}
+
+.btn-sign-out:hover,
+.btn-sign-out:focus-visible {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
 /* --- Leaderboard --- */
 .leaderboard-section {
   margin-top: var(--space-6);

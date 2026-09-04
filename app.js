@@ -1196,6 +1196,7 @@ const App = {
 
       <button class="btn-primary btn-large" id="btnEditProfile">Edit Profile</button>
       <button class="btn-secondary btn-large" id="btnManageContacts" style="margin-top:var(--space-2);">Emergency Contacts</button>
+      <button class="btn-secondary btn-large btn-sign-out" id="btnSignOut" style="margin-top:var(--space-2);">Sign Out</button>
 
       <div class="leaderboard-section">
         <h3>Leaderboard</h3>
@@ -1224,6 +1225,8 @@ const App = {
       this.renderEmergencyContacts();
     });
 
+    document.getElementById('btnSignOut').addEventListener('click', () => this.signOut());
+
     // Leaderboard
     this.renderLeaderboard('local');
 
@@ -1236,6 +1239,32 @@ const App = {
     document.getElementById('lbNational').addEventListener('click', () => {
       this.setLeaderboardTab('national');
     });
+  },
+
+  async signOut() {
+    const sessionKey = 'sicc-ride-auth-session';
+    let session;
+    try {
+      session = JSON.parse(sessionStorage.getItem(sessionKey));
+    } catch {
+      session = null;
+    }
+
+    const config = window.SICC_RIDE_SUPABASE || {};
+    try {
+      if (session?.access_token) {
+        await fetch(`${config.url}/auth/v1/logout`, {
+          method: 'POST',
+          headers: {
+            apikey: config.anonKey,
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+      }
+    } finally {
+      sessionStorage.removeItem(sessionKey);
+      location.replace('auth.html');
+    }
   },
 
   setLeaderboardTab(scope) {
