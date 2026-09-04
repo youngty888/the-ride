@@ -40,7 +40,8 @@
     try {
       if (form.dataset.view === 'login') {
         const result = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: values.get('email'), password: values.get('password') }) });
-        saveSession(result); signOut.hidden = false; message('Signed in securely.');
+        saveSession(result); signOut.hidden = false; message('Signed in securely. Opening Ride…');
+        setTimeout(() => location.replace('./'), 500);
       } else if (form.dataset.view === 'recovery') {
         await request('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email: values.get('email'), redirect_to: `${location.origin}/auth.html?mode=invite` }) });
         message('If that invited account exists, a private reset link has been sent.');
