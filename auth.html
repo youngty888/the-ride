@@ -21,22 +21,35 @@
       <div class="road-line" aria-hidden="true"></div>
     </section>
     <section class="auth-panel">
-      <div class="pilot-badge">INVITATION-ONLY PILOT</div>
+      <div class="pilot-badge">RIDER ACCESS</div>
+
       <form class="auth-form" data-view="login">
-        <header><p class="step">RIDER ACCESS</p><h2>Get back on the road.</h2><p>Sign in with the email connected to your invitation.</p></header>
+        <header><p class="step">WELCOME BACK</p><h2>Get back on the road.</h2><p>Sign in to your RIDE account.</p></header>
         <label>Email address<input name="email" type="email" autocomplete="email" required></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" minlength="12" required></label>
         <button class="primary" type="submit">Sign in</button>
+        <button class="text-action" type="button" data-show="signup">Create rider account</button>
         <button class="text-action" type="button" data-show="recovery">Forgot password?</button>
-        <p class="support">No invitation yet? Public registration is closed during testing.</p>
       </form>
+
+      <form class="auth-form" data-view="signup" hidden>
+        <header><p class="step">NEW RIDER</p><h2>Create your RIDE account.</h2><p>This is the standard rider signup. Admin access is assigned separately by private invitation.</p></header>
+        <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+        <label>Confirm password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required></label>
+        <p class="password-rule">Use at least 12 characters. A password manager is recommended.</p>
+        <button class="primary" type="submit">Create rider account</button>
+        <button class="text-action" type="button" data-show="login">Already have an account? Sign in</button>
+      </form>
+
       <form class="auth-form" data-view="invite" hidden>
-        <header><p class="step">INVITATION ACCEPTED</p><h2>Secure your rider account.</h2><p>Create a strong password for this invited account.</p></header>
+        <header><p class="step">PRIVATE ADMIN INVITE</p><h2>Secure your invited account.</h2><p>This page is for specifically invited accounts only.</p></header>
         <label>New password<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
         <label>Confirm password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required></label>
         <p class="password-rule">Use at least 12 characters. A password manager is recommended.</p>
         <button class="primary" type="submit">Save password</button>
       </form>
+
       <form class="auth-form" data-view="recovery" hidden>
         <header><p class="step">ACCOUNT RECOVERY</p><h2>Reset your password.</h2><p>We’ll send a private reset link if the address belongs to an account.</p></header>
         <label>Email address<input name="email" type="email" autocomplete="email" required></label>
@@ -44,12 +57,13 @@
         <button class="text-action" type="button" data-show="login">Back to sign in</button>
         <p class="support">For privacy, the response will not reveal whether an account exists.</p>
       </form>
+
       <div id="authStatus" class="auth-status" role="status" aria-live="polite" hidden></div>
       <button id="signOutButton" class="text-action" type="button" hidden>Sign out</button>
       <footer>Ride aware. Protect your account. Never share a login code.</footer>
     </section>
   </main>
   <script src="supabase-config.js?v=72624a2"></script>
-  <script src="auth.js?v=fec79c6"></script>
+  <script src="auth.js?v=public-signup-1"></script>
 </body>
 </html>
