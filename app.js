@@ -1342,7 +1342,7 @@ const App = {
     this.hideOverlay('overlay-cart');
     const bikeLine = bike ? `${bike.year || ''} ${bike.make || ''} ${bike.model || ''}`.trim() : 'Motorcycle details not added yet';
     const body = [
-      'RIDE By SIC Cycles - install quote request',
+      'The Ride by SIC Cycles - install quote request',
       '',
       `Rider: ${profile.name || 'Rider'}`,
       `Motorcycle: ${bikeLine}`,
