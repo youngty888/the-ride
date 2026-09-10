@@ -92,10 +92,14 @@ const Storage = {
       const str = JSON.stringify(value);
       if (_ls) _ls.setItem(scopedKey, str);
       else _memStore[scopedKey] = str;
+      if (key === this.KEYS.PROFILE || key === this.KEYS.BIKES) {
+        if (typeof RiderCloud !== 'undefined') RiderCloud.changed();
+      }
       return true;
     } catch (e) {
       console.error('Storage.set error:', e);
       _memStore[accountKey(key)] = JSON.stringify(value);
+      if (typeof RiderCloud !== 'undefined') RiderCloud.status('Device storage is full. This change is not saved; free space and try again.');
       return false;
     }
   },

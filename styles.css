@@ -2430,3 +2430,8 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
   .poi-btn { width: auto; flex: 1 1 180px; }
 }
 .fuel-chip-unknown { border-left-color: var(--color-warning); background: rgba(245, 166, 35, 0.10); }
+
+/* Account saving status remains visible above the bottom navigation. */
+#cloudStatus { position: fixed; bottom: 76px; left: 8px; right: 8px; z-index: 1100; padding: 8px 12px; border: 1px solid #555; border-radius: 8px; background: #171719; color: #fff; font: 12px/1.4 Inter, sans-serif; max-height: 26vh; overflow: auto; }
+#cloudStatus button { margin: 6px 8px 0 0; padding: 10px; background: #ff6b00; color: #111; border: 0; border-radius: 5px; font-weight: 700; cursor: pointer; }
+.screen { padding-bottom: 160px; }

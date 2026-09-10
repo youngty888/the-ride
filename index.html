@@ -10,7 +10,7 @@
   <title>The Ride by SIC Cycles — Motorcycle Riding</title>
   <style>.auth-pending body{visibility:hidden}</style>
   <script defer src="supabase-config.js?v=72624a2"></script>
-  <script defer src="auth-guard.js?v=1"></script>
+  <script defer src="auth-guard.js?v=20260909-sync1"></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,10 +21,11 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=20260904-shop1">
+  <link rel="stylesheet" href="styles.css?v=20260909-sync1">
   <meta name="app-version" content="202608311533">
 </head>
 <body>
+  <aside id="cloudStatus" role="status" aria-live="polite">Loading your Profile and Garage…</aside>
 
   <!-- ===== MAP SCREEN ===== -->
   <div id="screen-map" class="screen active">
@@ -758,7 +759,8 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="storage.js?v=20260904-shop1"></script>
+  <script src="storage.js?v=20260909-sync1"></script>
+  <script src="cloud-sync.js?v=20260909-sync1"></script>
   <script src="geo.js?v=202608311533"></script>
   <script src="map.js?v=202608311533"></script>
   <script src="route.js?v=202608311533"></script>
@@ -766,6 +768,6 @@
   <script src="weather.js?v=202608311533"></script>
   <script src="hazards.js?v=202608311533"></script>
   <script src="alerts.js?v=202608311533"></script>
-  <script src="app.js?v=20260904-lead1"></script>
+  <script src="app.js?v=20260909-sync1"></script>
 </body>
 </html>

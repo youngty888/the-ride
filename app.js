@@ -18,8 +18,7 @@ const App = {
 
   // --- Init ---
   init() {
-    // Seed demo data on first load
-    Storage.seedDemoData();
+    // Existing device data is reviewed before cloud import. Never seed real accounts.
 
     // Map features depend on third-party assets. Keep the rest of the rider app
     // usable if those assets are unavailable on a weak or offline connection.
@@ -1355,6 +1354,7 @@ const App = {
   },
 
   async signOut() {
+    if (RiderCloud.meta?.dirty && !confirm('Profile or Garage changes have not saved online. They will remain on this device. Sign out anyway?')) return;
     const sessionKey = 'sicc-ride-auth-session';
     let session;
     try {
@@ -1766,6 +1766,10 @@ const App = {
 };
 
 // --- Boot ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!await RideAuth.ready) return;
+  try { await RiderCloud.init(); }
+  catch (error) { RiderCloud.status(error.message); }
   App.init();
+  document.documentElement.classList.remove('auth-pending');
 });
