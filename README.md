@@ -16,14 +16,16 @@ An intuitive social network built for motorcycle riders. Connect with riders, pl
 - **Event Calendar** — Motorcycle rallies, charity rides, and local bike nights
 - **Profile** — Picture upload and riding stats
 - **SIC Cycles Shop** — Garage-assisted fitment requests, installed-quote email, and one-tap calling
-- **Invitation-only access** — Authenticated owner pilot with account-isolated browser data
+- **Authenticated rider access** — Public signup and private invitation flows with account-isolated browser data
 - **Leaderboards** — Local, regional, and national mileage rankings
 
 ## Run It
 
-1. Download all files to the same folder
-2. Open `index.html` in any browser
-3. That's it. No server required.
+1. Keep all files and the `data/` directory together.
+2. Serve the folder from a static web host or local HTTP server.
+3. Configure the public Supabase URL and anonymous browser key in `supabase-config.js` for authenticated use.
+
+Opening `index.html` directly may provide only a partial preview. Authentication and Profile/Garage cloud saving require the configured Supabase service; routing, maps, weather, geocoding, and place discovery also depend on their public network services.
 
 ## Tech Stack
 
@@ -31,6 +33,15 @@ An intuitive social network built for motorcycle riders. Connect with riders, pl
 - Leaflet.js for maps (free, no API key)
 - OpenStreetMap tiles with dark CSS filter
 - Overpass API for place search
+- Supabase Auth for rider accounts
+- Supabase rider-owned snapshots for Profile and Garage cloud saving
+
+## Data boundaries
+
+- Profile and Garage save to an authenticated, rider-owned cloud snapshot with an account-scoped retry queue.
+- Loading the account copy refuses to overwrite edits made on the device while the download is pending.
+- Rides, packs, quote drafts, route preferences, reports, and several other features remain browser-local.
+- Browser-local information can be lost if site data is cleared. GitHub source control is not a rider-data backup.
 
 ## License
 
