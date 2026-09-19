@@ -1787,6 +1787,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!await RideAuth.ready) return;
   try { await RiderCloud.init(); }
   catch (error) { RiderCloud.status(error.message); }
+  if (typeof RidesCloud !== 'undefined') {
+    try { await RidesCloud.init(); }
+    catch (error) { RidesCloud.status(error.message); }
+  }
   App.init();
   document.documentElement.classList.remove('auth-pending');
 });

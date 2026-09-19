@@ -95,6 +95,9 @@ const Storage = {
       if (key === this.KEYS.PROFILE || key === this.KEYS.BIKES) {
         if (typeof RiderCloud !== 'undefined') RiderCloud.changed();
       }
+      if (key === this.KEYS.RIDES) {
+        if (typeof RidesCloud !== 'undefined') RidesCloud.changed();
+      }
       return true;
     } catch (e) {
       console.error('Storage.set error:', e);
