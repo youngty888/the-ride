@@ -110,9 +110,17 @@ const RiderCloud = {
     if (this.busy || !confirm('Load Profile and Garage from your account? The current device copy will be kept as a local backup.')) return;
     this.busy = true;
     try {
+      const deviceCopy = this.snapshot();
       const row = await this.read();
       if (!row) throw new Error('No account copy was found. Device data kept.');
-      await this.backup(this.snapshot());
+      if (!this.same(this.snapshot(), deviceCopy)) {
+        throw new Error('Device data changed during download. Your newer edits were kept; choose Load account copy again if you still want to replace them.');
+      }
+      await this.backup(deviceCopy);
+      if (getAccountId() !== this.account) throw new Error('Account changed. Reload Ride.');
+      if (!this.same(this.snapshot(), deviceCopy)) {
+        throw new Error('Device data changed during download. Your newer edits were kept; choose Load account copy again if you still want to replace them.');
+      }
       this.apply(row.payload);
       this.meta = { approved: true, revision: row.revision, base: row.payload, dirty: false, pending: null };
       this.persist(); this.phase = 'ready'; this.saved();

@@ -17,7 +17,11 @@ function device(server, id = 'rider-a', local = new Map()) {
   C.status=(text)=>{C.lastStatus=text};
   C.request=async(p,o)=>{
     if(server.offline) throw new Error('Offline');
-    if(!o) return server.rows[id] ? [clone(server.rows[id])] : [];
+    if(!o) {
+      const rows = server.rows[id] ? [clone(server.rows[id])] : [];
+      if(server.onRead) await server.onRead();
+      return rows;
+    }
     const b=JSON.parse(o.body), old=server.rows[id];
     if((old?.revision||0)!==b.expected_revision) return [];
     const row={payload:b.new_payload,revision:(old?.revision||0)+1};
@@ -75,4 +79,17 @@ test('account switch aborts pending work',async()=>{
   const server={rows:{}},a=device(server);await a.C.init();a.S.saveProfile({name:'A'});
   a.session.set('sicc-ride-auth-session',JSON.stringify({user:{id:'rider-b'}}));
   await a.C.reconcile();assert.deepEqual(server.rows,{});
+});
+
+test('loading account copy preserves edits made while the download is pending',async()=>{
+  const server={rows:{}},a=device(server);await a.C.init();
+  a.S.saveProfile({name:'Account copy'});await a.C.reconcile();
+  a.S.saveProfile({name:'Device copy'});
+  server.onRead=()=>{server.onRead=null;a.S.saveProfile({name:'Newest device edit'});};
+  await a.C.useCloud();
+  assert.equal(a.S.getProfile().name,'Newest device edit');
+  assert.equal(a.C.meta.pending.profile.name,'Newest device edit');
+  assert.equal(a.C.meta.dirty,true);
+  assert.equal(server.rows['rider-a'].payload.profile.name,'Account copy');
+  assert.match(a.C.lastStatus,/changed during download/i);
 });

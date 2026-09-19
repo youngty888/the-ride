@@ -24,13 +24,18 @@ const App = {
     // usable if those assets are unavailable on a weak or offline connection.
     try {
       MapModule.init();
+    } catch (error) {
+      console.warn('Map features are temporarily unavailable.', error);
+      this.toast('Map could not load. Check your connection and reload. Destination search is still available.');
+    }
+    try {
       RouteModule.init();
       RouteModule.setupUI();
       HazardModule.hotspots = null;
       AlertsModule.init();
       this.setupRideButtons();
     } catch (error) {
-      console.warn('Map features are temporarily unavailable.', error);
+      console.warn('Route tools are temporarily unavailable.', error);
     }
 
     // Set up navigation
@@ -243,6 +248,7 @@ const App = {
      The old version rendered its own list and auto-opened Google Maps when
      you tapped a row. PoiModule now owns the list and shows an in-app card. */
   async loadStops() {
+    const searchId = this.stopSearchId = (this.stopSearchId || 0) + 1;
     const listEl = document.getElementById('stopsList');
     const has = PoiModule.CATS.some(c => c.id === this.currentStopType);
     const cat = has ? this.currentStopType : 'fuel';
@@ -257,9 +263,11 @@ const App = {
       listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching along your route…</div>';
       try {
         const pois = await PoiModule.searchAlongRoute(cat, route.coords, route.cum);
+        if (searchId !== this.stopSearchId) return;
         PoiModule.display(listEl, pois, `No ${catLabel} found within 3 miles of your route.`);
         PoiModule.showMarkers(pois);
       } catch (e) {
+        if (searchId !== this.stopSearchId) return;
         this.poiError(listEl, e);
       }
       return;
@@ -268,16 +276,25 @@ const App = {
     const loc = MapModule.currentLocation;
     if (!loc) {
       listEl.innerHTML = `<div class="empty-state-container"><p class="empty-state">No GPS fix yet, so I can't search around you. Allow location access, or switch to <strong>Along my route</strong> after you plan a ride.</p></div>`;
-      MapModule.requestOneFix(() => this.loadStops());
+      MapModule.requestOneFix((fix) => {
+        if (searchId !== this.stopSearchId) return;
+        if (fix) this.loadStops();
+        else {
+          listEl.innerHTML = '<div class="err-box">Location is unavailable. Allow location for RIDE in your browser settings, then retry. <button type="button" class="btn-secondary" id="poiRetry">Retry location</button></div>';
+          listEl.querySelector('#poiRetry').addEventListener('click', () => this.loadStops());
+        }
+      });
       return;
     }
 
     listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching nearby…</div>';
     try {
       const pois = await PoiModule.searchNearby(cat, loc.lat, loc.lon, 15);
+      if (searchId !== this.stopSearchId) return;
       PoiModule.display(listEl, pois, `No ${catLabel} found within 15 miles.`);
       PoiModule.showMarkers(pois);
     } catch (e) {
+      if (searchId !== this.stopSearchId) return;
       this.poiError(listEl, e);
     }
   },

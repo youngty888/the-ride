@@ -2435,3 +2435,26 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 #cloudStatus { position: fixed; bottom: 76px; left: 8px; right: 8px; z-index: 1100; padding: 8px 12px; border: 1px solid #555; border-radius: 8px; background: #171719; color: #fff; font: 12px/1.4 Inter, sans-serif; max-height: 26vh; overflow: auto; }
 #cloudStatus button { margin: 6px 8px 0 0; padding: 10px; background: #ff6b00; color: #111; border: 0; border-radius: 5px; font-weight: 700; cursor: pointer; }
 .screen { padding-bottom: 160px; }
+
+/* Short landscape phones: reserve side rails for every ride control. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bottom-nav { height: calc(52px + env(safe-area-inset-bottom, 0px)); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+  .bottom-nav .nav-item { min-height: 44px; gap: 2px; }
+  .bottom-nav .nav-item svg { width: 20px; height: 20px; }
+  .screen { bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+  .map-topbar { left: 96px; right: 96px; padding: 6px; }
+  .stat-value { font-size: 18px; }
+  .stat-label { font-size: 10px; }
+  .route-bar, .route-bar:active { top: 48px; left: calc(96px + env(safe-area-inset-left, 0px)); right: calc(96px + env(safe-area-inset-right, 0px)); width: auto; transform: none; padding: 8px 12px; min-height: 48px; }
+  .route-bar-sub { display: none; }
+  .map-fab-container { left: calc(8px + env(safe-area-inset-left, 0px)); top: 8px; bottom: auto; gap: 6px; }
+  .map-fab-container .fab, .fab-report { width: 80px; min-width: 80px; height: 56px; min-height: 56px; padding: 5px; font-size: 10px; }
+  .fab svg { width: 23px; height: 23px; }
+  .map-side-controls { right: calc(8px + env(safe-area-inset-right, 0px)); top: 8px; bottom: auto; gap: 6px; }
+  .map-side-btn { width: 64px; min-height: 44px; height: 44px; }
+  .map-side-btn svg { width: 20px; height: 20px; }
+  .fab-report { right: calc(8px + env(safe-area-inset-right, 0px)); top: 158px; bottom: auto; width: 64px; min-width: 64px; height: 48px; min-height: 48px; }
+  #cloudStatus { left: calc(96px + env(safe-area-inset-left, 0px)); right: calc(96px + env(safe-area-inset-right, 0px)); bottom: calc(58px + env(safe-area-inset-bottom, 0px)); max-height: 72px; padding: 5px 8px; font-size: 11px; }
+  .battery-badge { top: 106px; right: 100px; }
+  .toast, .toast.active { left: 96px; right: 96px; width: auto; transform: none; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+}

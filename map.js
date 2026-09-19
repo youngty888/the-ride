@@ -20,6 +20,7 @@ const MapModule = {
   navigating: false,      // high-accuracy GPS only while true
   ridePath: null,
   ridePathCoords: [],
+  followUser: true,
 
   // --- Init ---
   init() {
@@ -39,6 +40,8 @@ const MapModule = {
       maxZoom: 19,
     }).addTo(this.map);
 
+    // Let riders inspect the map without snapping it back. GPS-center resumes follow.
+    this.map.on('dragstart', () => { this.followUser = false; });
     // Start GPS
     this.startGPS();
   },
@@ -73,7 +76,7 @@ const MapModule = {
     if (this.watchId != null) navigator.geolocation.clearWatch(this.watchId);
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => this.onPositionUpdate(pos),
-      (err) => console.warn('GPS error:', err.message),
+      (err) => this.onLocationError(err),
       this.gpsOptions()
     );
   },
@@ -87,7 +90,7 @@ const MapModule = {
   /* One-shot fix for a user-initiated action (Use My Location, Center on me).
      Never called on a timer. */
   requestOneFix(cb) {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { if (cb) cb(null); return; }
     if (this._oneFixPending) return;
     this._oneFixPending = true;
     navigator.geolocation.getCurrentPosition(
@@ -96,12 +99,22 @@ const MapModule = {
         this.onPositionUpdate(pos);
         if (cb) cb(this.currentLocation);
       },
-      () => { this._oneFixPending = false; },
+      (err) => { this._oneFixPending = false; this.onLocationError(err); if (cb) cb(null); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
     );
   },
 
+  onLocationError(error) {
+    console.warn('GPS error:', error.message);
+    const message = error.code === 1
+      ? 'Location access is blocked. Allow location for RIDE in your browser settings.'
+      : 'GPS location is unavailable. Keep RIDE open and tap the location button to retry.';
+    if (this.lastLocationError !== message) App.toast(message);
+    this.lastLocationError = message;
+  },
+
   onPositionUpdate(pos) {
+    this.lastLocationError = null;
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const accuracy = pos.coords.accuracy || 0;
@@ -116,8 +129,9 @@ const MapModule = {
 
     // BATTERY: marker redraws are skipped while the page is hidden or the map
     // screen isn't the one on screen.
-    if (!this.paused && App.currentScreen === 'map') {
+    if (this.map && !this.paused && App.currentScreen === 'map') {
       this.updateUserMarker(lat, lon, accuracy);
+      if (this.followUser) this.map.panTo([lat, lon], { animate: false });
     }
 
     // Local, network-free proximity check against the prefetched cache.
@@ -156,14 +170,14 @@ const MapModule = {
   },
 
   centerOnUser() {
+    if (!this.map) { App.toast('Map is unavailable. Check your connection and reload.'); return; }
+    this.followUser = true;
+    this.requestOneFix((loc) => {
+      if (loc) this.map.setView([loc.lat, loc.lon], 16, { animate: false });
+    });
     if (this.currentLocation) {
       this.map.setView([this.currentLocation.lat, this.currentLocation.lon], 16, {
-        animate: true,
-      });
-    } else {
-      this.requestOneFix((loc) => {
-        if (loc) this.map.setView([loc.lat, loc.lon], 16, { animate: true });
-        else App.toast('Unable to get your location. Make sure location services are enabled.');
+        animate: false,
       });
     }
   },
@@ -444,7 +458,7 @@ const MapModule = {
   stopRideTracking() {
     this.isTracking = false;
 
-    const miles = Math.round(this.rideDistance * 0.621371);
+    const miles = Math.round(this.rideDistance * 0.621371 * 100) / 100;
     const duration = this.rideStartTime ? Math.floor((Date.now() - this.rideStartTime) / 60000) : 0;
 
     // Save ride

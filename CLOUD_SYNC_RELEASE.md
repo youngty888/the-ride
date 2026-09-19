@@ -1,6 +1,6 @@
 # Profile and Garage cloud saving — release checkpoint
 
-Prepared 2026-09-09. LOCAL ONLY: not applied to production or deployed.
+Deployed 2026-09-10 with Tyler approval. Live application commit: 582231b; GitHub Pages run 34515944305 succeeded.
 
 ## Implementation
 - Complete Profile and Garage snapshots stored in a new rider-owned rider_app_state table.
@@ -21,9 +21,9 @@ Prepared 2026-09-09. LOCAL ONLY: not applied to production or deployed.
 - PostgreSQL/PGlite migration tests: initial save/update, duplicate and stale revision rejection, cross-rider read/update/insert denial, anonymous table/RPC denial, invalid payload rejection passed.
 - Browser QA with a fake local API: Profile save, motorcycle save, cloud confirmation, restore from separate localhost origin with empty browser storage passed.
 - Desktop and 390x844 viewport checked. No relevant browser errors; one unrelated GPS timeout.
-- Production API/schema and actual multi-device save remain unverified until deployment.
+- Live API verified with two temporary fake riders: save/read, revision update, stale-write rejection, cross-rider isolation and anonymous denial all passed. Both fake accounts were deleted; final counts: zero test accounts and zero snapshots. RLS enabled. Public HTML and cloud-sync.js release markers verified. Actual Tyler/Garrett second-device verification remains.
 
-## Exact next steps
+## Deployment procedure (steps 1–5 completed; step 6 remains)
 1. Reopen Hostinger Web console for VPS 1947716. Old terminal is disconnected and now returns 403.
 2. Read-only verify live schema does not already contain an incompatible rider_app_state table or save_rider_app_state function. Verify ownership policies and server health.
 3. Follow project live-change approval gate; preserve database backup before applying supabase/migrations/002_profile_garage_sync.sql.
@@ -32,3 +32,4 @@ Prepared 2026-09-09. LOCAL ONLY: not applied to production or deployed.
 6. Have Tyler review existing Profile/Garage, select Save reviewed data online, and verify restore on a second device.
 
 Rollback frontend through Git to its previous release. Preserve rider_app_state and cloud records; do not drop the table to roll back the UI.
+

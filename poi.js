@@ -58,7 +58,8 @@ const PoiModule = {
         }, 25000);
         if (!res.ok) throw new Error('Overpass ' + res.status);
         const json = await res.json();
-        return json.elements || [];
+        if (json.remark || !Array.isArray(json.elements)) throw new Error('Map data service could not complete the search');
+        return json.elements;
       } catch (e) { lastErr = e; }
     }
     throw lastErr || new Error('Overpass unavailable');
