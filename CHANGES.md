@@ -299,3 +299,21 @@ inside the Report sheet.
 - Verified the complete quote flow at 390x844 and 1280x800 in installed Microsoft Edge.
 
 ---
+
+---
+
+
+
+## Ride history cloud sync (draft branch rides-cloud-sync-draft)
+
+
+
+- New rides-sync.js keeps completed rides in the rider's account (table rider_rides, owner-only RLS). Rides are append-only: push unsynced, pull missing.
+
+- Deleting a synced ride now also deletes it in the cloud (queued in rideflow_rides_deleted, so it works offline and pull never resurrects it).
+
+- Primary key is (owner_id, id): ride ids are only random per device, so a global key could silently drop a rider's ride on collision. Run sql/2026-09-20-rider-rides-composite-key.sql on the live database.
+
+- index.html loads rides-sync.js and shows a small status line only while saving or on errors.
+
+- Tests: tests/rides-sync.test.cjs (push, offline, second device, isolation, delete, offline delete, id collision).
