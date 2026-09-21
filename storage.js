@@ -54,6 +54,7 @@ const Storage = {
     PROFILE: 'rideflow_profile',
     BIKES: 'rideflow_bikes',
     RIDES: 'rideflow_rides',
+    RIDES_DELETED: 'rideflow_rides_deleted', // synced rides deleted locally, awaiting cloud delete
     PACKS: 'rideflow_packs',
     POSTS: 'rideflow_posts',
     RATINGS: 'rideflow_ratings',
@@ -171,6 +172,13 @@ const Storage = {
   },
 
   deleteRide(id) {
+    const ride = this.getRides().find(r => r.id === id);
+    // A synced ride also exists in the cloud: remember the delete so RidesCloud can
+    // send it (and so pull() does not bring the ride back).
+    if (ride?.synced) {
+      const deleted = this.get(this.KEYS.RIDES_DELETED, []);
+      if (!deleted.includes(id)) this.set(this.KEYS.RIDES_DELETED, [...deleted, id]);
+    }
     const rides = this.getRides().filter(r => r.id !== id);
     return this.set(this.KEYS.RIDES, rides);
   },

@@ -1,14 +1,15 @@
 /* Ride history sync. Append-only rows: each completed ride is pushed once and
    never edited remotely, so unlike RiderCloud (a single replaceable Profile+Garage
    record) there is no revision/conflict logic here — just push-unsynced / pull-missing.
-   Requires the `rider_rides` table (see sql/2026-09-19-rider-rides.sql) — NOT yet
-   applied to the live database, so this module is inert until that migration runs. */
+   Requires the `rider_rides` table (see sql/2026-09-19-rider-rides.sql). Deleting a
+   synced ride locally queues a cloud delete (Storage.KEYS.RIDES_DELETED). */
 const RidesCloud = {
   account: '', busy: false, timer: null,
   status(message) {
     const box = document.getElementById('ridesCloudStatus');
     if (!box) return;
     box.textContent = message;
+    box.hidden = message.includes('saved to your account'); // only surface saving/errors
   },
   async request(path, options = {}) {
     if (getAccountId() !== this.account) throw new Error('Account changed. Reload Ride.');
@@ -45,11 +46,18 @@ const RidesCloud = {
   async pull() {
     const rows = await this.request(`rider_rides?owner_id=eq.${encodeURIComponent(this.account)}&select=id,ride_date,distance_miles,duration_seconds,bike_id`);
     const local = Storage.getRides();
-    const localIds = new Set(local.map(r => r.id));
-    const missing = rows.filter(row => !localIds.has(row.id)).map(row => this.fromRow(row));
+    const skip = new Set([...local.map(r => r.id), ...Storage.get(Storage.KEYS.RIDES_DELETED, [])]);
+    const missing = rows.filter(row => !skip.has(row.id)).map(row => this.fromRow(row));
     if (missing.length) {
       const merged = [...local, ...missing].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       Storage.set(Storage.KEYS.RIDES, merged);
+    }
+  },
+  async pushDeletes() {
+    for (const id of Storage.get(Storage.KEYS.RIDES_DELETED, [])) {
+      await this.request(`rider_rides?owner_id=eq.${encodeURIComponent(this.account)}&id=eq.${encodeURIComponent(id)}`,
+        { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+      Storage.set(Storage.KEYS.RIDES_DELETED, Storage.get(Storage.KEYS.RIDES_DELETED, []).filter(d => d !== id));
     }
   },
   async push() {
@@ -68,6 +76,7 @@ const RidesCloud = {
     if (this.busy || getAccountId() !== this.account) return;
     this.busy = true;
     try {
+      await this.pushDeletes();
       await this.pull();
       await this.push();
       const stillUnsynced = Storage.getRides().some(r => !r.synced);
