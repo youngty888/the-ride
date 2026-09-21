@@ -21,3 +21,20 @@ const CloudRest = {
     return text ? JSON.parse(text) : [];
   }
 };
+
+/* One banner for the background syncs that work silently (ride history, saved routes), so
+   they no longer stack as separate bars over the map. Each source reports its own message
+   (empty means "all fine"); the banner shows whatever is non-empty and hides itself
+   otherwise. Profile & Garage keeps its own status area, and stop preferences report on
+   their own screen. */
+const SyncStatus = {
+  messages: {},
+  set(source, message) {
+    if (message) this.messages[source] = message; else delete this.messages[source];
+    const box = document.getElementById('syncStatus');
+    if (!box) return;
+    const text = Object.values(this.messages).join(' ');
+    box.textContent = text;
+    box.hidden = !text;
+  }
+};

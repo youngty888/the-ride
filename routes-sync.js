@@ -10,10 +10,7 @@ const RoutesCloud = {
   account: '', busy: false, timer: null,
   MAX_BYTES: 900000,
   status(message) {
-    const box = document.getElementById('routesCloudStatus');
-    if (!box) return;
-    box.textContent = message;
-    box.hidden = !message;
+    SyncStatus.set('routes', message);
   },
   request(path, options) { return CloudRest.call(this.account, path, options); },
   // Routes saved before updatedAt existed fall back to createdAt.

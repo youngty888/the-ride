@@ -6,10 +6,7 @@
 const RidesCloud = {
   account: '', busy: false, timer: null,
   status(message) {
-    const box = document.getElementById('ridesCloudStatus');
-    if (!box) return;
-    box.textContent = message;
-    box.hidden = message.includes('saved to your account'); // only surface saving/errors
+    SyncStatus.set('rides', message.includes('saved to your account') ? '' : message); // only surface saving/errors
   },
   request(path, options) { return CloudRest.call(this.account, path, options); },
   // The app stores ride.duration in whole MINUTES (map.js); the column is seconds.
