@@ -94,4 +94,21 @@ test('two riders with the same ride id both keep their ride', async () => {
   await a.R.init(); await b.R.init();
   assert.equal(server.rows['rider-a:same'].distance_miles, 11);
   assert.equal(server.rows['rider-b:same'].distance_miles, 22);
+});test('duration is stored in seconds (app keeps minutes) and comes back as minutes', async () => {
+  const server = {rows:{}}, a = device(server);
+  a.S.saveRide({id:'r8', date:'2026-09-11', distance:9.5, duration:25, bikeId:null});
+  await a.R.init();
+  assert.equal(server.rows['rider-a:r8'].duration_seconds, 1500);
+  const b = device(server); await b.R.init();
+  assert.equal(b.S.getRides()[0].duration, 25);
+});
+test('a ride the table would reject does not block other rides from syncing', async () => {
+  const server = {rows:{}}, a = device(server);
+  a.S.saveRide({id:'old', date:'2026-08-15', distance:88.7, duration:'2h 10m', bikeId:null});
+  a.S.saveRide({id:'bad', date:'', distance:5, duration:10, bikeId:null});
+  a.S.saveRide({id:'r9', date:'2026-09-10', distance:3, duration:5, bikeId:null});
+  await a.R.init();
+  assert.ok(server.rows['rider-a:r9']);
+  assert.equal(server.rows['rider-a:bad'], undefined);
+  assert.equal(server.rows['rider-a:old'].duration_seconds, null);
 });
