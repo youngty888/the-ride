@@ -416,6 +416,7 @@ const MapModule = {
     this.arrivedDest = false;
     this.returnPrompted = false;
     this.arrivalOpen = false;
+    this.jumpCount = 0;
 
     // Draw ride path
     this.ridePath = L.polyline([], {
@@ -425,23 +426,49 @@ const MapModule = {
     }).addTo(this.map);
   },
 
+  /* Ride distance filter. Every GPS fix wobbles by several metres even when parked, and
+     summing every wobble adds phantom miles (parked at a destination, waiting at a light).
+     A fix counts only once it is farther from the last COUNTED position than its own
+     uncertainty (twice its reported accuracy, never less than MIN_STEP_M), so drift adds nothing while steady movement
+     always does. Fixes with very poor accuracy are skipped. A jump implying more than
+     MAX_PLAUSIBLE_MPH is ignored unless it persists for JUMP_ACCEPT_AFTER fixes, in which
+     case the position is re-anchored there without adding the jump to the distance. */
+  MIN_STEP_M: 15,
+  MAX_FIX_ACCURACY_M: 100,
+  MAX_PLAUSIBLE_MPH: 120,
+  JUMP_ACCEPT_AFTER: 3,
+
+  acceptFix(lat, lon, accuracy, now) {
+    if (accuracy && accuracy > this.MAX_FIX_ACCURACY_M) return { accept: false, km: 0 };
+    const last = this.lastPosition;
+    if (!last) return { accept: true, km: 0 };
+    const km = this.calculateDistance(last.lat, last.lon, lat, lon);
+    if (km * 1000 < Math.max(this.MIN_STEP_M, 2 * (accuracy || 0))) {
+      this.jumpCount = 0;
+      return { accept: false, km: 0 };
+    }
+    const seconds = Math.max(((now || 0) - (last.at || 0)) / 1000, 1);
+    if ((km * 0.621371) / (seconds / 3600) > this.MAX_PLAUSIBLE_MPH) {
+      this.jumpCount = (this.jumpCount || 0) + 1;
+      if (this.jumpCount < this.JUMP_ACCEPT_AFTER) return { accept: false, km: 0 };
+      this.jumpCount = 0;
+      return { accept: true, km: 0 };
+    }
+    this.jumpCount = 0;
+    return { accept: true, km };
+  },
   updateRideTracking(lat, lon) {
     if (!this.isTracking) return;
 
-    this.ridePathCoords.push([lat, lon]);
-    this.ridePath.setLatLngs(this.ridePathCoords);
-
-    if (this.lastPosition) {
-      const dist = this.calculateDistance(
-        this.lastPosition.lat,
-        this.lastPosition.lon,
-        lat,
-        lon
-      );
-      this.rideDistance += dist; // km
+    // Count the fix only if it is real movement (see acceptFix); jitter while parked adds nothing.
+    const accuracy = this.currentLocation && this.currentLocation.accuracy;
+    const step = this.acceptFix(lat, lon, accuracy, Date.now());
+    if (step.accept) {
+      this.ridePathCoords.push([lat, lon]);
+      this.ridePath.setLatLngs(this.ridePathCoords);
+      this.rideDistance += step.km; // km
+      this.lastPosition = { lat, lon, at: Date.now() };
     }
-
-    this.lastPosition = { lat, lon };
     this.checkArrival(lat, lon);
 
     // Update stats display

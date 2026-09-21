@@ -12,7 +12,9 @@ const line = (from, to, steps) => Array.from({length: steps + 1}, (_, i) => ({la
 
 function loadMap(dest) {
   const prompts = [], hidden = [];
-  const ctx = vm.createContext({console, Math, Date, Set, Object,
+  let clock = 1e12; // fake clock: each GPS fix arrives 5 s after the previous one
+  class FakeDate extends Date { static now() { return clock; } }
+  const ctx = vm.createContext({console, Math, Date: FakeDate, Set, Object,
     L: {polyline: () => ({addTo() { return this; }, setLatLngs() {}})},
     document: {getElementById: () => null, addEventListener() {}},
     RouteModule: {to: dest},
@@ -20,7 +22,7 @@ function loadMap(dest) {
     Storage: {genId: () => 'x', saveRide() {}}});
   vm.runInContext(src('geo.js') + '\n' + src('map.js') + '\nthis.M = MapModule;', ctx);
   const M = ctx.M; M.map = {removeLayer() {}};
-  M.fix = (p, accuracy = 10) => { M.currentLocation = {lat: p.lat, lon: p.lon, accuracy}; M.updateRideTracking(p.lat, p.lon); };
+  M.fix = (p, accuracy = 10) => { clock += 5000; M.currentLocation = {lat: p.lat, lon: p.lon, accuracy}; M.updateRideTracking(p.lat, p.lon); };
   M.ride = (points, accuracy) => points.forEach(p => M.fix(p, accuracy));
   return {M, prompts, hidden, ctx};
 }
