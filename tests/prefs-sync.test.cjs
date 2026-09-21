@@ -126,3 +126,14 @@ test('a failed sync never touches the local preferences', async () => {
   c.offline = true; await a.P.reconcile();
   assert.equal(a.S.getPoiPrefs().favorites[0], 'keep me');
 });
+test('the merged copy is stamped newer than the account copy even if this clock is behind', async () => {
+  const c = cloud(), a = device(c), b = device(c);
+  saved(a.S, p => { p.favorites = ['circle k']; });
+  const remote = a.S.getPoiPrefs(); remote.updatedAt = Date.now() + 60 * 60 * 1000; a.S.set(a.S.KEYS.POI_PREFS, remote); // device A's clock is an hour ahead
+  await a.P.reconcile();
+  b.localMap.set('rideflow_poi_prefs:rider-a', JSON.stringify({favorites: ['chevron'], blocked: [], learned: {}})); // old prefs, no stamp
+  await b.P.reconcile();
+  assert.ok(c.rows['rider-a'].updated_ms > remote.updatedAt, 'merge must outrank the copy it merged with');
+  await a.P.reconcile(); // A must adopt the merge, not overwrite it
+  assert.equal(a.S.getPoiPrefs().favorites.slice().sort().join(), 'chevron,circle k');
+});
