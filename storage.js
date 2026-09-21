@@ -104,6 +104,9 @@ const Storage = {
       if (key === this.KEYS.ROUTES || key === this.KEYS.ROUTES_DELETED) {
         if (typeof RoutesCloud !== 'undefined') RoutesCloud.changed();
       }
+      if (key === this.KEYS.POI_PREFS) {
+        if (typeof PrefsCloud !== 'undefined') PrefsCloud.changed();
+      }
       return true;
     } catch (e) {
       console.error('Storage.set error:', e);
@@ -309,6 +312,7 @@ const Storage = {
   },
 
   savePoiPrefs(prefs) {
+    prefs.updatedAt = Date.now(); // PrefsCloud: newest edit wins across devices
     return this.set(this.KEYS.POI_PREFS, prefs);
   },
 

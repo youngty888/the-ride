@@ -92,7 +92,7 @@ test('the screen shows the suggestion, the learned list and forget buttons', () 
   assert.ok(html.includes('You usually stop at Circle K'));
   assert.ok(html.includes('data-forget="circle k"'));
   assert.ok(html.includes('Forget everything it learned'));
-  assert.ok(html.includes('saved on this device'));
+  assert.ok(html.includes('synced to your account'));
 });
 test('the screen explains an empty learned list', () => {
   const {S, M} = load();
