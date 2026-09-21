@@ -137,7 +137,7 @@ const RiderCloud = {
       this.persist(); this.phase = 'ready'; await this.reconcile();
     } catch (error) { this.failed(error); }
   },
-  saved() { this.status('Profile & Garage: saved to your account. Rides and quote drafts are still device-only.'); },
+  saved() { this.status('Profile & Garage: saved to your account.'); },
   failed(error) {
     this.status(`${error.message} Profile & Garage changes are not confirmed online.`, [['Retry', () => this.reconcile()]]);
   },

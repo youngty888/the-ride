@@ -72,6 +72,36 @@ const RouteModule = {
     return results;
   },
 
+  /* Suggestion list for the search box. `picks` is what a click index refers to:
+     nearby stops first (when the rider typed a kind of place), then address matches. */
+  buildSuggestions(kind, places, results, hasLocation) {
+    const picks = [];
+    const row = (p, sub) => {
+      picks.push(p);
+      return `<button type="button" class="geo-result" data-i="${picks.length - 1}">
+               <span class="geo-result-name">${App.escapeHtml(p.short)}</span>
+               <span class="geo-result-full">${App.escapeHtml(sub)}</span>
+             </button>`;
+    };
+    let html = '';
+    if (kind) {
+      if (places.length) {
+        html += `<div class="geo-hint">${kind.icon} ${App.escapeHtml(kind.label)} near you</div>`;
+        html += places.map(p => row({ short: p.name, name: p.address || p.name, lat: p.lat, lon: p.lon },
+          `${Geo.fmtMi(p.distanceMi)} mi away${p.address ? ' · ' + p.address : ''}`)).join('');
+      } else if (!hasLocation) {
+        html += `<div class="geo-hint">Turn on location to see ${App.escapeHtml(kind.label.toLowerCase())} near you.</div>`;
+      } else {
+        html += `<div class="geo-hint">No ${App.escapeHtml(kind.label.toLowerCase())} found within 15 miles.</div>`;
+      }
+    }
+    if (results.length) {
+      if (places.length) html += '<div class="geo-hint">Places and addresses</div>';
+      html += results.map(r => row(r, r.name)).join('');
+    }
+    return { html, picks };
+  },
+
   /* Attach debounced autocomplete to an input.
      onPick receives {name, lat, lon}. 600 ms debounce, minimum 3 chars. */
   attachAutocomplete(input, resultsEl, onPick) {
@@ -84,19 +114,23 @@ const RouteModule = {
       resultsEl.innerHTML = '<div class="geo-hint">Searching…</div>';
       this.debounceTimers[key] = setTimeout(async () => {
         try {
-          const results = await this.geocode(q);
-          if (!results.length) {
-            resultsEl.innerHTML = '<div class="geo-hint">No match. Try a city, a park, or a full address.</div>';
+          // A kind of place ("gas", "coffee", "hotel") also searches nearby stops, using
+          // the same search as Add Stop. Address/name results still follow.
+          const kind = PoiModule.matchKind(q);
+          const here = MapModule.currentLocation || this.from;
+          const [results, places] = await Promise.all([
+            this.geocode(q).catch(e => { if (!kind) throw e; return []; }),
+            kind && here ? PoiModule.searchNearby(kind.cats, here.lat, here.lon, 15).then(l => l.slice(0, 5)).catch(() => []) : [],
+          ]);
+          const { html, picks } = this.buildSuggestions(kind, places, results, !!here);
+          if (!picks.length && !kind) {
+            resultsEl.innerHTML = '<div class="geo-hint">No match. Try a city, a park, a full address, or a kind of place like gas or coffee.</div>';
             return;
           }
-          resultsEl.innerHTML = results.map((r, i) =>
-            `<button type="button" class="geo-result" data-i="${i}">
-               <span class="geo-result-name">${App.escapeHtml(r.short)}</span>
-               <span class="geo-result-full">${App.escapeHtml(r.name)}</span>
-             </button>`).join('');
+          resultsEl.innerHTML = html;
           resultsEl.querySelectorAll('.geo-result').forEach(btn => {
             btn.addEventListener('click', () => {
-              const r = results[+btn.dataset.i];
+              const r = picks[+btn.dataset.i];
               input.value = r.short;
               input.dataset.picked = '1';
               resultsEl.innerHTML = '';

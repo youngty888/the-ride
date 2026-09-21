@@ -23,7 +23,7 @@ const _ls = getStorage();
 
 function getAccountId() {
   try {
-    const session = JSON.parse(sessionStorage.getItem('sicc-ride-auth-session'));
+    const session = JSON.parse(RideSessionStore.getItem('sicc-ride-auth-session'));
     if (session?.user?.id) return session.user.id;
     const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
     return payload.sub || '';

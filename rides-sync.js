@@ -59,6 +59,7 @@ const RidesCloud = {
     if (missing.length) {
       const merged = [...local, ...missing].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       Storage.set(Storage.KEYS.RIDES, merged);
+      try { if (typeof App !== 'undefined') App.renderRideHistory(); } catch (e) { /* view not ready */ }
     }
   },
   async pushDeletes() {

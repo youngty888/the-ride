@@ -9,7 +9,7 @@ function device(server, id = 'rider-a', local = new Map()) {
   const session = new Map([['sicc-ride-auth-session', JSON.stringify({user:{id},access_token:'test'})]]);
   const ls = {getItem:k=>local.get(k)||null,setItem:(k,v)=>local.set(k,v),removeItem:k=>local.delete(k)};
   const ctx = vm.createContext({console, setTimeout:()=>0,clearTimeout(){},confirm:()=>true,
-    window:{localStorage:ls,addEventListener(){}}, sessionStorage:{getItem:k=>session.get(k)},
+    window:{localStorage:ls,addEventListener(){}}, RideSessionStore:{getItem:k=>session.get(k)},
     RideAuth:{session:async()=>({user:{id},access_token:'test'})},
     document:{getElementById:()=>null},App:{renderProfile(){},renderGarage(){},renderEmergencyContacts(){},updateTotalMiles(){}}});
   vm.runInContext(source('storage.js')+'\n'+source('cloud-sync.js')+'\nthis.S=Storage;this.C=RiderCloud;',ctx);

@@ -19,8 +19,8 @@ test('denied location stops after one attempt and offers manual retry',async()=>
 });
 test('slow gas results cannot replace a newer food selection',async()=>{
  const {A,P,list}=setup();let finishGas;
- P.searchNearby=cat=>cat==='fuel'?new Promise(r=>finishGas=r):Promise.resolve([{name:'Food result'}]);
- const gas=A.loadStops();A.currentStopType='fast_food';await A.loadStops();
+ P.searchNearby=cats=>[].concat(cats).includes('fuel')?new Promise(r=>finishGas=r):Promise.resolve([{name:'Food result'}]);
+ const gas=A.loadStops();A.currentStopGroup='food';A.currentStopType='fast_food';await A.loadStops();
  finishGas([{name:'Old gas result'}]);await gas;assert.equal(list.innerHTML,'Food result');
 });
 test('service timeout remark triggers fallback instead of false no-results',async()=>{

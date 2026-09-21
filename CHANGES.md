@@ -327,3 +327,12 @@ inside the Report sheet.
 - Deletes sync both ways: a delete here is queued (works offline); a route deleted on another device is removed here rather than re-uploaded.
 - Run sql/2026-09-20-rider-routes.sql on the live database BEFORE deploying, or riders see a 'Cloud unavailable' banner.
 - Tests: tests/routes-sync.test.cjs.
+
+---
+
+## Stay signed in
+
+- The sign-in (session-store.js) now lives in localStorage instead of sessionStorage, so it survives closing the app or tab. Sign out clears it.
+- A session left in sessionStorage by the previous version is moved over on first load, so nobody is signed out by the update.
+- Falls back to the old tab-only behaviour if the browser blocks localStorage.
+- Tradeoff: on a shared device the next person is signed in until someone taps Sign out.

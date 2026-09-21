@@ -9,8 +9,9 @@
   <meta name="description" content="Motorcycle group riding app with maps, pack tracking, mileage, and emergency features">
   <title>RIDE by SIC Cycles — Motorcycle Riding</title>
   <style>.auth-pending body{visibility:hidden}</style>
+  <script src="session-store.js?v=202609210721"></script>
   <script defer src="supabase-config.js?v=72624a2"></script>
-  <script defer src="auth-guard.js?v=20260909-sync1"></script>
+  <script defer src="auth-guard.js?v=202609210721"></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +22,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=20260909-sync1">
+  <link rel="stylesheet" href="styles.=202609210751">
   <meta name="app-version" content="202608311533">
 </head>
 <body>
@@ -148,19 +149,14 @@
       <h2>Add Stop</h2>
     </div>
     <div class="overlay-content">
-      <div class="filter-chips" id="stopFilters">
-        <button class="chip active" data-type="fuel">⛽ Gas</button>
-        <button class="chip" data-type="fast_food">🍟 Fast Food</button>
-        <button class="chip" data-type="restaurant">🍽 Sit-Down</button>
-        <button class="chip" data-type="cafe">☕ Coffee</button>
-        <button class="chip" data-type="hotel">🛏 Hotel</button>
-        <button class="chip" data-type="campsite">⛺ Camping</button>
-        <button class="chip" data-type="mechanic">🔧 Mechanic</button>
-        <button class="chip" data-type="toilets">🚻 Restroom</button>
-        <button class="chip" data-type="store">🛒 Store</button>
-        <button class="chip" data-type="viewpoint">🏞 Viewpoint</button>
-        <button class="chip" data-type="hospital">🏥 Hospital</button>
+      <div class="filter-chips" id="stopGroups">
+        <button type="button" class="chip active" data-group="gas">⛽ Gas</button>
+        <button type="button" class="chip" data-group="food">🍽 Food</button>
+        <button type="button" class="chip" data-group="lodging">🛏 Lodging</button>
+        <button type="button" class="chip" data-group="store">🛒 Store</button>
+        <button type="button" class="chip" data-group="see">🏞 Things to See</button>
       </div>
+      <div class="filter-chips filter-chips-sub" id="stopSubs"></div>
       <div class="stop-scope" id="stopScope">
         <button type="button" class="toggle-btn active" data-scope="near">Near me</button>
         <button type="button" class="toggle-btn" data-scope="route">Along my route</button>
@@ -211,6 +207,10 @@
           </svg>
           <span>Notify My Pack</span>
         </button>
+      </div>
+      <div class="emergency-hospitals-section">
+        <button type="button" class="btn-secondary btn-large" id="btnNearestHospital">🏥 Find nearest hospital</button>
+        <div id="emergencyHospitals" class="stops-list"></div>
       </div>
       <div class="emergency-contacts-section">
         <h3>Emergency Contacts</h3>
@@ -761,17 +761,17 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="storage.js?v=202609210654"></script>
-  <script src="cloud-sync.js?v=20260909-sync1"></script>
-  <script src="rides-sync.js?v=202609210716"></script>
+  <script src="storage.js?v=202609210721"></script>
+  <script src="cloud-sync.js?v=202609210718"></script>
+  <script src="rides-sync.js?v=202609210718"></script>
   <script src="routes-sync.js?v=202609210716"></script>
   <script src="geo.js?v=202608311533"></script>
   <script src="map.js?v=202608311533"></script>
-  <script src="route.js?v=202609210558"></script>
-  <script src="poi.js?v=202608311533"></script>
+  <script src="route.js?v=202609210754"></script>
+  <script src="poi.=202609210751"></script>
   <script src="weather.js?v=202608311533"></script>
   <script src="hazards.js?v=202608311533"></script>
   <script src="alerts.js?v=202608311533"></script>
-  <script src="app.js?v=202609210654"></script>
+  <script src="app.=202609210751"></script>
 </body>
 </html>
