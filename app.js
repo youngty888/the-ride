@@ -5,7 +5,8 @@
 
 const App = {
   currentScreen: 'map',
-  currentStopType: 'fuel',
+  currentStopGroup: 'gas',
+  currentStopType: 'fuel', // a category id, or 'all' for the whole group
   stopScope: 'near',
   currentBlogCategory: 'all',
   emergencyContacts: [],
@@ -187,15 +188,14 @@ const App = {
       });
     });
 
-    // Add Stop filters
-    document.querySelectorAll('#stopFilters .chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('#stopFilters .chip').forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.currentStopType = chip.dataset.type;
-        this.loadStops();
-      });
+    // Add Stop: five groups, each with sub-choices
+    document.querySelectorAll('#stopGroups .chip').forEach((chip) => {
+      chip.addEventListener('click', () => this.selectStopGroup(chip.dataset.group));
     });
+    this.renderStopSubs();
+
+    // Emergency: nearest hospital (Hospital is not an Add Stop choice)
+    document.getElementById('btnNearestHospital').addEventListener('click', () => this.findNearestHospitals());
 
     // Near me / along my route
     document.querySelectorAll('#stopScope .toggle-btn').forEach((btn) => {
@@ -247,12 +247,55 @@ const App = {
   /* --- Add Stop -> POI search (in-app cards, no Google redirect) ---
      The old version rendered its own list and auto-opened Google Maps when
      you tapped a row. PoiModule now owns the list and shows an in-app card. */
+  selectStopGroup(id) {
+    const group = PoiModule.group(id);
+    this.currentStopGroup = group.id;
+    this.currentStopType = group.all ? 'all' : group.subs[0];
+    document.querySelectorAll('#stopGroups .chip').forEach((c) => c.classList.toggle('active', c.dataset.group === group.id));
+    this.renderStopSubs();
+    this.loadStops();
+  },
+
+  // Second row of chips: the group's sub-choices (plus "All" where it makes sense).
+  renderStopSubs() {
+    const group = PoiModule.group(this.currentStopGroup);
+    const el = document.getElementById('stopSubs');
+    if (!el) return;
+    const options = [...(group.all ? [{ id: 'all', label: 'All', icon: group.icon }] : []), ...group.subs.map((id) => PoiModule.cat(id))];
+    el.hidden = options.length < 2;
+    el.innerHTML = options.map((o) => `<button type="button" class="chip${o.id === this.currentStopType ? ' active' : ''}" data-sub="${o.id}">${o.icon} ${o.label}</button>`).join('');
+    el.querySelectorAll('.chip').forEach((chip) => chip.addEventListener('click', () => {
+      this.currentStopType = chip.dataset.sub;
+      this.renderStopSubs();
+      this.loadStops();
+    }));
+  },
+
+  // Emergency screen: closest hospitals by distance (favorites/blocked brands do not apply).
+  async findNearestHospitals() {
+    const listEl = document.getElementById('emergencyHospitals');
+    const loc = MapModule.currentLocation;
+    if (!loc) {
+      listEl.innerHTML = '<div class="err-box">No GPS fix yet. Allow location, then tap again. In an emergency call 911.</div>';
+      MapModule.requestOneFix((fix) => { if (fix) this.findNearestHospitals(); });
+      return;
+    }
+    listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div>';
+    try {
+      const pois = await PoiModule.searchNearby('hospital', loc.lat, loc.lon, 30);
+      pois.sort((a, b) => a.distanceMi - b.distanceMi);
+      PoiModule.renderList(listEl, pois.slice(0, 5), 'No hospital found within 30 miles. Call 911.');
+    } catch (e) {
+      listEl.innerHTML = '<div class="err-box">Could not reach the map data server. If this is an emergency, call 911.</div>';
+    }
+  },
+
   async loadStops() {
     const searchId = this.stopSearchId = (this.stopSearchId || 0) + 1;
     const listEl = document.getElementById('stopsList');
-    const has = PoiModule.CATS.some(c => c.id === this.currentStopType);
-    const cat = has ? this.currentStopType : 'fuel';
-    const catLabel = PoiModule.cat(cat).label.toLowerCase();
+    const group = PoiModule.group(this.currentStopGroup);
+    const cats = this.currentStopType === 'all' ? group.subs : [this.currentStopType];
+    const catLabel = (this.currentStopType === 'all' ? group.label : PoiModule.cat(cats[0]).label).toLowerCase();
 
     if (this.stopScope === 'route') {
       const route = RouteModule.activeRoute();
@@ -262,7 +305,7 @@ const App = {
       }
       listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching along your route…</div>';
       try {
-        const pois = await PoiModule.searchAlongRoute(cat, route.coords, route.cum);
+        const pois = await PoiModule.searchAlongRoute(cats, route.coords, route.cum);
         if (searchId !== this.stopSearchId) return;
         PoiModule.display(listEl, pois, `No ${catLabel} found within 3 miles of your route.`);
         PoiModule.showMarkers(pois);
@@ -289,7 +332,7 @@ const App = {
 
     listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-line">Searching nearby…</div>';
     try {
-      const pois = await PoiModule.searchNearby(cat, loc.lat, loc.lon, 15);
+      const pois = await PoiModule.searchNearby(cats, loc.lat, loc.lon, 15);
       if (searchId !== this.stopSearchId) return;
       PoiModule.display(listEl, pois, `No ${catLabel} found within 15 miles.`);
       PoiModule.showMarkers(pois);

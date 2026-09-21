@@ -32,10 +32,23 @@ const PoiModule = {
     { id: 'toilets',    label: 'Restroom',   icon: '🚻', filters: ['nwr["amenity"="toilets"]'] },
     { id: 'store',      label: 'Store',      icon: '🛒', filters: ['nwr["shop"~"^(convenience|supermarket)$"]'] },
     { id: 'viewpoint',  label: 'Scenic',     icon: '🏞', filters: ['nwr["tourism"="viewpoint"]'] },
+    { id: 'attraction', label: 'Attractions', icon: '🎡', filters: ['nwr["tourism"~"^(attraction|museum|zoo|theme_park|gallery)$"]', 'nwr["historic"~"^(monument|memorial|castle|ruins|fort)$"]'] },
     { id: 'hospital',   label: 'Hospital',   icon: '🏥', filters: ['nwr["amenity"~"^(hospital|clinic)$"]'] },
   ],
 
   cat(id) { return this.CATS.find(c => c.id === id) || this.CATS[0]; },
+  // --- Add Stop groups: five main choices, each with sub-choices. `all` adds an
+  // "All" sub-choice that searches every sub-category in one request. Hospital is
+  // deliberately not a group; it lives on the Emergency screen.
+  GROUPS: [
+    { id: 'gas',     label: 'Gas',           icon: '⛽', all: false, subs: ['fuel', 'toilets'] },
+    { id: 'food',    label: 'Food',          icon: '🍽', all: true,  subs: ['fast_food', 'restaurant', 'cafe'] },
+    { id: 'lodging', label: 'Lodging',       icon: '🛏', all: true,  subs: ['hotel', 'campsite'] },
+    { id: 'store',   label: 'Store',         icon: '🛒', all: true,  subs: ['store', 'mechanic'] },
+    { id: 'see',     label: 'Things to See', icon: '🏞', all: true,  subs: ['viewpoint', 'attraction'] },
+  ],
+
+  group(id) { return this.GROUPS.find(g => g.id === id) || this.GROUPS[0]; },
 
   // Current UI state
   activeCat: 'fuel',
@@ -240,11 +253,12 @@ const PoiModule = {
 
   // Nearby search around a point.
   async searchNearby(catId, lat, lon, radiusMi = 10) {
-    const els = await this.overpass(this.buildAroundQuery([catId], [{ lat, lon, radiusM: radiusMi * 1609.34 }], 60));
+    const ids = [].concat(catId); // one category id, or several searched together
+    const els = await this.overpass(this.buildAroundQuery(ids, [{ lat, lon, radiusM: radiusMi * 1609.34 }], 60));
     const seen = new Set();
     const out = [];
     els.forEach(el => {
-      const poi = this.elToPoi(el, catId);
+      const poi = this.elToPoi(el, ids.length > 1 ? this.guessCat(el) : ids[0]);
       if (!poi || seen.has(poi.id)) return;
       seen.add(poi.id);
       poi.distanceMi = Geo.distMi(lat, lon, poi.lat, poi.lon);
@@ -260,12 +274,13 @@ const PoiModule = {
   async searchAlongRoute(catId, coords, cum, corridorMi = 3, sampleEveryMi = 15) {
     const samples = Geo.sampleEvery(coords, cum, sampleEveryMi, 24);
     const points = samples.map(s => ({ lat: s.lat, lon: s.lon, radiusM: corridorMi * 1609.34 }));
-    const els = await this.overpass(this.buildAroundQuery([catId], points, 120));
+    const ids = [].concat(catId);
+    const els = await this.overpass(this.buildAroundQuery(ids, points, 120));
     const maxDetour = Storage.getPoiPrefs().maxDetourMi || 5;
     const seen = new Set();
     const out = [];
     els.forEach(el => {
-      const poi = this.elToPoi(el, catId);
+      const poi = this.elToPoi(el, ids.length > 1 ? this.guessCat(el) : ids[0]);
       if (!poi || seen.has(poi.id)) return;
       seen.add(poi.id);
       const near = Geo.nearestOnPath(coords, cum, poi.lat, poi.lon, 3);

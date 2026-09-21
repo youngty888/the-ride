@@ -2438,6 +2438,11 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 #ridesCloudStatus[hidden] { display: none; }
 #routesCloudStatus { position: fixed; bottom: 160px; left: 8px; right: 8px; z-index: 1100; padding: 6px 12px; border: 1px solid #555; border-radius: 8px; background: #171719; color: #fff; font: 12px/1.4 Inter, sans-serif; }
 #routesCloudStatus[hidden] { display: none; }
+/* Add Stop: second row of sub-choices */
+.filter-chips-sub { margin-top: var(--space-2); }
+.filter-chips-sub .chip { font-size: 0.85em; }
+.filter-chips-sub[hidden] { display: none; }
+.emergency-hospitals-section { margin: var(--space-4) 0; }
 .screen { padding-bottom: 160px; }
 
 /* Short landscape phones: reserve side rails for every ride control. */
