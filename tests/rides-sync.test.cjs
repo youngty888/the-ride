@@ -10,7 +10,7 @@ function device(server, id = 'rider-a', local = new Map()) {
   const ctx = vm.createContext({console, setTimeout:()=>0,clearTimeout(){},confirm:()=>true,
     window:{localStorage:ls,addEventListener(){}}, sessionStorage:{getItem:k=>session.get(k)},
     RideAuth:{session:async()=>({user:{id},access_token:'test'})},
-    document:{getElementById:()=>null},App:{renderProfile(){},renderGarage(){},renderEmergencyContacts(){},updateTotalMiles(){}}});
+    document:{getElementById:()=>null},App:{rideRenders:0,renderRideHistory(){this.rideRenders++},renderProfile(){},renderGarage(){},renderEmergencyContacts(){},updateTotalMiles(){}}});
   vm.runInContext(source('storage.js')+'\n'+source('rides-sync.js')+'\nthis.S=Storage;this.R=RidesCloud;',ctx);
   const R=ctx.R,S=ctx.S;
   R.status=()=>{};
@@ -25,7 +25,7 @@ function device(server, id = 'rider-a', local = new Map()) {
     const row = JSON.parse(o.body), key = row.owner_id+':'+row.id;
     if(!server.rows[key]) server.rows[key] = row; // primary key (owner_id, id); ignore-duplicates
     return [];
-  };  return {R,S,local};
+  };  return {R,S,local,A:ctx.App};
 }
 test('a completed ride pushes to the account once online', async () => {
   const server = {rows:{}}, a = device(server);
@@ -111,4 +111,12 @@ test('a ride the table would reject does not block other rides from syncing', as
   assert.ok(server.rows['rider-a:r9']);
   assert.equal(server.rows['rider-a:bad'], undefined);
   assert.equal(server.rows['rider-a:old'].duration_seconds, null);
+});
+test('rides pulled from the account refresh the on-screen ride list', async () => {
+  const server = {rows:{}}, a = device(server);
+  a.S.saveRide({id:'r10', date:'2026-09-09', distance:7, duration:20, bikeId:null});
+  await a.R.init();
+  const b = device(server); await b.R.init();
+  assert.equal(b.S.getRides().length, 1);
+  assert.ok(b.A.rideRenders >= 1);
 });

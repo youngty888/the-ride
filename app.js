@@ -1550,7 +1550,7 @@ const App = {
       <div class="ride-history-card">
         <div class="ride-history-info">
           <div class="ride-history-route">${this.escapeHtml(ride.route || 'Unknown route')}</div>
-          <div class="ride-history-meta">${ride.date} · ${this.escapeHtml(ride.bikeName || '')} · ${ride.duration || ''}</div>
+          <div class="ride-history-meta">${ride.date} · ${this.escapeHtml(ride.bikeName || '')} · ${typeof ride.duration === 'number' ? (ride.duration ? ride.duration + ' min' : '') : this.escapeHtml(ride.duration || '')}</div>
         </div>
         <div class="ride-history-distance">
           <div class="ride-history-miles">${ride.distance.toFixed(1)}</div>
