@@ -62,6 +62,8 @@ const Storage = {
     SETTINGS: 'rideflow_settings',
     // --- Phase 1 / 2 additions (same rideflow_ prefix) ---
     ROUTES: 'rideflow_routes',            // saved routes
+    ROUTES_DELETED: 'rideflow_routes_deleted', // saved routes deleted locally, awaiting cloud delete
+    ROUTES_SYNCED: 'rideflow_routes_synced',   // {routeId: updatedAt} this device has synced (see routes-sync.js)
     TRIP_REVIEWS: 'rideflow_trip_reviews',// ratings/comments on recommended trips
     POI_PREFS: 'rideflow_poi_prefs',      // favorite / blocked brands, categories, max detour
     GEOCACHE: 'rideflow_geocache',        // Nominatim result cache
@@ -98,6 +100,9 @@ const Storage = {
       }
       if (key === this.KEYS.RIDES) {
         if (typeof RidesCloud !== 'undefined') RidesCloud.changed();
+      }
+      if (key === this.KEYS.ROUTES || key === this.KEYS.ROUTES_DELETED) {
+        if (typeof RoutesCloud !== 'undefined') RoutesCloud.changed();
       }
       return true;
     } catch (e) {
@@ -260,6 +265,7 @@ const Storage = {
   },
 
   saveRoute(route) {
+    route.updatedAt = Date.now(); // RoutesCloud: newest edit wins across devices
     const routes = this.getRoutes();
     const idx = routes.findIndex(r => r.id === route.id);
     if (idx >= 0) routes[idx] = route;
@@ -268,6 +274,9 @@ const Storage = {
   },
 
   deleteRoute(id) {
+    // Queue the cloud delete (a no-op if the route never synced); pull skips these ids.
+    const deleted = this.get(this.KEYS.ROUTES_DELETED, []);
+    if (!deleted.includes(id)) this.set(this.KEYS.ROUTES_DELETED, [...deleted, id]);
     return this.set(this.KEYS.ROUTES, this.getRoutes().filter(r => r.id !== id));
   },
 

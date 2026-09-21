@@ -1791,6 +1791,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { await RidesCloud.init(); }
     catch (error) { RidesCloud.status(error.message); }
   }
+  if (typeof RoutesCloud !== 'undefined') {
+    try { await RoutesCloud.init(); }
+    catch (error) { RoutesCloud.status(error.message); }
+  }
   App.init();
   document.documentElement.classList.remove('auth-pending');
 });

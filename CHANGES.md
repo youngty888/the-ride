@@ -317,3 +317,13 @@ inside the Report sheet.
 - index.html loads rides-sync.js and shows a small status line only while saving or on errors.
 
 - Tests: tests/rides-sync.test.cjs (push, offline, second device, isolation, delete, offline delete, id collision).
+
+---
+
+## Saved routes cloud sync
+
+- New routes-sync.js keeps saved routes in the rider's account (table rider_routes, owner-only RLS, whole route stored as JSON).
+- Newest edit wins (route.updatedAt). Notes edits and re-saves reach other devices.
+- Deletes sync both ways: a delete here is queued (works offline); a route deleted on another device is removed here rather than re-uploaded.
+- Run sql/2026-09-20-rider-routes.sql on the live database BEFORE deploying, or riders see a 'Cloud unavailable' banner.
+- Tests: tests/routes-sync.test.cjs.
