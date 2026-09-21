@@ -50,6 +50,29 @@ const PoiModule = {
 
   group(id) { return this.GROUPS.find(g => g.id === id) || this.GROUPS[0]; },
 
+  // --- Search-by-kind: words a rider types into "Where to?" that mean "places of this
+  // kind near me" rather than an address or a name. Whole-phrase matches only, so
+  // "Gas City, Indiana" is still an address search.
+  KINDS: [
+    { re: /^(gas|gas stations?|fuel|petrol|filling stations?)$/, label: 'Gas', icon: '⛽', cats: ['fuel'] },
+    { re: /^(restrooms?|bathrooms?|toilets?)$/, label: 'Restrooms', icon: '🚻', cats: ['toilets'] },
+    { re: /^(food|eat|restaurants?|dinner|lunch|breakfast|places to eat)$/, label: 'Food', icon: '🍽', cats: ['fast_food', 'restaurant', 'cafe'] },
+    { re: /^(fast food|burgers?|drive.?thr(u|ough))$/, label: 'Fast food', icon: '🍟', cats: ['fast_food'] },
+    { re: /^(coffee|cafes?|espresso)$/, label: 'Coffee', icon: '☕', cats: ['cafe'] },
+    { re: /^(hotels?|motels?|lodging|places to stay)$/, label: 'Lodging', icon: '🛏', cats: ['hotel'] },
+    { re: /^(camping|campgrounds?|campsites?|rv parks?)$/, label: 'Camping', icon: '⛺', cats: ['campsite'] },
+    { re: /^(mechanics?|repair|repair shops?|motorcycle (shop|repair)|bike shops?)$/, label: 'Repair', icon: '🔧', cats: ['mechanic'] },
+    { re: /^(stores?|groceries|grocery|convenience( stores?)?|supermarkets?)$/, label: 'Stores', icon: '🛒', cats: ['store'] },
+    { re: /^(scenic|viewpoints?|overlooks?|scenic (views?|stops?))$/, label: 'Scenic stops', icon: '🏞', cats: ['viewpoint'] },
+    { re: /^(attractions?|museums?|things to (do|see)|sights?)$/, label: 'Things to see', icon: '🎡', cats: ['attraction', 'viewpoint'] },
+    { re: /^(hospitals?|urgent care|emergency room)$/, label: 'Hospitals', icon: '🏥', cats: ['hospital'] },
+  ],
+
+  matchKind(q) {
+    const s = String(q || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    return this.KINDS.find(k => k.re.test(s)) || null;
+  },
+
   // Current UI state
   activeCat: 'fuel',
   alongRoute: false,
