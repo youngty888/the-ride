@@ -2459,6 +2459,12 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 .pref-learned-meta { color: #aaa; font-size: 0.8em; }
 .poi-usual { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: #ff6b1a; color: #111; font-size: 0.7em; font-weight: 700; }
 .poi-card-usual { color: #ff6b1a; }
+/* End-of-ride prompt (arrival / back at the start) */
+.arrival-prompt { position: fixed; top: 168px; left: 8px; right: 8px; z-index: 1150; padding: 12px 14px; border: 2px solid #ff6b1a; border-radius: 10px; background: #171719; color: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.arrival-prompt[hidden] { display: none; }
+.arrival-prompt p { margin: 0 0 10px; font-size: 1.05em; font-weight: 600; }
+.arrival-actions { display: flex; gap: var(--space-2); }
+.arrival-actions button { flex: 1; min-height: var(--touch-min); }
 .screen { padding-bottom: 160px; }
 
 /* Short landscape phones: reserve side rails for every ride control. */
