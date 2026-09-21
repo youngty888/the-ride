@@ -293,6 +293,12 @@ const App = {
     this.hideArrivalPrompt();
     if (MapModule.isTracking) document.getElementById('btnRide').click();
   },
+  // After a sync changes the start group: apply it unless the rider is in the middle of Add Stop.
+  applyStartGroupIfIdle() {
+    const addStop = document.getElementById('overlay-addstop');
+    if (!(addStop && addStop.classList.contains('active'))) this.applyStartGroup();
+  },
+
   selectStopGroup(id) {
     const group = PoiModule.group(id);
     this.currentStopGroup = group.id;
@@ -1884,6 +1890,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof RoutesCloud !== 'undefined') {
     try { await RoutesCloud.init(); }
     catch (error) { RoutesCloud.status(error.message); }
+  }
+  if (typeof PrefsCloud !== 'undefined') {
+    try { await PrefsCloud.init(); }
+    catch (error) { PrefsCloud.say(error.message); }
   }
   App.init();
   document.documentElement.classList.remove('auth-pending');

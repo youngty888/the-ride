@@ -18,7 +18,7 @@ function load(file, name, respond) {
     RideSessionStore:{getItem:k=>session.get(k)},
     RideAuth:{session:async()=>({user:{id:'rider-a'},access_token:'t'})},
     document:{getElementById:()=>null}, App:{}});
-  vm.runInContext(source('storage.js')+'\n'+source(file)+`\nthis.M=${name};`, ctx);
+  vm.runInContext(source('storage.js')+'\n'+source('cloud-rest.js')+'\n'+source(file)+`\nthis.M=${name};`, ctx);
   ctx.M.account = 'rider-a';
   return ctx.M;
 }

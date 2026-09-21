@@ -38,7 +38,7 @@ for (const page of pages) {
 test('index.html loads every module the app depends on, once each', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const loaded = localRefs(html).map(r => r.split('?')[0]);
-  for (const f of ['session-store.js', 'storage.js', 'rides-sync.js', 'routes-sync.js', 'poi.js', 'prefs.js', 'route.js', 'app.js', 'alerts.js']) {
+  for (const f of ['session-store.js', 'storage.js', 'rides-sync.js', 'routes-sync.js', 'poi.js', 'prefs.js', 'prefs-sync.js', 'cloud-rest.js', 'route.js', 'app.js', 'alerts.js']) {
     assert.equal(loaded.filter(x => x === f).length, 1, `${f} should be loaded exactly once`);
   }
 });

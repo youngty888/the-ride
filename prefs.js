@@ -3,8 +3,8 @@
    Favorite brands (ranked first), blocked brands (never shown), where Add Stop
    starts, how far off a route to look, and the "usual" stops the app has learned
    from the stops the rider actually picked (see PoiModule.recordPick).
-   Everything here is stored on this device (Storage.KEYS.POI_PREFS); it does not
-   sync to the account yet.
+   Stored on this device (Storage.KEYS.POI_PREFS) and synced to the rider's account
+   by prefs-sync.js.
    ============================================ */
 const PrefsModule = {
   timer: null,
@@ -90,7 +90,7 @@ const PrefsModule = {
       <label class="setting-row">
         <span class="setting-text">
           <span class="setting-label">Learn from my stops</span>
-          <span class="setting-desc">When you add a stop to a route or set one as your destination, RIDE counts the brand. After ${PoiModule.USUAL_AT} times it is marked "Your usual" and listed just below your favorites. Counts stay on this device.</span>
+          <span class="setting-desc">When you add a stop to a route or set one as your destination, RIDE counts the brand. After ${PoiModule.USUAL_AT} times it is marked "Your usual" and listed just below your favorites. Counts sync with your account so they follow you to a new phone.</span>
         </span>
         <span class="switch"><input type="checkbox" id="prefLearn" ${prefs.learn ? 'checked' : ''}><span class="switch-slider"></span></span>
       </label>
@@ -103,7 +103,7 @@ const PrefsModule = {
         <button type="button" class="btn-secondary" id="prefClearLearned">Forget everything it learned</button>`
         : '<p class="plan-section-note">Nothing learned yet. Add a few stops to routes and your usual ones will show up here.</p>'}
 
-      <p class="plan-section-note">These preferences are saved on this device. They do not follow you to another phone yet.</p>
+      <p class="plan-section-note" id="prefsSyncNote">${esc(typeof PrefsCloud !== 'undefined' && PrefsCloud.message ? PrefsCloud.message : 'Saved on this device and synced to your account when you are online.')}</p>
     `;
   },
 
@@ -138,6 +138,12 @@ const PrefsModule = {
     if (clear) clear.addEventListener('click', () => {
       if (confirm('Forget every usual stop RIDE has learned? Your favorites and blocked brands stay.')) this.update(p => { p.learned = {}; });
     });
+  },
+
+  // Called after a sync brings in changes from another device.
+  renderIfOpen() {
+    const overlay = document.getElementById('overlay-stop-prefs');
+    if (overlay && overlay.classList.contains('active')) this.render();
   },
 
   update(change) {

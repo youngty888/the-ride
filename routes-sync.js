@@ -15,21 +15,7 @@ const RoutesCloud = {
     box.textContent = message;
     box.hidden = !message;
   },
-  async request(path, options = {}) {
-    if (getAccountId() !== this.account) throw new Error('Account changed. Reload Ride.');
-    const session = await RideAuth.session();
-    if (session.user.id !== this.account) throw new Error('Account changed. Reload Ride.');
-    const config = window.SICC_RIDE_SUPABASE;
-    const response = await fetch(`${config.url}/rest/v1/${path}`, {
-      ...options, signal: AbortSignal.timeout(15000),
-      headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json', ...options.headers }
-    });
-    if (!response.ok) throw new Error(response.status === 401 ? 'Sign in again to save online.' : `Cloud unavailable (${response.status}).`);
-    // Writes with return=minimal answer 201/204 with no body; only parse when there is one.
-    const text = await response.text();
-    return text ? JSON.parse(text) : [];
-  },
+  request(path, options) { return CloudRest.call(this.account, path, options); },
   // Routes saved before updatedAt existed fall back to createdAt.
   stamp(route) { return Number(route.updatedAt) || Number(route.createdAt) || 0; },
   toRow(route) {
