@@ -24,13 +24,19 @@ const RidesCloud = {
     if (!response.ok) throw new Error(response.status === 401 ? 'Sign in again to save online.' : `Cloud unavailable (${response.status}).`);
     return response.status === 204 ? [] : response.json();
   },
+  // The app stores ride.duration in whole MINUTES (map.js); the column is seconds.
+  // Returns null for rides the table would reject (old demo rides store "2h 10m").
   toRow(ride) {
+    const distance = Number(ride.distance);
+    if (!ride.id || !/^\d{4}-\d{2}-\d{2}/.test(ride.date || '') || !Number.isFinite(distance) || distance < 0) return null;
+    const minutes = Number(ride.duration);
     return { id: ride.id, owner_id: this.account, bike_id: ride.bikeId || null,
-      ride_date: ride.date, distance_miles: ride.distance, duration_seconds: ride.duration || null };
+      ride_date: ride.date.slice(0, 10), distance_miles: distance,
+      duration_seconds: Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes * 60) : null };
   },
   fromRow(row) {
-    return { id: row.id, date: row.ride_date, distance: row.distance_miles,
-      duration: row.duration_seconds, bikeId: row.bike_id, synced: true };
+    return { id: row.id, date: row.ride_date, distance: Number(row.distance_miles),
+      duration: row.duration_seconds == null ? 0 : Math.round(row.duration_seconds / 60), bikeId: row.bike_id, synced: true };
   },
   async init() {
     this.account = (await RideAuth.session()).user.id;
@@ -61,7 +67,7 @@ const RidesCloud = {
     }
   },
   async push() {
-    const unsynced = Storage.getRides().filter(r => !r.synced);
+    const unsynced = Storage.getRides().filter(r => !r.synced && this.toRow(r));
     if (!unsynced.length) return;
     for (const ride of unsynced) {
       await this.request('rider_rides', {
@@ -79,7 +85,7 @@ const RidesCloud = {
       await this.pushDeletes();
       await this.pull();
       await this.push();
-      const stillUnsynced = Storage.getRides().some(r => !r.synced);
+      const stillUnsynced = Storage.getRides().some(r => !r.synced && this.toRow(r));
       this.status(stillUnsynced ? 'Ride history: saving…' : 'Ride history: saved to your account.');
     } catch (error) {
       this.status(`${error.message} Ride history will retry automatically.`);
