@@ -2443,6 +2443,8 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 .filter-chips-sub .chip { font-size: 0.85em; }
 .filter-chips-sub[hidden] { display: none; }
 .emergency-hospitals-section { margin: var(--space-4) 0; }
+/* Long descriptions must not squeeze the toggle (Settings and Stop Preferences rows) */
+.setting-row .switch { flex-shrink: 0; }
 /* Stop Preferences */
 .overlay-header-action { margin-left: auto; min-height: var(--touch-min); }
 .pref-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
