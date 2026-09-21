@@ -1,0 +1,9 @@
+{
+  "name": "ride-by-sic-cycles",
+  "private": true,
+  "description": "RIDE by SIC Cycles: static web app (no build step). Scripts are developer helpers only.",
+  "scripts": {
+    "test": "node scripts/test.js",
+    "bump": "node scripts/bump-version.js"
+  }
+}

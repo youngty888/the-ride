@@ -57,3 +57,12 @@ MIT
   2021-2023, motorcycle-involved crashes only
   (https://www.nhtsa.gov/file-downloads?p=nhtsa/downloads/FARS/)
 - Map tiles: (c) OpenStreetMap contributors
+
+## Developer commands
+
+There is no build step. Two helper commands (Node 18+):
+
+- `npm test` runs every test in `tests/` (or `node scripts/test.js`).
+- `npm run bump` re-stamps the `?v=` cache-busting tag on every script and stylesheet in `index.html` and `auth.html` so phones fetch changed files. Run it before every push that changes a script or stylesheet. To stamp only some files: `node scripts/bump-version.js app.js map.js`. It fails loudly if a page references a missing file.
+
+Text files are stored with LF line endings (see `.gitattributes`).

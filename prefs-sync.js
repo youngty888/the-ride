@@ -86,7 +86,9 @@ const PrefsCloud = {
       } else if (!localMs) {
         // Preferences made before syncing existed: combine, then save the result both places.
         const merged = this.merge(local, remote.data);
-        const stamp = Date.now();
+        // Strictly newer than the account copy, even if this device's clock is behind or ties
+        // with the other device's: otherwise the other device could later overwrite the merge.
+        const stamp = Math.max(Date.now(), remoteMs + 1);
         await this.push({ ...merged, updatedAt: stamp }, stamp);
         this.adopt(merged, stamp);
       } else if (remoteMs > localMs) {

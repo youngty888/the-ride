@@ -1,0 +1,11 @@
+# One line-ending rule for the whole repo: text files are stored and checked out with LF.
+# (Several files had a mix of CRLF and LF, which made diffs noisy and scripted edits risky.)
+* text=auto
+*.js   text eol=lf
+*.cjs  text eol=lf
+*.html text eol=lf
+*.css  text eol=lf
+*.md   text eol=lf
+*.sql  text eol=lf
+*.json text eol=lf
+*.sh   text eol=lf
