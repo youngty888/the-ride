@@ -26,7 +26,9 @@ const RoutesCloud = {
         'Content-Type': 'application/json', ...options.headers }
     });
     if (!response.ok) throw new Error(response.status === 401 ? 'Sign in again to save online.' : `Cloud unavailable (${response.status}).`);
-    return response.status === 204 ? [] : response.json();
+    // Writes with return=minimal answer 201/204 with no body; only parse when there is one.
+    const text = await response.text();
+    return text ? JSON.parse(text) : [];
   },
   // Routes saved before updatedAt existed fall back to createdAt.
   stamp(route) { return Number(route.updatedAt) || Number(route.createdAt) || 0; },

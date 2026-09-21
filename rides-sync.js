@@ -22,7 +22,9 @@ const RidesCloud = {
         'Content-Type': 'application/json', ...options.headers }
     });
     if (!response.ok) throw new Error(response.status === 401 ? 'Sign in again to save online.' : `Cloud unavailable (${response.status}).`);
-    return response.status === 204 ? [] : response.json();
+    // Writes with return=minimal answer 201/204 with no body; only parse when there is one.
+    const text = await response.text();
+    return text ? JSON.parse(text) : [];
   },
   // The app stores ride.duration in whole MINUTES (map.js); the column is seconds.
   // Returns null for rides the table would reject (old demo rides store "2h 10m").
