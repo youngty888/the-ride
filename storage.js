@@ -295,12 +295,17 @@ const Storage = {
 
   // --- POI preferences ---
   getPoiPrefs() {
-    return this.get(this.KEYS.POI_PREFS, {
+    // Defaults first so prefs saved by an older version pick up the newer fields.
+    return {
       favorites: [],       // lowercase brand/name fragments to rank first
       blocked: [],         // lowercase brand/name fragments to hide
       preferredCats: [],   // category ids shown by default in along-route mode
       maxDetourMi: 5,
-    });
+      startGroup: 'gas',   // which Add Stop group opens first
+      learn: true,         // learn usual stops from the stops the rider picks
+      learned: {},         // {brand key: {n, cat, name, last}} counts, kept on this device
+      ...this.get(this.KEYS.POI_PREFS, {}),
+    };
   },
 
   savePoiPrefs(prefs) {
