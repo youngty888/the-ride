@@ -1,6 +1,6 @@
 const RideAuth = {
   key: 'sicc-ride-auth-session', refreshing: null,
-  read() { try { return JSON.parse(sessionStorage.getItem(this.key)); } catch { return null; } },
+  read() { try { return JSON.parse(RideSessionStore.getItem(this.key)); } catch { return null; } },
   async session() {
     const session = this.read();
     if (!session?.access_token) throw new Error('Sign in again to continue.');
@@ -19,7 +19,7 @@ const RideAuth = {
         if (!response.ok) throw new Error('Sign in again to continue.');
         const next = await response.json();
         if (this.read()?.access_token !== original) throw new Error('Account changed. Reload Ride.');
-        sessionStorage.setItem(this.key, JSON.stringify(next)); return next;
+        RideSessionStore.setItem(this.key, JSON.stringify(next)); return next;
       }).finally(() => { this.refreshing = null; });
     }
     return this.refreshing;
@@ -34,7 +34,7 @@ const RideAuth = {
     if (!response.ok) throw new Error('Sign in again to continue.');
     const user = await response.json();
     if (this.read()?.access_token !== session.access_token) throw new Error('Account changed. Reload Ride.');
-    session.user = user; sessionStorage.setItem(this.key, JSON.stringify(session));
+    session.user = user; RideSessionStore.setItem(this.key, JSON.stringify(session));
     return session;
   }
 };

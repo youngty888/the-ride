@@ -1191,7 +1191,7 @@ const App = {
     const contentEl = document.getElementById('profileContent');
     let accountEmail = '';
     try {
-      accountEmail = JSON.parse(sessionStorage.getItem('sicc-ride-auth-session'))?.user?.email || '';
+      accountEmail = JSON.parse(RideSessionStore.getItem('sicc-ride-auth-session'))?.user?.email || '';
     } catch {}
 
     const initials = (profile.name || 'R')[0].toUpperCase();
@@ -1375,7 +1375,7 @@ const App = {
     const sessionKey = 'sicc-ride-auth-session';
     let session;
     try {
-      session = JSON.parse(sessionStorage.getItem(sessionKey));
+      session = JSON.parse(RideSessionStore.getItem(sessionKey));
     } catch {
       session = null;
     }
@@ -1392,7 +1392,7 @@ const App = {
         });
       }
     } finally {
-      sessionStorage.removeItem(sessionKey);
+      RideSessionStore.removeItem(sessionKey);
       location.replace('auth.html');
     }
   },

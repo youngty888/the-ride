@@ -4,8 +4,8 @@
   const signOut = document.getElementById('signOutButton');
   const config = window.SICC_RIDE_SUPABASE || {};
   const sessionKey = 'sicc-ride-auth-session';
-  const readSession = () => { try { return JSON.parse(sessionStorage.getItem(sessionKey)); } catch { return null; } };
-  const saveSession = value => value?.access_token && sessionStorage.setItem(sessionKey, JSON.stringify(value));
+  const readSession = () => { try { return JSON.parse(RideSessionStore.getItem(sessionKey)); } catch { return null; } };
+  const saveSession = value => value?.access_token && RideSessionStore.setItem(sessionKey, JSON.stringify(value));
   const configured = () => /^https:\/\//.test(config.url || '') && config.anonKey && !config.anonKey.startsWith('PASTE_');
 
   function message(text, error = false) {
@@ -100,7 +100,7 @@
           token: active.access_token,
           body: JSON.stringify({ password: values.get('password') })
         });
-        sessionStorage.removeItem(sessionKey);
+        RideSessionStore.removeItem(sessionKey);
         message('Password saved. Sign in to continue.');
         setTimeout(() => show('login'), 900);
       }
@@ -119,7 +119,7 @@
     try {
       if (active?.access_token) await request('/auth/v1/logout', { method: 'POST', token: active.access_token });
     } catch {}
-    sessionStorage.removeItem(sessionKey);
+    RideSessionStore.removeItem(sessionKey);
     signOut.hidden = true;
     message('Signed out.');
   });

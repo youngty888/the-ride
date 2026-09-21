@@ -15,7 +15,7 @@ function load(file, name, respond) {
     fetch: async (url, opts) => respond(url, opts),
     window:{localStorage:{getItem:k=>local.get(k)||null,setItem:(k,v)=>local.set(k,v),removeItem:k=>local.delete(k)},
       addEventListener(){}, SICC_RIDE_SUPABASE:{url:'https://x.test', anonKey:'k'}},
-    sessionStorage:{getItem:k=>session.get(k)},
+    RideSessionStore:{getItem:k=>session.get(k)},
     RideAuth:{session:async()=>({user:{id:'rider-a'},access_token:'t'})},
     document:{getElementById:()=>null}, App:{}});
   vm.runInContext(source('storage.js')+'\n'+source(file)+`\nthis.M=${name};`, ctx);
