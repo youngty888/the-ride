@@ -161,6 +161,9 @@ const App = {
     });
 
     // Add Stop
+    document.getElementById('btnArrivalEnd').addEventListener('click', () => this.endRideFromPrompt());
+    document.getElementById('btnArrivalKeep').addEventListener('click', () => this.hideArrivalPrompt());
+
     document.getElementById('btnAddStop').addEventListener('click', () => {
       this.showOverlay('overlay-addstop');
       this.loadStops();
@@ -257,6 +260,38 @@ const App = {
     this.currentStopType = group.all ? 'all' : group.subs[0];
     document.querySelectorAll('#stopGroups .chip').forEach((c) => c.classList.toggle('active', c.dataset.group === group.id));
     this.renderStopSubs();
+  },
+  /* Arrival prompt (see MapModule.checkArrival). "End ride" runs the normal Stop Ride
+     flow. With no answer (phone in a pocket) the ride ends by itself after 2 minutes if
+     the rider is still at that spot; if they have ridden on, the prompt just closes. */
+  promptEndRide(message, spot) {
+    const box = document.getElementById('arrivalPrompt');
+    if (!box) { MapModule.arrivalOpen = false; return; }
+    document.getElementById('arrivalText').textContent = message;
+    box.hidden = false;
+    clearTimeout(this.arrivalTimer);
+    this.arrivalTimer = setTimeout(() => {
+      const here = MapModule.currentLocation;
+      const stillThere = here && Geo.distMi(here.lat, here.lon, spot.lat, spot.lon) <= MapModule.ARRIVE_RADIUS_MI * 2;
+      if (MapModule.isTracking && stillThere) {
+        this.endRideFromPrompt();
+        this.toast('Ride ended automatically. Tap Start Ride to begin a new one.');
+      } else {
+        this.hideArrivalPrompt();
+      }
+    }, 120000);
+  },
+
+  hideArrivalPrompt() {
+    clearTimeout(this.arrivalTimer);
+    const box = document.getElementById('arrivalPrompt');
+    if (box) box.hidden = true;
+    MapModule.arrivalOpen = false;
+  },
+
+  endRideFromPrompt() {
+    this.hideArrivalPrompt();
+    if (MapModule.isTracking) document.getElementById('btnRide').click();
   },
   selectStopGroup(id) {
     const group = PoiModule.group(id);

@@ -412,6 +412,11 @@ const MapModule = {
     this.ridePathCoords = [];
     this.lastPosition = null;
 
+    this.maxFromStartMi = 0;
+    this.arrivedDest = false;
+    this.returnPrompted = false;
+    this.arrivalOpen = false;
+
     // Draw ride path
     this.ridePath = L.polyline([], {
       color: '#ff6b1a',
@@ -437,6 +442,7 @@ const MapModule = {
     }
 
     this.lastPosition = { lat, lon };
+    this.checkArrival(lat, lon);
 
     // Update stats display
     const speedEl = document.getElementById('statSpeed');
@@ -455,8 +461,36 @@ const MapModule = {
     }
   },
 
+  /* Ride ends. Arriving at the planned destination (after a real ride of at least a
+     quarter mile), or getting back to where the ride started after going 2+ miles
+     away, asks the rider whether to end the ride (App.promptEndRide). Fixes with poor
+     accuracy are ignored so a jumpy GPS cannot trigger it. */
+  ARRIVE_RADIUS_MI: 0.12,
+
+  checkArrival(lat, lon) {
+    if (this.arrivalOpen) return;
+    const accuracy = this.currentLocation && this.currentLocation.accuracy;
+    if (accuracy && accuracy > 150) return;
+    const first = this.ridePathCoords[0];
+    if (!first) return;
+    const r = this.ARRIVE_RADIUS_MI;
+    const fromStart = Geo.distMi(first[0], first[1], lat, lon);
+    this.maxFromStartMi = Math.max(this.maxFromStartMi || 0, fromStart);
+    const dest = typeof RouteModule !== 'undefined' ? RouteModule.to : null;
+    const rideMiles = this.rideDistance * 0.621371;
+    if (dest && !this.arrivedDest && rideMiles >= 0.25 && Geo.distMi(lat, lon, dest.lat, dest.lon) <= r) {
+      this.arrivedDest = true;
+      this.arrivalOpen = true;
+      App.promptEndRide(`You have arrived at ${dest.name}.`, { lat: dest.lat, lon: dest.lon });
+    } else if (!this.returnPrompted && this.maxFromStartMi >= 2 && fromStart <= r) {
+      this.returnPrompted = true;
+      this.arrivalOpen = true;
+      App.promptEndRide('You are back where you started.', { lat: first[0], lon: first[1] });
+    }
+  },
   stopRideTracking() {
     this.isTracking = false;
+    if (typeof App !== 'undefined' && App.hideArrivalPrompt) App.hideArrivalPrompt();
 
     const miles = Math.round(this.rideDistance * 0.621371 * 100) / 100;
     const duration = this.rideStartTime ? Math.floor((Date.now() - this.rideStartTime) / 60000) : 0;
