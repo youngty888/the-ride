@@ -194,6 +194,9 @@ const App = {
     });
     this.renderStopSubs();
 
+    this.applyStartGroup();
+    document.getElementById('btnStopPrefsFromAddStop').addEventListener('click', () => PrefsModule.open());
+
     // Emergency: nearest hospital (Hospital is not an Add Stop choice)
     document.getElementById('btnNearestHospital').addEventListener('click', () => this.findNearestHospitals());
 
@@ -247,6 +250,14 @@ const App = {
   /* --- Add Stop -> POI search (in-app cards, no Google redirect) ---
      The old version rendered its own list and auto-opened Google Maps when
      you tapped a row. PoiModule now owns the list and shows an in-app card. */
+  // Add Stop opens on the group chosen in Stop Preferences (no search is fired here).
+  applyStartGroup() {
+    const group = PoiModule.group(Storage.getPoiPrefs().startGroup);
+    this.currentStopGroup = group.id;
+    this.currentStopType = group.all ? 'all' : group.subs[0];
+    document.querySelectorAll('#stopGroups .chip').forEach((c) => c.classList.toggle('active', c.dataset.group === group.id));
+    this.renderStopSubs();
+  },
   selectStopGroup(id) {
     const group = PoiModule.group(id);
     this.currentStopGroup = group.id;
@@ -1821,7 +1832,8 @@ const App = {
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
-    return div.innerHTML;
+    // innerHTML leaves quotes alone; escape them too so the result is safe inside attributes.
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   },
 };
 

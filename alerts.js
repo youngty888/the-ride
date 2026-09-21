@@ -579,7 +579,14 @@ const AlertsModule = {
         which is a later phase.
       </div>
 
-      <h3 class="plan-section-title">Fuel</h3>
+      <h3 class="plan-section-title">Stops</h3>
+      <div class="setting-block">
+        <div class="setting-label">Stop preferences</div>
+        <div class="setting-desc">Favorite and blocked brands, where Add Stop starts, how far off your route to look, and the usual stops RIDE has learned.</div>
+        <button type="button" class="btn-secondary btn-large" id="btnOpenStopPrefs">Open stop preferences</button>
+      </div>
+
+<h3 class="plan-section-title">Fuel</h3>
       <div class="setting-block">
         <div class="setting-label">Reserve rule: use ${Math.round((s.reserveFactor || 0.8) * 100)}% of the tank</div>
         <div class="setting-desc">Fuel stops are planned at this share of your bike's range, so you are never running on fumes looking for a station.</div>
@@ -619,6 +626,7 @@ const AlertsModule = {
         this.renderSettings();
       });
     });
+    document.getElementById('btnOpenStopPrefs').addEventListener('click', () => PrefsModule.open());
     document.getElementById('btnRefreshNow').addEventListener('click', () => {
       this.manualRefresh(false);
       App.toast('Hazards refreshed from the network.');

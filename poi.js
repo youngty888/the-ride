@@ -259,12 +259,46 @@ const PoiModule = {
     Storage.savePoiPrefs(p);
   },
 
-  // Favorites first, then distance. Blocked entries are dropped.
+  /* ---------- Learned "usual" stops ----------
+     Each time the rider adds a stop to a route or sets one as the destination, the
+     brand is counted (on this device only). After USUAL_AT picks it becomes a "usual":
+     ranked just below favorites and marked "Your usual". Riders can turn learning off,
+     forget any one entry, or clear everything in Stop Preferences. */
+  USUAL_AT: 3,
+  LEARNED_MAX: 60,
+
+  isGenericName(poi, key) { return !poi.brand && key === this.cat(poi.cat).label.toLowerCase(); },
+
+  recordPick(poi) {
+    const p = Storage.getPoiPrefs();
+    const key = this.prefKey(poi);
+    if (!p.learn || !key || this.isGenericName(poi, key)) return false;
+    const old = p.learned[key] || { n: 0 };
+    p.learned[key] = { n: old.n + 1, cat: poi.cat, name: poi.brand || poi.name, last: Date.now() };
+    const keys = Object.keys(p.learned);
+    if (keys.length > this.LEARNED_MAX) {
+      keys.sort((a, b) => (p.learned[a].n - p.learned[b].n) || (p.learned[a].last - p.learned[b].last));
+      keys.slice(0, keys.length - this.LEARNED_MAX).forEach(x => delete p.learned[x]);
+    }
+    Storage.savePoiPrefs(p);
+    return true;
+  },
+
+  isUsual(poi) {
+    const p = Storage.getPoiPrefs();
+    if (!p.learn) return false;
+    const e = p.learned[this.prefKey(poi)];
+    return !!e && e.n >= this.USUAL_AT;
+  },
+
+  // 0 favorite, 1 usual, 2 everything else
+  tier(poi) { return this.isFavorite(poi) ? 0 : this.isUsual(poi) ? 1 : 2; },
+  // Favorites first, then usual stops, then distance. Blocked entries are dropped.
   rank(list) {
     return list
       .filter(p => !this.isBlocked(p))
       .sort((a, b) => {
-        const fa = this.isFavorite(a) ? 0 : 1, fb = this.isFavorite(b) ? 0 : 1;
+        const fa = this.tier(a), fb = this.tier(b);
         if (fa !== fb) return fa - fb;
         const ka = a.routeMile != null ? a.routeMile : a.distanceMi;
         const kb = b.routeMile != null ? b.routeMile : b.distanceMi;
@@ -379,7 +413,7 @@ const PoiModule = {
       <button class="poi-row" data-poi-idx="${idx}">
         <span class="poi-row-icon">${c.icon}</span>
         <span class="poi-row-body">
-          <span class="poi-row-name">${fav ? '<span class="poi-fav-dot">♥</span> ' : ''}${App.escapeHtml(poi.name)}</span>
+          <span class="poi-row-name">${fav ? '<span class="poi-fav-dot">♥</span> ' : ''}${App.escapeHtml(poi.name)}${!fav && this.isUsual(poi) ? ' <span class="poi-usual">Your usual</span>' : ''}</span>
           <span class="poi-row-meta">
             <span>${dist}</span>
             ${mile}
@@ -448,6 +482,7 @@ const PoiModule = {
       </div>
 
       <div class="poi-card-lines">
+        ${this.isUsual(poi) && !fav ? '<div class="poi-card-line poi-card-usual">You usually stop here. Tap Favorite to keep it at the top.</div>' : ''}
         <div class="poi-card-line">${App.escapeHtml(distLine)}</div>
         ${poi.detourMi != null ? `<div class="poi-card-line">+${poi.detourMi.toFixed(1)} mi detour off your route${poi.routeMile != null ? ` · mile ${Math.round(poi.routeMile)}` : ''}</div>` : ''}
         ${poi.address ? `<div class="poi-card-line">${App.escapeHtml(poi.address)}</div>` : ''}
@@ -475,10 +510,12 @@ const PoiModule = {
     sheet.classList.add('active');
 
     document.getElementById('poiAddRoute').addEventListener('click', () => {
+      this.recordPick(poi);
       RouteModule.addWaypointFromPoi(poi);
       this.hideCard();
     });
     document.getElementById('poiSetDest').addEventListener('click', () => {
+      this.recordPick(poi);
       RouteModule.setDestinationFromPoi(poi);
       this.hideCard();
     });
