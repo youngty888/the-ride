@@ -549,7 +549,8 @@ const RouteModule = {
       </div>
 
       <div class="route-actions">
-        <button type="button" class="btn-primary" id="btnShowOnMap">Show On Map</button>
+        <button type="button" class="btn-primary" id="btnStartRide">Start Ride</button>
+        <button type="button" class="btn-secondary" id="btnShowOnMap">Show On Map</button>
         <button type="button" class="btn-secondary" id="btnSaveRoute">Save Route</button>
       </div>
 
@@ -568,11 +569,19 @@ const RouteModule = {
     el.querySelectorAll('.route-option').forEach(btn => {
       btn.addEventListener('click', () => this.selectRoute(+btn.dataset.i));
     });
-    document.getElementById('btnShowOnMap').addEventListener('click', () => {
+    const goToMap = (startRide) => {
       document.getElementById('overlay-plan').classList.remove('active');
+      // The stop-search pins are only for picking a stop; the map should now show
+      // just the route and the rider's own stops.
+      PoiModule.clearMarkers();
       App.switchScreen('map');
-      setTimeout(() => this.drawRoutes(true), 150);
-    });
+      setTimeout(() => {
+        this.drawRoutes(true);
+        if (startRide && !MapModule.isTracking) document.getElementById('btnRide').click();
+      }, 150);
+    };
+    document.getElementById('btnStartRide').addEventListener('click', () => goToMap(true));
+    document.getElementById('btnShowOnMap').addEventListener('click', () => goToMap(false));
     document.getElementById('btnSaveRoute').addEventListener('click', () => this.saveCurrent());
 
     // Turn-by-turn, collapsed by default, big text.
@@ -935,6 +944,8 @@ const RouteModule = {
   /* ================= POI card hooks ================= */
 
   addWaypointFromPoi(poi) {
+    App.hideOverlay('overlay-addstop');
+    PoiModule.clearMarkers(); // drop the other search-result pins; the stop shows as a numbered pin
     this.openPanel('plan');
     this.addViaRow({ name: poi.name, lat: poi.lat, lon: poi.lon });
     if (this.from && this.to) this.plan();
