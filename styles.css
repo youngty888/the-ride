@@ -1834,6 +1834,24 @@ a {
   letter-spacing: 0.03em;
 }
 
+.bike-connection-badge {
+  position: absolute;
+  top: 132px;
+  left: var(--space-4);
+  z-index: 600;
+  max-width: calc(100vw - 32px);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-full);
+  background: #1f9d62;
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- Report FAB + right-side map controls --- */
 .fab-report {
   position: absolute;

@@ -20,6 +20,7 @@ const RouteModule = {
 
   // --- Plan state ---
   from: null,          // {name, lat, lon}
+  originFollowsLocation: true,
   to: null,
   via: [],             // up to 5 {name, lat, lon}
   departAt: null,      // Date
@@ -39,26 +40,34 @@ const RouteModule = {
 
   /* ================= Geocoding ================= */
 
-  cacheGet(q) {
+  cacheKey(q, near, bounded) {
+    const bias = near ? `@${near.lat.toFixed(1)},${near.lon.toFixed(1)}` : '@global';
+    return `v2:${q.toLowerCase()}${bias}${bounded ? ':local' : ''}`;
+  },
+
+  cacheGet(q, near, bounded) {
     const cache = Storage.get(Storage.KEYS.GEOCACHE, {});
-    const hit = cache[q.toLowerCase()];
+    const hit = cache[this.cacheKey(q, near, bounded)];
     if (!hit) return null;
     if (Date.now() - hit.ts > 30 * 24 * 3600 * 1000) return null; // 30 day TTL
     return hit.results;
   },
 
-  cacheSet(q, results) {
+  cacheSet(q, results, near, bounded) {
     const cache = Storage.get(Storage.KEYS.GEOCACHE, {});
     const keys = Object.keys(cache);
     if (keys.length > 120) keys.slice(0, 40).forEach(k => delete cache[k]);
-    cache[q.toLowerCase()] = { ts: Date.now(), results };
+    cache[this.cacheKey(q, near, bounded)] = { ts: Date.now(), results };
     Storage.set(Storage.KEYS.GEOCACHE, cache);
   },
 
-  async geocode(q) {
-    const cached = this.cacheGet(q);
+  async geocode(q, near, bounded = false) {
+    const cached = this.cacheGet(q, near, bounded);
     if (cached) return cached;
-    const url = `${this.NOMINATIM}?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us`;
+    const viewbox = near
+      ? `&viewbox=${(near.lon - 1.5).toFixed(4)},${(near.lat + 1.0).toFixed(4)},${(near.lon + 1.5).toFixed(4)},${(near.lat - 1.0).toFixed(4)}`
+      : '';
+    const url = `${this.NOMINATIM}?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us${viewbox}${bounded ? '&bounded=1' : ''}`;
     const data = await this.queue(() => Geo.fetchJson(url, { headers: { Accept: 'application/json' } }));
     if (!Array.isArray(data)) throw new Error('Search failed');
     const results = data.map(r => ({
@@ -68,13 +77,13 @@ const RouteModule = {
       lon: parseFloat(r.lon),
       type: r.type,
     }));
-    this.cacheSet(q, results);
+    this.cacheSet(q, results, near, bounded);
     return results;
   },
 
   /* Suggestion list for the search box. `picks` is what a click index refers to:
      nearby stops first (when the rider typed a kind of place), then address matches. */
-  buildSuggestions(kind, places, results, hasLocation) {
+  buildSuggestions(kind, places, results, hasLocation, nearbyLabel) {
     const picks = [];
     const row = (p, sub) => {
       picks.push(p);
@@ -84,14 +93,15 @@ const RouteModule = {
              </button>`;
     };
     let html = '';
-    if (kind) {
+    if (kind || nearbyLabel) {
       if (places.length) {
-        html += `<div class="geo-hint">${kind.icon} ${App.escapeHtml(kind.label)} near you</div>`;
+        const heading = kind ? `${kind.icon} ${kind.label}` : nearbyLabel;
+        html += `<div class="geo-hint">${App.escapeHtml(heading)} near you · closest first</div>`;
         html += places.map(p => row({ short: p.name, name: p.address || p.name, lat: p.lat, lon: p.lon },
           `${Geo.fmtMi(p.distanceMi)} mi away${p.address ? ' · ' + p.address : ''}`)).join('');
-      } else if (!hasLocation) {
+      } else if (kind && !hasLocation) {
         html += `<div class="geo-hint">Turn on location to see ${App.escapeHtml(kind.label.toLowerCase())} near you.</div>`;
-      } else {
+      } else if (kind) {
         html += `<div class="geo-hint">No ${App.escapeHtml(kind.label.toLowerCase())} found within 15 miles.</div>`;
       }
     }
@@ -100,6 +110,29 @@ const RouteModule = {
       html += results.map(r => row(r, r.name)).join('');
     }
     return { html, picks };
+  },
+
+  localizeResults(results, here, maxMiles = 25) {
+    const seen = new Set();
+    return results.map(p => ({
+      ...p,
+      name: p.short,
+      address: p.name,
+      distanceMi: Geo.distMi(here.lat, here.lon, p.lat, p.lon),
+    })).filter(p => p.distanceMi <= maxMiles)
+      .sort((a, b) => a.distanceMi - b.distanceMi)
+      .filter(p => {
+        // Nominatim can return the same business more than once with slightly
+        // different coordinates (for example, a building and its entrance).
+        // Prefer its full display address as the identity, then fall back to a
+        // rounded coordinate when an address is unavailable.
+        const addressKey = String(p.address || '').toLowerCase()
+          .replace(/\s+/g, ' ').trim();
+        const key = addressKey || `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 6);
   },
 
   /* Attach debounced autocomplete to an input.
@@ -118,11 +151,20 @@ const RouteModule = {
           // the same search as Add Stop. Address/name results still follow.
           const kind = PoiModule.matchKind(q);
           const here = MapModule.currentLocation || this.from;
-          const [results, places] = await Promise.all([
-            this.geocode(q).catch(e => { if (!kind) throw e; return []; }),
-            kind && here ? PoiModule.searchNearby(kind.cats, here.lat, here.lon, 15).then(l => l.slice(0, 5)).catch(() => []) : [],
-          ]);
-          const { html, picks } = this.buildSuggestions(kind, places, results, !!here);
+          const nearbyName = !kind && !!here && PoiModule.looksLikePlaceName(q);
+          let results = [], places = [];
+          if (nearbyName) {
+            const local = await this.geocode(q, here, true).catch(() => []);
+            places = this.localizeResults(local, here);
+            // Only fall back to a broad search when the local search truly found nothing.
+            if (!places.length) results = await this.geocode(q, null, false);
+          } else {
+            [results, places] = await Promise.all([
+              this.geocode(q, here).catch(e => { if (!kind) throw e; return []; }),
+              kind && here ? PoiModule.searchNearby(kind.cats, here.lat, here.lon, 15).then(l => l.slice(0, 5)).catch(() => []) : [],
+            ]);
+          }
+          const { html, picks } = this.buildSuggestions(kind, places, results, !!here, nearbyName ? q : '');
           if (!picks.length && !kind) {
             resultsEl.innerHTML = '<div class="geo-hint">No match. Try a city, a park, a full address, or a kind of place like gas or coffee.</div>';
             return;
@@ -328,6 +370,7 @@ const RouteModule = {
   openPanel(view = 'plan') {
     document.getElementById('overlay-plan').classList.add('active');
     this.showView(view);
+    if (view === 'plan') this.useGpsAsOrigin(true);
     if (view === 'trips') this.renderTrips();
     if (view === 'saved') this.renderSaved();
   },
@@ -353,7 +396,7 @@ const RouteModule = {
     this.attachAutocomplete(
       document.getElementById('planFrom'),
       document.getElementById('planFromResults'),
-      (p) => { this.from = p; }
+      (p) => { this.from = p; this.originFollowsLocation = false; }
     );
     this.attachAutocomplete(
       document.getElementById('planTo'),
@@ -429,19 +472,30 @@ const RouteModule = {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   },
 
-  useGpsAsOrigin() {
+  useGpsAsOrigin(quiet = false) {
     const input = document.getElementById('planFrom');
     const loc = MapModule.currentLocation;
     if (loc) {
-      this.from = { name: 'My location', lat: loc.lat, lon: loc.lon };
-      input.value = 'My location';
+      this.originFollowsLocation = true;
+      this.from = { name: 'Current location', lat: loc.lat, lon: loc.lon };
+      input.value = 'Current location';
       document.getElementById('planFromResults').innerHTML = '';
       return;
     }
-    input.value = '';
-    document.getElementById('planFromResults').innerHTML =
-      '<div class="geo-hint geo-hint-error">No GPS fix yet. Type a starting point instead — the planner works fine without location permission.</div>';
-    MapModule.requestOneFix(() => this.useGpsAsOrigin());
+    this.originFollowsLocation = true;
+    input.value = 'Finding current location…';
+    if (!quiet) {
+      document.getElementById('planFromResults').innerHTML =
+        '<div class="geo-hint">RIDE starts routes from your current location automatically.</div>';
+    }
+    MapModule.requestOneFix((found) => {
+      if (found) this.useGpsAsOrigin(true);
+      else {
+        input.value = '';
+        document.getElementById('planFromResults').innerHTML =
+          '<div class="geo-hint geo-hint-error">Current location is unavailable. Allow GPS or type a different starting point.</div>';
+      }
+    });
   },
 
   addViaRow(prefill) {
@@ -489,10 +543,11 @@ const RouteModule = {
   async plan(opts = {}) {
     this.collectVia();
 
-    // Fall back to GPS origin if the rider left "From" blank.
-    if (!this.from) {
+    // Current GPS is the default origin and is refreshed at the moment the rider
+    // builds the route, rather than using where the planner happened to open.
+    if (this.originFollowsLocation !== false) {
       const loc = MapModule.currentLocation;
-      if (loc) this.from = { name: 'My location', lat: loc.lat, lon: loc.lon };
+      if (loc) this.from = { name: 'Current location', lat: loc.lat, lon: loc.lon };
     }
     if (!this.from) {
       this.status('Set a starting point. Tap <strong>Use My Location</strong> or type an address.', 'plan-status-error');

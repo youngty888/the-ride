@@ -19,12 +19,12 @@
        45 mph steady, `maximumAge` is raised and per-fix work is skipped.
        Nothing else in the app may call watchPosition or poll
        getCurrentPosition on a timer.
-    4. SCREEN-OFF USABLE. Alerts are a Web Audio tone (distinct per hazard
-       type) + spoken text + navigator.vibrate, so the rider can ride with a
-       dark screen and still be warned.
+    4. HANDS-FREE WHILE VISIBLE. Alerts are a Web Audio tone (distinct per
+       hazard type) + spoken text + navigator.vibrate. An active ride requests
+       a screen wake lock where supported so the browser stays foregrounded.
     5. PAUSE WHEN HIDDEN. Page Visibility API stops map redraws, marker
-       updates, animations and timers. Only the position watch and the local
-       proximity test survive.
+       updates, animations and timers. Browsers may also suspend geolocation;
+       RIDE restarts it when the page becomes visible again.
     6. THROTTLE THE MAP, NOT THE GPS. Map redraws are capped at one per 3 s
        and only while the map screen is visible.
     7. SPATIAL INDEX. Cached hazards are bucketed into a ~0.02 degree grid.
@@ -40,9 +40,9 @@
    11. VISIBLE BATTERY SAVER TOGGLE in Settings, in plain English.
    12. WAKE LOCK opt-in, default OFF, labelled as the main battery cost.
 
-   HONEST LIMIT: a web app cannot keep GPS running on iOS once Safari is
-   backgrounded or the phone locks. Screen-off alerts work on Android/Chrome
-   and are limited on iPhone. The Settings copy says exactly that.
+   HONEST LIMIT: web geolocation pauses when the page is hidden. RIDE requests
+   a wake lock during an active ride, but true locked-screen/background GPS on
+   iPhone requires a native app with Apple's background-location capability.
    ------------------------------------------------------------------ */
 
 const AlertsModule = {
@@ -98,6 +98,7 @@ const AlertsModule = {
     document.addEventListener('visibilitychange', () => {
       this.hidden = document.hidden;
       if (document.hidden) {
+        if (MapModule.isTracking) this.hiddenRideAt = Date.now();
         // Kill everything that costs power except the GPS watch and the
         // local proximity test.
         if (MapModule.map) {
@@ -114,6 +115,16 @@ const AlertsModule = {
         }
         MapModule.paused = false;
         this.applySettings();
+        if (MapModule.isTracking) {
+          this.requestWakeLock();
+          MapModule.restartWatch();
+          MapModule.requestOneFix();
+          if (this.hiddenRideAt) {
+            const seconds = Math.max(1, Math.round((Date.now() - this.hiddenRideAt) / 1000));
+            App.toast(`Ride resumed after ${seconds}s in the background. Distance during that time may be incomplete.`);
+            this.hiddenRideAt = null;
+          }
+        }
         this.renderMapReports();
       }
     });
@@ -507,12 +518,24 @@ const AlertsModule = {
 
   /* ================= Wake lock (item 12) ================= */
   async requestWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-    if (this.wakeLockSentinel) return;
+    if (!('wakeLock' in navigator)) return false;
+    if (this.wakeLockSentinel) return true;
     try {
       this.wakeLockSentinel = await navigator.wakeLock.request('screen');
       this.wakeLockSentinel.addEventListener('release', () => { this.wakeLockSentinel = null; });
-    } catch (e) { this.wakeLockSentinel = null; }
+      return true;
+    } catch (e) { this.wakeLockSentinel = null; return false; }
+  },
+
+  async beginRideMode() {
+    const awake = await this.requestWakeLock();
+    App.toast(awake
+      ? 'Ride active. Screen will stay awake; spoken turns appear as you move.'
+      : 'Ride active. Keep RIDE open and the screen awake so GPS and spoken turns continue.');
+  },
+
+  endRideMode() {
+    if (!this.settings().wakeLock) this.releaseWakeLock();
   },
 
   releaseWakeLock() {
@@ -529,13 +552,15 @@ const AlertsModule = {
     const s = this.settings();
     const reports = Storage.getHazardReports();
     el.innerHTML = `
+      ${typeof BikeConnection !== 'undefined' ? BikeConnection.settingsHtml() : ''}
+
       <h3 class="plan-section-title">Battery</h3>
       <p class="plan-section-note">
         This app is built not to drain your phone the way Waze does. By default it
         downloads everything for your route <strong>once</strong> when the ride starts,
         then runs the rest of the ride with <strong>no network calls at all</strong>.
-        Alerts come through as a tone, a spoken warning and a vibration, so you can
-        ride with the screen off.
+        Alerts and turns use sound, speech and vibration where the browser supports
+        them. During an active ride RIDE requests that the screen stay awake.
       </p>
 
       <label class="setting-row">
@@ -573,11 +598,10 @@ const AlertsModule = {
       </div>
 
       <div class="setting-block warn-box">
-        <strong>An honest limit on iPhone.</strong> A website cannot keep reading GPS
-        once Safari is in the background or the phone is locked. Screen-off alerts
-        work on Android in Chrome. On iPhone, Safari must stay open and awake for
-        proximity alerts to fire. Fixing that properly needs a real installed app,
-        which is a later phase.
+        <strong>An honest iPhone limit.</strong> Web GPS pauses when RIDE is hidden or
+        the phone locks. Keep the ride screen visible; RIDE will request a wake lock
+        and resume GPS when you return. True locked-screen navigation requires a
+        native iPhone app with Apple's background-location capability.
       </div>
 
       <h3 class="plan-section-title">Stops</h3>
@@ -606,6 +630,8 @@ const AlertsModule = {
         Crash history: <a href="${HazardModule.ATTRIBUTION_URL}" target="_blank" rel="noopener">${HazardModule.ATTRIBUTION}</a>.
       </p>
     `;
+
+    if (typeof BikeConnection !== 'undefined') BikeConnection.bindSettings();
 
     document.getElementById('setBatterySaver').addEventListener('change', e => {
       const st = this.settings(); st.batterySaver = e.target.checked; Storage.saveRideSettings(st);

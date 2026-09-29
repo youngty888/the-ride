@@ -84,3 +84,30 @@ test('a ride with no real movement records zero miles', () => {
   for (let i = 0; i < 50; i++) { const w = wobble(i); M.fix(32 + w.dLat, LON + w.dLon, 2); }
   assert.equal(M.stopRideTracking().miles < 0.01, true);
 });
+
+test('accepted movement is assigned to the active motorcycle and updates its odometer', () => {
+  let clock = 1e12;
+  class FakeDate extends Date { static now() { return clock; } }
+  const bike = {id: 'bike-1', make: 'Harley-Davidson', model: 'Road Glide', nickname: 'Road Glide', mileage: 1200};
+  const rides = [];
+  const ctx = vm.createContext({console, Math, Date: FakeDate, Set, Object,
+    L: {polyline: () => ({addTo() { return this; }, setLatLngs() {}})},
+    document: {getElementById: () => null, addEventListener() {}},
+    RouteModule: {to: null, activeRoute: () => null}, App: {promptEndRide() {}, hideArrivalPrompt() {}},
+    Storage: {genId: () => 'ride-1', getBike: id => id === bike.id ? bike : null, saveBike: b => Object.assign(bike, b), saveRide: r => rides.push(r)}});
+  vm.runInContext(src('geo.js') + '\n' + src('map.js') + '\nthis.M = MapModule;', ctx);
+  const M = ctx.M; M.map = {removeLayer() {}}; M.startRideTracking(bike, 'bluetooth');
+  const move = (miles, seconds) => {
+    clock += seconds * 1000;
+    const lat = 32 + miles / MI_PER_DEG_LAT;
+    M.currentLocation = {lat, lon: LON, accuracy: 8};
+    M.updateRideTracking(lat, LON);
+  };
+  move(0, 2); move(0.25, 20); move(0.5, 20);
+  assert.ok(bike.mileage > 1200.4, `odometer was ${bike.mileage}`);
+  const result = M.stopRideTracking();
+  assert.equal(result.bikeId, 'bike-1');
+  assert.equal(rides[0].bikeId, 'bike-1');
+  assert.equal(rides[0].bikeName, 'Road Glide');
+  assert.equal(rides[0].startedBy, 'bluetooth');
+});

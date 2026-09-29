@@ -73,6 +73,13 @@ const PoiModule = {
     return this.KINDS.find(k => k.re.test(s)) || null;
   },
 
+  // A short business/brand query ("Circle K", "Shell", "Starbucks") should be
+  // searched around the rider, not treated like a worldwide address lookup.
+  looksLikePlaceName(q) {
+    const s = String(q || '').trim();
+    return s.length >= 3 && s.length <= 48 && /[a-z]/i.test(s) && !/[\d,@]/.test(s) && s.split(/\s+/).length <= 5;
+  },
+
   // Current UI state
   activeCat: 'fuel',
   alongRoute: false,

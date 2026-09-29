@@ -1,6 +1,6 @@
 # RIDE by SIC Cycles — Project Checklist
 
-Last reconciled: 2026-09-29 against `main` at `115c36e`.
+Last reconciled: 2026-09-29 against `main` at `e5d55b2` plus the current uncommitted rider-functionality worktree.
 
 Status key: **Done** = present in current source and covered by current evidence; **Partial** = useful implementation exists but an owner/device/live-system check remains; **Planned** = not implemented in the current source; **Blocked** = requires an external system, credential, approval, or production change.
 
@@ -11,8 +11,13 @@ Status key: **Done** = present in current source and covered by current evidence
 - **Done** — Profile and Garage account snapshots with rider isolation, conflict protection, retry queue, and explicit import of legacy local data.
 - **Done in source** — Ride history, saved routes, and Stop Preferences account sync, including offline queues, conflict handling, deletion handling, and rider isolation.
 - **Done** — Arrival/end-of-ride prompts, GPS-jitter filtering, persistent sign-in, place-type search, and one shared cloud-status banner.
-- **Done** — Automated suite: 145 passing tests on 2026-09-29, including regression checks for all nine issues recorded during the live walkthrough.
+- **Done locally** — Automated suite: 154 passing tests covering nearby-first brand search, automatic current-location origins, motorcycle-linked mileage, active turn guidance, duplicate suppression, and the nine prior walkthrough issues. The public release still corresponds to the earlier 145-test checkpoint.
 - **Done in source** — The nine recorded walkthrough issues are corrected locally: signed-out controls, dismissible cloud review prompt, pack counts, leaderboard order, event dates, ride-history separators, sample-post labels, hazard confirmation, and visible overlay close controls.
+- **Done locally, not deployed** — Brand/business searches such as “Circle K” are bounded around the rider, filtered to 25 miles, sorted closest-first, and de-duplicated. A visible Tucson simulation returned nearby stores from 3.2 miles outward instead of worldwide matches.
+- **Done locally, not deployed** — An active ride now shows the next maneuver and remaining distance, speaks approaching turns, warns when off-route, requests a screen wake lock, and restarts GPS when the page returns to the foreground.
+- **Done locally, not deployed** — Route planning automatically starts from the latest GPS location. A verified motorcycle Bluetooth or native RIDE-screen connection automatically starts mileage tracking, assigns movement to the selected Garage motorcycle, checkpoints its odometer, and stops the automatic ride on disconnect.
+- **Hardware verification required** — Browser Bluetooth supports BLE/GATT devices only and requires a rider tap. The exact motorcycle/display model and its advertised Bluetooth service still need device testing; ordinary Classic Bluetooth audio pairing is not visible to the website.
+- **Blocked for the current web build** — Reliable iPhone tracking while the screen is locked or RIDE is backgrounded requires a native iOS app with background-location capability. The web build can only guide while it remains visible and awake.
 - **Partial** — Cloud migrations for rides, routes, and preferences are included in `sql/`; current production application of those migrations was not re-verified during this reconciliation.
 - **Done** — Release `5df20dd` is public at `ride.siccycles.com`; the production HTML, desktop/mobile rendering, app shell, console health, account-navigation interaction, and cloud-reminder dismissal were verified on 2026-09-29.
 
@@ -39,10 +44,16 @@ Status key: **Done** = present in current source and covered by current evidence
 
 ### 3. Field-test rider-critical behavior
 
+- [x] Correct brand/business search to use rider location, sort nearest-first, and remove duplicate place results in the local build.
+- [x] Add active-ride next-turn display, spoken turn warnings, off-route warning, and automatic wake-lock request in the local build.
+- [x] Default every newly built route to the rider's latest current location.
+- [x] Connect accepted GPS movement to the selected motorcycle odometer and add Bluetooth/native-screen automatic start-stop hooks.
 - [ ] Test Add Stop and fuel planning against live Overpass results on a phone.
 - [ ] Test ride distance, parked GPS jitter, arrival prompts, and return-to-start prompts on a real ride.
 - [ ] Test voice callouts, vibration, wake lock, battery behavior, and background/foreground recovery on Android.
-- [ ] Test the same critical path on iPhone/Safari.
+- [ ] Pair the actual motorcycle and RIDE screen, record their Bluetooth names/service UUIDs, and verify automatic start, live mileage, disconnect stop, and reconnect behavior.
+- [ ] Test foreground guidance on iPhone/Safari; do not count locked-screen/background operation as supported by the web build.
+- [ ] Build and device-test a native iPhone version with background location before claiming iPhone ride navigation works with the phone locked.
 - [ ] Record failures with phone model, OS, browser, route, time, and screenshots before changing thresholds.
 
 ### 4. Complete shared rider features
@@ -82,4 +93,4 @@ Status key: **Done** = present in current source and covered by current evidence
 
 ## Next implementation target
 
-The next code feature should be **moderated cross-rider hazard/report sync**. The current app already creates a durable local outbox in `alerts.js`, but `SYNC_ENDPOINT` is intentionally unset. Before production deployment, define the server contract, owner/location privacy rules, report expiration, rate limiting, abuse handling, and moderation workflow; then implement and independently test the endpoint and client flush path.
+The next priority is **prove the rider-critical loop before adding more community features**: deploy the nearby-search and active-guidance corrections after Tyler approves them, run a real Android ride and a foreground iPhone ride, and record every failure. Reliable iPhone locked-screen/background navigation is then a native-app workstream; moderated cross-rider hazard/report sync remains queued until the core ride experience is proven useful.

@@ -44,6 +44,7 @@ const App = {
 
     // Set up map buttons
     this.setupMapButtons();
+    if (typeof BikeConnection !== 'undefined') BikeConnection.init();
 
     // Set up overlays
     this.setupOverlays();
@@ -121,43 +122,8 @@ const App = {
 
     // Start/Stop ride
     document.getElementById('btnRide').addEventListener('click', () => {
-      const btn = document.getElementById('btnRide');
-      const label = document.getElementById('btnRideLabel');
-      const idleStats = document.getElementById('idleStats');
-      const rideStats = document.getElementById('rideStats');
-
-      if (MapModule.isTracking) {
-        // Stop ride
-        const result = MapModule.stopRideTracking();
-        MapModule.setNavigating(false);
-        btn.classList.remove('recording');
-        label.textContent = 'Start Ride';
-        idleStats.style.display = '';
-        rideStats.style.display = 'none';
-
-        if (result.miles > 0) {
-          // Update profile total miles
-          const profile = Storage.getProfile();
-          profile.totalMiles = (profile.totalMiles || 0) + result.miles;
-          Storage.saveProfile(profile);
-          this.updateTotalMiles();
-          this.renderProfile();
-
-          // Show confirmation
-          alert(`Ride saved: ${result.miles} miles, ${result.duration} min`);
-        }
-      } else {
-        // Start ride. BATTERY: this is the one place high-accuracy GPS turns
-        // on, and the one place we hit the network — everything for the route
-        // is cached up front so the ride itself needs zero requests.
-        MapModule.startRideTracking();
-        MapModule.setNavigating(true);
-        AlertsModule.prefetchCorridor(RouteModule.activeRoute());
-        btn.classList.add('recording');
-        label.textContent = 'Stop Ride';
-        idleStats.style.display = 'none';
-        rideStats.style.display = '';
-      }
+      if (MapModule.isTracking) this.stopRide('manual');
+      else this.startRide('manual');
     });
 
     // Add Stop
@@ -179,6 +145,52 @@ const App = {
       this.showOverlay('overlay-emergency');
       this.renderEmergencyContacts();
     });
+  },
+
+  startRide(source = 'manual', bikeId = null) {
+    if (MapModule.isTracking) return;
+    const bike = (bikeId && Storage.getBike(bikeId)) || RouteModule.selectedBike();
+    MapModule.startRideTracking(bike, source);
+    MapModule.setNavigating(true);
+    AlertsModule.beginRideMode();
+    AlertsModule.prefetchCorridor(RouteModule.activeRoute());
+    document.getElementById('btnRide').classList.add('recording');
+    document.getElementById('btnRideLabel').textContent = source === 'manual' ? 'Stop Ride' : 'Auto Tracking';
+    document.getElementById('idleStats').style.display = 'none';
+    document.getElementById('rideStats').style.display = '';
+  },
+
+  stopRide(reason = 'manual') {
+    if (!MapModule.isTracking) return null;
+    const result = MapModule.stopRideTracking();
+    MapModule.setNavigating(false);
+    AlertsModule.endRideMode();
+    document.getElementById('btnRide').classList.remove('recording');
+    document.getElementById('btnRideLabel').textContent = 'Start Ride';
+    document.getElementById('idleStats').style.display = '';
+    document.getElementById('rideStats').style.display = 'none';
+
+    if (result.miles > 0) {
+      const profile = Storage.getProfile();
+      profile.totalMiles = (profile.totalMiles || 0) + result.miles;
+      Storage.saveProfile(profile);
+      this.updateTotalMiles();
+      this.renderProfile();
+      this.renderGarage();
+      const message = `Ride saved: ${result.miles} miles, ${result.duration} min`;
+      if (reason === 'manual') alert(message); else this.toast(message);
+    }
+    return result;
+  },
+
+  onBikeConnectionChanged(connected, info) {
+    if (connected) {
+      if (!MapModule.isTracking) this.startRide(info.source || 'bluetooth', info.bikeId);
+      this.toast(`${info.name || 'Motorcycle'} connected. Mileage is tracking automatically.`);
+    } else if (MapModule.isTracking && ['bluetooth', 'screen'].includes(MapModule.trackingSource)) {
+      this.stopRide('connection-lost');
+      this.toast('Motorcycle disconnected. Automatic mileage tracking stopped.');
+    }
   },
 
   // --- Overlays ---

@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=202609291227">
+  <link rel="stylesheet" href="styles.css?v=202609292042">
   <meta name="app-version" content="202608311533">
 </head>
 <body>
@@ -58,6 +58,7 @@
     </button>
 
     <span id="batteryBadge" class="battery-badge" hidden></span>
+    <span id="bikeConnectionBadge" class="bike-connection-badge" hidden></span>
 
     <!-- Top bar -->
     <div class="map-topbar">
@@ -609,8 +610,8 @@
           <div class="form-group">
             <label for="planFrom">Starting from</label>
             <div class="input-with-btn">
-              <input type="text" id="planFrom" placeholder="Tucson, AZ" inputmode="search">
-              <button type="button" class="btn-secondary input-btn" id="btnUseGps">Use My Location</button>
+              <input type="text" id="planFrom" placeholder="Current location" inputmode="search">
+              <button type="button" class="btn-secondary input-btn" id="btnUseGps">Use Current Location</button>
             </div>
             <div class="geo-results" id="planFromResults"></div>
           </div>
@@ -788,13 +789,14 @@
   <script src="routes-sync.js?v=202609211318"></script>
   <script src="prefs-sync.js?v=202609211218"></script>
   <script src="geo.js?v=202608311533"></script>
-  <script src="map.js?v=202609211103"></script>
-  <script src="route.js?v=202609210804"></script>
+  <script src="map.js?v=202609292042"></script>
+  <script src="route.js?v=202609292042"></script>
   <script src="prefs.js?v=202609211218"></script>
-  <script src="poi.js?v=202609210804"></script>
+  <script src="poi.js?v=202609292042"></script>
   <script src="weather.js?v=202608311533"></script>
   <script src="hazards.js?v=202608311533"></script>
-  <script src="alerts.js?v=202609291227"></script>
-  <script src="app.js?v=202609291911"></script>
+  <script src="alerts.js?v=202609292042"></script>
+  <script src="bike-connection.js?v=202609292042"></script>
+  <script src="app.js?v=202609292042"></script>
 </body>
 </html>

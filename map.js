@@ -21,6 +21,14 @@ const MapModule = {
   ridePath: null,
   ridePathCoords: [],
   followUser: true,
+  guidanceRoute: null,
+  guidanceManeuvers: [],
+  guidanceSpoken: null,
+  activeBikeId: null,
+  activeBikeName: '',
+  bikeStartMileage: 0,
+  mileagePersistedAt: 0,
+  trackingSource: 'manual',
 
   // --- Init ---
   init() {
@@ -405,7 +413,7 @@ const MapModule = {
   },
 
   // --- Ride Tracking ---
-  startRideTracking() {
+  startRideTracking(bike, source = 'manual') {
     this.isTracking = true;
     this.rideStartTime = Date.now();
     this.rideDistance = 0;
@@ -417,6 +425,17 @@ const MapModule = {
     this.returnPrompted = false;
     this.arrivalOpen = false;
     this.jumpCount = 0;
+    if (!bike && typeof RouteModule !== 'undefined' && typeof RouteModule.selectedBike === 'function') {
+      bike = RouteModule.selectedBike();
+    }
+    this.activeBikeId = bike?.id || null;
+    this.activeBikeName = bike ? (bike.nickname || `${bike.make || ''} ${bike.model || ''}`.trim()) : '';
+    this.bikeStartMileage = Number(bike?.mileage) || 0;
+    this.mileagePersistedAt = 0;
+    this.trackingSource = source;
+    this.startGuidance(typeof RouteModule !== 'undefined' && typeof RouteModule.activeRoute === 'function'
+      ? RouteModule.activeRoute()
+      : null);
 
     // Draw ride path
     this.ridePath = L.polyline([], {
@@ -468,7 +487,9 @@ const MapModule = {
       this.ridePath.setLatLngs(this.ridePathCoords);
       this.rideDistance += step.km; // km
       this.lastPosition = { lat, lon, at: Date.now() };
+      this.persistBikeMileage(false);
     }
+    this.updateGuidance(lat, lon);
     this.checkArrival(lat, lon);
 
     // Update stats display
@@ -486,6 +507,21 @@ const MapModule = {
       const secs = elapsed % 60;
       timeEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
+  },
+
+  /* The GPS path remains the source of mileage. A connected motorcycle or screen
+     starts/stops the ride automatically; each accepted dot movement increments
+     rideDistance immediately. Garage mileage is checkpointed every 0.1 mi and at
+     ride end so a refresh does not lose an entire trip or write on GPS jitter. */
+  persistBikeMileage(final) {
+    if (!this.activeBikeId || typeof Storage === 'undefined' || !Storage.getBike) return;
+    const ridden = this.rideDistance * 0.621371;
+    if (!final && ridden - this.mileagePersistedAt < 0.1) return;
+    const bike = Storage.getBike(this.activeBikeId);
+    if (!bike) return;
+    bike.mileage = Math.round((this.bikeStartMileage + ridden) * 100) / 100;
+    Storage.saveBike(bike);
+    this.mileagePersistedAt = ridden;
   },
 
   /* Ride ends. Arriving at the planned destination (after a real ride of at least a
@@ -521,6 +557,7 @@ const MapModule = {
 
     const miles = Math.round(this.rideDistance * 0.621371 * 100) / 100;
     const duration = this.rideStartTime ? Math.floor((Date.now() - this.rideStartTime) / 60000) : 0;
+    this.persistBikeMileage(true);
 
     // Save ride
     if (miles > 0) {
@@ -529,7 +566,9 @@ const MapModule = {
         date: new Date().toISOString().split('T')[0],
         distance: miles,
         duration: duration,
-        bikeId: null, // Will be set by caller
+        bikeId: this.activeBikeId,
+        bikeName: this.activeBikeName,
+        startedBy: this.trackingSource,
       };
       Storage.saveRide(ride);
     }
@@ -538,6 +577,7 @@ const MapModule = {
     this.rideDistance = 0;
     this.rideStartTime = null;
     this.lastPosition = null;
+    this.stopGuidance();
 
     // Remove ride path
     if (this.ridePath) {
@@ -546,7 +586,63 @@ const MapModule = {
       this.ridePathCoords = [];
     }
 
-    return { miles, duration };
+    const result = { miles, duration, bikeId: this.activeBikeId, bikeName: this.activeBikeName, source: this.trackingSource };
+    this.activeBikeId = null;
+    this.activeBikeName = '';
+    this.trackingSource = 'manual';
+    return result;
+  },
+
+  /* Active-ride guidance. OSRM supplies maneuver distances; the rider's GPS fix
+     is projected onto the route so the map bar can show the next instruction and
+     voice can announce it without the rider touching the phone. */
+  startGuidance(route) {
+    this.guidanceRoute = route && route.coords?.length ? route : null;
+    this.guidanceSpoken = new Set();
+    let mile = 0;
+    this.guidanceManeuvers = (route?.steps || []).map((step, index) => {
+      const item = { step, index, atMile: mile };
+      mile += step.distanceMi || 0;
+      return item;
+    });
+  },
+
+  updateGuidance(lat, lon) {
+    const route = this.guidanceRoute;
+    const title = document.getElementById('routeBarTitle');
+    const sub = document.getElementById('routeBarSub');
+    if (!route || !title || !sub) return;
+    const near = Geo.nearestOnPath(route.coords, route.cum, lat, lon, 3);
+    const left = Math.max(0, route.distanceMi - near.mile);
+    if (near.distMi > 0.75) {
+      title.textContent = 'Return to the planned route';
+      sub.textContent = `${Geo.fmtMi(near.distMi)} mi off route · Keep RIDE visible`;
+      return;
+    }
+    const next = this.guidanceManeuvers.find(m => m.atMile > near.mile + 0.02);
+    if (!next) {
+      title.textContent = left <= 0.15 ? 'Destination ahead' : `${Geo.fmtMi(left)} mi remaining`;
+      sub.textContent = 'Ride active · Keep RIDE visible on iPhone';
+      return;
+    }
+    const remaining = Math.max(0, next.atMile - near.mile);
+    const instruction = RouteModule.stepText(next.step);
+    title.textContent = `${Geo.fmtMi(remaining)} mi · ${instruction}`;
+    sub.textContent = `${Geo.fmtMi(left)} mi left · Ride active · Keep RIDE visible on iPhone`;
+
+    const bucket = remaining <= 0.12 ? 'now' : remaining <= 0.5 ? 'soon' : '';
+    const key = bucket && `${next.index}:${bucket}`;
+    if (key && !this.guidanceSpoken.has(key) && typeof AlertsModule !== 'undefined' && AlertsModule.settings().voiceAlerts) {
+      this.guidanceSpoken.add(key);
+      AlertsModule.speak(bucket === 'now' ? instruction : `In half a mile, ${instruction}`);
+    }
+  },
+
+  stopGuidance() {
+    this.guidanceRoute = null;
+    this.guidanceManeuvers = [];
+    this.guidanceSpoken = null;
+    if (typeof App !== 'undefined' && App.updateRouteBar) App.updateRouteBar();
   },
 
   // --- Navigate to a stop ---
