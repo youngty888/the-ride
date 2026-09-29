@@ -1193,6 +1193,12 @@ const App = {
   renderBlog() {
     const posts = Storage.getPosts();
     const listEl = document.getElementById('blogList');
+    const demoTitles = new Set([
+      'My 2023 Street Glide',
+      'Sunday Pack Ride - 8 Riders',
+      'Mt. Lemmon Sunset Run',
+      'Catalina Highway - Best Twisties in Tucson'
+    ]);
 
     const filtered = this.currentBlogCategory === 'all'
       ? posts
@@ -1214,6 +1220,7 @@ const App = {
         const authorInitial = (post.author || '?')[0].toUpperCase();
         const likeClass = post.liked ? 'liked' : '';
         const likeIcon = post.liked ? '♥' : '♡';
+        const sample = post.sample === true || demoTitles.has(post.title);
 
         return `
         <div class="social-post" data-post-id="${post.id}">
@@ -1223,6 +1230,7 @@ const App = {
               <div class="social-author-name">${this.escapeHtml(post.author)}</div>
               <div class="social-post-date">${post.date} · ${catLabel}</div>
             </div>
+            ${sample ? '<span class="sample-badge">Sample</span>' : ''}
           </div>
           ${post.photo ? `<div class="social-post-photo"><img src="${post.photo}" alt="${this.escapeHtml(post.title)}"></div>` : ''}
           <div class="social-post-body">
@@ -1283,6 +1291,9 @@ const App = {
 
   renderProfile() {
     const profile = Storage.getProfile();
+    const packs = Storage.getPacks();
+    const packsRidden = packs.length;
+    const packsLed = packs.filter(pack => pack.members?.some(member => member.isYou && member.isCaptain)).length;
     const contentEl = document.getElementById('profileContent');
     let accountEmail = '';
     try {
@@ -1309,11 +1320,11 @@ const App = {
           <div class="profile-stat-label">Total Miles</div>
         </div>
         <div class="profile-stat">
-          <div class="profile-stat-value">${profile.packsRidden || 0}</div>
+          <div class="profile-stat-value">${packsRidden}</div>
           <div class="profile-stat-label">Packs Ridden</div>
         </div>
         <div class="profile-stat">
-          <div class="profile-stat-value">${profile.packsLed || 0}</div>
+          <div class="profile-stat-value">${packsLed}</div>
           <div class="profile-stat-label">Packs Led</div>
         </div>
       </div>
@@ -1499,7 +1510,7 @@ const App = {
   },
 
   renderLeaderboard(scope) {
-    const riders = Storage.getLeaderboard(scope);
+    const riders = Storage.getLeaderboard(scope).slice().sort((a, b) => b.miles - a.miles);
     const listEl = document.getElementById('leaderboardList');
 
     listEl.innerHTML = riders
@@ -1641,18 +1652,26 @@ const App = {
     }
 
     sectionEl.style.display = 'block';
-    listEl.innerHTML = rides.slice(0, 10).map(ride => `
+    listEl.innerHTML = rides.slice(0, 10).map(ride => {
+      const duration = typeof ride.duration === 'number'
+        ? (ride.duration ? ride.duration + ' min' : '')
+        : (ride.duration || '');
+      const meta = [ride.date, ride.bikeName, duration]
+        .filter(Boolean)
+        .map(value => this.escapeHtml(String(value)))
+        .join(' · ');
+      return `
       <div class="ride-history-card">
         <div class="ride-history-info">
           <div class="ride-history-route">${this.escapeHtml(ride.route || 'Unknown route')}</div>
-          <div class="ride-history-meta">${ride.date} · ${this.escapeHtml(ride.bikeName || '')} · ${typeof ride.duration === 'number' ? (ride.duration ? ride.duration + ' min' : '') : this.escapeHtml(ride.duration || '')}</div>
+          <div class="ride-history-meta">${meta}</div>
         </div>
         <div class="ride-history-distance">
           <div class="ride-history-miles">${ride.distance.toFixed(1)}</div>
           <div class="ride-history-label">MI</div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   },
 
   // --- Community Toggle (Feed / Events) ---
@@ -1671,7 +1690,17 @@ const App = {
 
   // --- Events ---
   renderEvents() {
-    const events = Storage.getEvents();
+    const parseEventDate = value => {
+      const [year, month, day] = String(value || '').split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const events = Storage.getEvents().filter(event => {
+      const end = parseEventDate(event.endDate || event.startDate);
+      end.setHours(23, 59, 59, 999);
+      return end >= today;
+    });
     const listEl = document.getElementById('eventsList');
     if (!listEl) return;
 
@@ -1681,18 +1710,20 @@ const App = {
     }
 
     // Sort by date
-    events.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    events.sort((a, b) => parseEventDate(a.startDate) - parseEventDate(b.startDate));
 
     listEl.innerHTML = events.map(event => {
-      const d = new Date(event.startDate);
+      const d = parseEventDate(event.startDate);
       const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
       const day = d.getDate();
+      const year = d.getFullYear();
 
       return `
         <div class="event-card" data-event-id="${event.id}">
           <div class="event-date-box">
             <div class="event-date-month">${month}</div>
             <div class="event-date-day">${day}</div>
+            <div class="event-date-year">${year}</div>
           </div>
           <div class="event-info">
             <div class="event-type">${this.escapeHtml(event.type)}</div>

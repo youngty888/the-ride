@@ -450,6 +450,7 @@ const Storage = {
     const demoPosts = [
       {
         id: this.genId(),
+        sample: true,
         title: 'My 2023 Street Glide',
         category: 'bike',
         content: 'Old Faithful. 12,450 miles and counting. Vivid Black with stage 1 upgrade. She rides like a dream on the open highway.',
@@ -463,6 +464,7 @@ const Storage = {
       },
       {
         id: this.genId(),
+        sample: true,
         title: 'Sunday Pack Ride - 8 Riders',
         category: 'pack',
         content: 'Took the pack out Sunday morning. 8 riders, 120 miles through the Sonoran Desert. Road Captain kept us tight. Gas stop at mile 95, everyone made it back safe.',
@@ -475,6 +477,7 @@ const Storage = {
       },
       {
         id: this.genId(),
+        sample: true,
         title: 'Mt. Lemmon Sunset Run',
         category: 'ride',
         content: 'Took the back way up to Mt. Lemmon last night. The curves above Windy Point are incredible at golden hour. 45 miles of pure twisties.',
@@ -485,6 +488,7 @@ const Storage = {
       },
       {
         id: this.genId(),
+        sample: true,
         title: 'Catalina Highway - Best Twisties in Tucson',
         category: 'destination',
         content: 'If you haven\'t ridden Catalina Highway to Mt. Lemmon, you\'re missing out. 27 miles of sweepers and tight switchbacks, climbing from desert to pine forest. Gas up before you go.',

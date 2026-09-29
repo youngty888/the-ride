@@ -40,7 +40,8 @@ Opening `index.html` directly may provide only a partial preview. Authentication
 
 - Profile and Garage save to an authenticated, rider-owned cloud snapshot with an account-scoped retry queue.
 - Loading the account copy refuses to overwrite edits made on the device while the download is pending.
-- Rides, packs, quote drafts, route preferences, reports, and several other features remain browser-local.
+- Ride history, saved routes, and Stop Preferences have account-sync clients and owner-isolated SQL migrations in this repository. Production migration state still must be verified before relying on them.
+- Packs, quote drafts, hazard reports, feed activity, events, and several other features remain browser-local.
 - Browser-local information can be lost if site data is cleared. GitHub source control is not a rider-data backup.
 
 ## License

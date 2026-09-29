@@ -173,17 +173,18 @@ const AlertsModule = {
     document.getElementById('reportSheet').classList.remove('active');
   },
 
-  /* One tap on a type files it immediately at the current GPS fix.
-     No confirmation dialog, by design — the rider is moving. */
+  /* Confirm before filing so a glove tap cannot create a false report. */
   fileReport(type) {
     const t = this.TYPES[type];
     if (!t) return;
     const loc = MapModule.currentLocation;
-    this.closeReportSheet();
     if (!loc) {
+      this.closeReportSheet();
       App.toast('No GPS fix yet — can\'t place the report. It needs your location.');
       return;
     }
+    if (!confirm(`Report ${t.label.toLowerCase()} at your current location?`)) return;
+    this.closeReportSheet();
     const now = Date.now();
     const report = {
       id: 'r' + now.toString(36) + Math.random().toString(36).slice(2, 6),

@@ -11,7 +11,7 @@ Deployed 2026-09-10 with Tyler approval. Live application commit: 582231b; GitHu
 - Account-scoped durable outbox retries on edits, reconnect, focus or manual Retry.
 - Existing local records require the rider to review and explicitly import them. New accounts start empty; App no longer calls seedDemoData.
 - Session refresh is supported and initialization waits for verified authentication.
-- Cloud confirmation is limited to Profile and Garage. Rides, quote drafts and other features remain browser-local.
+- This checkpoint originally confirmed only Profile and Garage. The current repository also contains account-sync clients and owner-isolated migrations for ride history, saved routes, and Stop Preferences; production migration and real-account, two-device verification for those later additions remain open. Quote drafts and several other features remain browser-local.
 - Full offline reload still requires online authentication; this change supports queued edits after a page has loaded. Unsynced data can still be lost if browser storage is cleared.
 - Snapshot limit: 8 MiB. Oversized photos cause a visible save error, never a false cloud confirmation.
 - This does not add management access or a backup service.

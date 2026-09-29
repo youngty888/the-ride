@@ -428,6 +428,9 @@ a {
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
   transition: all 180ms ease;
+  flex: 0 0 var(--touch-min);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
 }
 
 .overlay-close:active {
@@ -2433,7 +2436,11 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 
 /* Account saving status remains visible above the bottom navigation. */
 #cloudStatus { position: fixed; bottom: 76px; left: 8px; right: 8px; z-index: 1100; padding: 8px 12px; border: 1px solid #555; border-radius: 8px; background: #171719; color: #fff; font: 12px/1.4 Inter, sans-serif; max-height: 26vh; overflow: auto; }
+#cloudStatus[hidden] { display: none !important; }
 #cloudStatus button { margin: 6px 8px 0 0; padding: 10px; background: #ff6b00; color: #111; border: 0; border-radius: 5px; font-weight: 700; cursor: pointer; }
+#cloudStatus .cloud-dismiss { background: transparent; color: #ffad7a; border: 1px solid #5b4030; }
+.sample-badge { margin-left: auto; align-self: flex-start; padding: 3px 7px; border: 1px solid #6c4a31; border-radius: 999px; color: #ffad7a; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.event-date-year { margin-top: 3px; color: var(--color-text-muted); font-size: 10px; font-weight: 700; }
 #syncStatus { position: fixed; bottom: 118px; left: 8px; right: 8px; z-index: 1100; padding: 6px 12px; border: 1px solid #555; border-radius: 8px; background: #171719; color: #fff; font: 12px/1.4 Inter, sans-serif; }
 #syncStatus[hidden] { display: none; }
 /* Add Stop: second row of sub-choices */

@@ -5,6 +5,8 @@ const RiderCloud = {
   status(message, actions = []) {
     const box = document.getElementById('cloudStatus');
     if (!box) return;
+    const dismissible = this.phase === 'import';
+    box.hidden = dismissible && sessionStorage.getItem('rideflow_cloud_prompt_dismissed') === '1';
     box.replaceChildren();
     const label = document.createElement('span');
     label.textContent = message;
@@ -13,6 +15,16 @@ const RiderCloud = {
       const button = document.createElement('button');
       button.type = 'button'; button.textContent = text;
       button.addEventListener('click', action); box.append(button);
+    }
+    if (dismissible) {
+      const dismiss = document.createElement('button');
+      dismiss.type = 'button'; dismiss.textContent = 'Not now'; dismiss.className = 'cloud-dismiss';
+      dismiss.setAttribute('aria-label', 'Dismiss cloud review reminder until next visit');
+      dismiss.addEventListener('click', () => {
+        sessionStorage.setItem('rideflow_cloud_prompt_dismissed', '1');
+        box.hidden = true;
+      });
+      box.append(dismiss);
     }
   },
   snapshot() { return { profile: Storage.getProfile(), bikes: Storage.getBikes() }; },
