@@ -14,7 +14,7 @@ Status key: **Done** = present in current source and covered by current evidence
 - **Done** — Automated suite: 145 passing tests on 2026-09-29, including regression checks for all nine issues recorded during the live walkthrough.
 - **Done in source** — The nine recorded walkthrough issues are corrected locally: signed-out controls, dismissible cloud review prompt, pack counts, leaderboard order, event dates, ride-history separators, sample-post labels, hazard confirmation, and visible overlay close controls.
 - **Partial** — Cloud migrations for rides, routes, and preferences are included in `sql/`; current production application of those migrations was not re-verified during this reconciliation.
-- **Partial** — Public deployment exists at `ride.siccycles.com`; the nine corrections are approved for release, but the deployed commit and live smoke test must be recorded before this item is marked done.
+- **Done** — Release `5df20dd` is public at `ride.siccycles.com`; the production HTML, desktop/mobile rendering, app shell, console health, account-navigation interaction, and cloud-reminder dismissal were verified on 2026-09-29.
 
 ## Ordered build checklist
 
@@ -25,7 +25,7 @@ Status key: **Done** = present in current source and covered by current evidence
 - [x] Add a complete automated test command (`npm test`).
 - [x] Add safe cache-version stamping (`npm run bump`).
 - [x] Correct the nine reproducible issues recorded in the 2026-09-29 live walkthrough and add regression checks.
-- [ ] Confirm the live site is serving commit `115c36e` or a documented successor.
+- [x] Confirm the live site is serving documented successor `5df20dd`.
 - [ ] Confirm the production Supabase schema contains `rider_rides`, `rider_routes`, and `rider_prefs` with owner-only RLS.
 
 ### 2. Finish real-owner cloud verification
@@ -77,7 +77,7 @@ Status key: **Done** = present in current source and covered by current evidence
 - [ ] Real-owner two-device cloud verification passed.
 - [ ] Android and iPhone ride tests passed for the critical path.
 - [ ] No unresolved high-severity privacy, authentication, data-loss, or ride-safety defects.
-- [ ] Live deployment commit recorded and public smoke test passed.
+- [x] Live deployment commit `5df20dd` recorded and public smoke test passed on 2026-09-29.
 - [ ] Tyler gives final approval before any public launch claim, paid promotion, outside contact, or sensitive publication.
 
 ## Next implementation target
