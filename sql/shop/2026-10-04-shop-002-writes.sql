@@ -26,7 +26,7 @@ declare
   v_uid uuid := auth.uid();
   v_customer_id text := p_customer_id;
   v_bike_id text := p_bike_id;
-  v_job_id text := coalesce(p_job_id, encode(gen_random_bytes(9), 'base64'));
+  v_job_id text := coalesce(p_job_id, replace(gen_random_uuid()::text, '-', ''));
 begin
   if not shop_has_staff_access() then
     raise exception 'not authorized';
@@ -42,7 +42,7 @@ begin
       updated_at = now(), updated_by = v_uid
     where id = v_customer_id;
   else
-    v_customer_id := encode(gen_random_bytes(9), 'base64');
+    v_customer_id := replace(gen_random_uuid()::text, '-', '');
     insert into public.shop_customers (id, name, phone, email, address, created_by, updated_by)
     values (v_customer_id, p_customer->>'name', p_customer->>'phone',
             p_customer->>'email', p_customer->>'address', v_uid, v_uid);
@@ -61,7 +61,7 @@ begin
         updated_at = now(), updated_by = v_uid
       where id = v_bike_id;
     else
-      v_bike_id := encode(gen_random_bytes(9), 'base64');
+      v_bike_id := replace(gen_random_uuid()::text, '-', '');
       insert into public.shop_bikes (id, customer_id, vin, make, model, year, mileage, created_by, updated_by)
       values (v_bike_id, v_customer_id, p_bike->>'vin', p_bike->>'make', p_bike->>'model',
               (p_bike->>'year')::int, (p_bike->>'mileage')::int, v_uid, v_uid);
@@ -89,10 +89,10 @@ begin
   -- 4. Roll up Customer.last_visit / invoice_count / lifetime_spend from jobs.
   update public.shop_customers c set
     last_visit = greatest(coalesce(c.last_visit, '1900-01-01'::date),
-                           (select max(job_date) from public.shop_jobs where customer_id = c.id)),
-    invoice_count = (select count(*) from public.shop_jobs where customer_id = c.id),
-    lifetime_spend = (select coalesce(sum(total_amount), 0) from public.shop_jobs
-                      where customer_id = c.id and status = 'complete')
+                           (select max(j.job_date) from public.shop_jobs j where j.customer_id = c.id)),
+    invoice_count = (select count(*) from public.shop_jobs j where j.customer_id = c.id),
+    lifetime_spend = (select coalesce(sum(j.total_amount), 0) from public.shop_jobs j
+                      where j.customer_id = c.id and j.status = 'complete')
   where c.id = v_customer_id;
 
   insert into public.shop_audit_log (table_name, row_id, action, actor, detail)
@@ -113,7 +113,7 @@ begin
   delete from public.shop_job_line_items where job_id = p_job_id;
   for v_item in select * from jsonb_array_elements(p_items) loop
     insert into public.shop_job_line_items (id, job_id, kind, description, quantity, unit_price, unit_cost, created_by)
-    values (encode(gen_random_bytes(9), 'base64'), p_job_id, v_item->>'kind', v_item->>'description',
+    values (replace(gen_random_uuid()::text, '-', ''), p_job_id, v_item->>'kind', v_item->>'description',
             coalesce((v_item->>'quantity')::numeric, 1), coalesce((v_item->>'unit_price')::numeric, 0),
             coalesce((v_item->>'unit_cost')::numeric, 0), v_uid);
   end loop;
@@ -126,7 +126,7 @@ create or replace function public.shop_upsert_part_order(p_order jsonb)
 returns text
 language plpgsql security definer set search_path = public, pg_temp
 as $$
-declare v_uid uuid := auth.uid(); v_id text := coalesce(p_order->>'id', encode(gen_random_bytes(9), 'base64'));
+declare v_uid uuid := auth.uid(); v_id text := coalesce(p_order->>'id', replace(gen_random_uuid()::text, '-', ''));
 begin
   if not shop_has_staff_access() then raise exception 'not authorized'; end if;
   insert into public.shop_part_orders (id, log_number, order_number, supplier_name, part_description,
@@ -147,3 +147,47 @@ begin
   return v_id;
 end;
 $$;
+
+create or replace function public.shop_set_bike_photos(p_bike_id text, p_photo_urls jsonb)
+returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_uid uuid := auth.uid();
+begin
+  if not shop_has_staff_access() then raise exception 'not authorized'; end if;
+  update public.shop_bikes set photo_urls = p_photo_urls, updated_at = now(), updated_by = v_uid
+  where id = p_bike_id;
+  insert into public.shop_audit_log (table_name, row_id, action, actor)
+  values ('shop_bikes', p_bike_id, 'update_photos', v_uid);
+end;
+$$;
+
+-- Grants. RLS policies control which ROWS are visible; Postgres privileges
+-- must separately allow the role onto the table/function at all. Only
+-- `authenticated` gets anything (no anon access to any shop_ object), and
+-- only SELECT on tables (all mutation goes through the SECURITY DEFINER
+-- functions granted EXECUTE below) - same pattern as wh-001-core.sql.
+do $$
+declare t text; f record;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' and tablename like 'shop\_%' loop
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute format('revoke all on public.%I from anon', t);
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute format('revoke all on public.%I from authenticated', t);
+      execute format('grant select on public.%I to authenticated', t);
+    end if;
+  end loop;
+  for f in select p.oid::regprocedure::text as sig, p.proname
+           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname like 'shop\_%' loop
+    execute format('revoke all on function %s from public', f.sig);
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute format('revoke all on function %s from anon', f.sig);
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute format('grant execute on function %s to authenticated', f.sig);
+    end if;
+  end loop;
+end $$;

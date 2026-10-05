@@ -89,12 +89,20 @@
 
     openForm(jobId) {
       this.editingJobId = jobId;
+      this.pendingPhotoFiles = [];
+      this.existingPhotoUrls = [];
       $('shEstimateForm').reset();
       $('shBikePick').innerHTML = '<option value="">New bike…</option>';
+      $('shPhotoPreview').innerHTML = '';
       if (jobId) {
         const j = this.jobs.find(x => x.id === jobId);
         $('shCustomerPick').value = j.customer_id || ''; this.fillCustomerFields();
-        if (j.bike_id) $('shBikePick').value = j.bike_id;
+        if (j.bike_id) {
+          $('shBikePick').value = j.bike_id;
+          const bike = this.bikes.find(b => b.id === j.bike_id);
+          this.existingPhotoUrls = bike?.photo_urls || [];
+          this.renderPhotoPreview();
+        }
         $('shInvoiceNumber').value = j.invoice_number || '';
         $('shPartsAmount').value = j.parts_amount; $('shLaborAmount').value = j.labor_amount;
         $('shTaxAmount').value = j.tax_amount; $('shTotalAmount').value = j.total_amount;
@@ -104,10 +112,29 @@
       $('shFormDialog').showModal ? $('shFormDialog').showModal() : ($('shFormDialog').hidden = false);
     },
 
+    renderPhotoPreview() {
+      $('shPhotoPreview').innerHTML = this.existingPhotoUrls
+        .map(url => `<img src="${url}" alt="bike photo">`).join('');
+    },
+
+    // Uploads any newly selected files to the shop-bike-photos bucket and
+    // returns the full list of photo URLs (existing + newly uploaded) to save
+    // on the bike record. Runs after the bike id is known (new or existing).
+    async uploadPendingPhotos(bikeId) {
+      const files = $('shPhotoFiles').files;
+      const urls = [...this.existingPhotoUrls];
+      for (const file of files) {
+        const path = `${bikeId}/${Date.now()}-${file.name}`;
+        await ShApi.upload('shop-bike-photos', path, file);
+        urls.push(ShApi.publicUrl('shop-bike-photos', path));
+      }
+      return urls;
+    },
+
     async submitEstimate() {
       const customerId = $('shCustomerPick').value || null;
       const bikeId = $('shBikePick').value || null;
-      await ShApi.rpc('shop_submit_estimate', {
+      const [result] = await ShApi.rpc('shop_submit_estimate', {
         p_job_id: this.editingJobId, p_customer_id: customerId,
         p_customer: { name: $('shName').value, phone: $('shPhone').value, email: $('shEmail').value, address: $('shAddress').value },
         p_bike_id: bikeId,
@@ -119,6 +146,10 @@
           parts_cost: $('shPartsCost').value || 0, notes: $('shNotes').value || null,
         },
       });
+      if (result?.bike_id && $('shPhotoFiles').files.length) {
+        const urls = await this.uploadPendingPhotos(result.bike_id);
+        await ShApi.rpc('shop_set_bike_photos', { p_bike_id: result.bike_id, p_photo_urls: urls });
+      }
       $('shFormDialog').close ? $('shFormDialog').close() : ($('shFormDialog').hidden = true);
       await this.refresh();
     },

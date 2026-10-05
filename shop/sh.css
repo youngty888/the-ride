@@ -10,3 +10,5 @@ dialog { border: none; border-radius: 8px; padding: 1.5rem; max-width: 480px; wi
 fieldset { border: 1px solid #ddd; margin-bottom: 1rem; }
 label { display: block; margin: 0.4rem 0; }
 input, select, textarea { width: 100%; box-sizing: border-box; }
+.sh-photo-preview { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.sh-photo-preview img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
