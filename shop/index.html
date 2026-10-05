@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIC Cycles — Shop</title>
+<link rel="stylesheet" href="sh.css">
+</head>
+<body>
+<header class="sh-header">
+  <h1>Shop</h1>
+  <button type="button" id="shNewJobBtn">New estimate</button>
+</header>
+
+<main>
+  <div class="sh-job-row sh-job-row-head">
+    <span>Invoice</span><span>Customer</span><span>Bike</span><span>Status</span><span>Total</span><span></span><span></span>
+  </div>
+  <div id="shJobsList"></div>
+</main>
+
+<dialog id="shFormDialog">
+  <h2 id="shFormTitle">New estimate</h2>
+  <form id="shEstimateForm">
+    <fieldset>
+      <legend>Customer</legend>
+      <label>Existing customer <select id="shCustomerPick"></select></label>
+      <label>Name <input id="shName" required></label>
+      <label>Phone <input id="shPhone"></label>
+      <label>Email <input id="shEmail" type="email"></label>
+      <label>Address <input id="shAddress"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Bike</legend>
+      <label>Existing bike <select id="shBikePick"></select></label>
+      <label>VIN <input id="shVin"></label>
+      <label>Make <input id="shMake"></label>
+      <label>Model <input id="shModel"></label>
+      <label>Year <input id="shYear" type="number"></label>
+      <label>Mileage <input id="shMileage" type="number"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Job</legend>
+      <label>Invoice # <input id="shInvoiceNumber"></label>
+      <label>Parts $ <input id="shPartsAmount" type="number" step="0.01" value="0"></label>
+      <label>Labor $ <input id="shLaborAmount" type="number" step="0.01" value="0"></label>
+      <label>Tax $ <input id="shTaxAmount" type="number" step="0.01" value="0"></label>
+      <label>Total $ <input id="shTotalAmount" type="number" step="0.01" value="0"></label>
+      <label>Parts cost $ <input id="shPartsCost" type="number" step="0.01" value="0"></label>
+      <label>Notes <textarea id="shNotes"></textarea></label>
+    </fieldset>
+
+    <button type="submit">Save</button>
+    <button type="button" onclick="document.getElementById('shFormDialog').close()">Cancel</button>
+  </form>
+</dialog>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js"></script>
+<script src="sh-app.js"></script>
+</body>
+</html>

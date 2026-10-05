@@ -49,4 +49,6 @@ only, all writes through SECURITY DEFINER functions that check
 ## Status
 
 SQL drafted, NOT applied to the live database. Branch `shop-phase1`, not
-merged. No app code (`shop/` folder) written yet.
+merged. App code written (`shop/index.html`, `sh-app.js`, `sh-api.js`,
+`sh.css`) - jobs list + single-entry-point estimate form. Not tested against
+a live DB yet; no tests written yet.
