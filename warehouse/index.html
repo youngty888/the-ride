@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://api.ride.siccycles.com https://i.ebayimg.com http://localhost:* http://127.0.0.1:*; connect-src https://api.ride.siccycles.com http://localhost:* http://127.0.0.1:*; media-src 'self' blob: https://api.ride.siccycles.com; base-uri 'none'; form-action 'none'">
+  <title>Fangs Warehouse · SIC Cycles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="wh.css?v=202609291800">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="mark">F</span><div><strong>Fangs Warehouse</strong><small>SIC Cycles · staff only</small></div></div>
+    <div class="who" id="who" hidden></div>
+  </header>
+  <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+  <main id="app" class="app"><p class="loading">Loading…</p></main>
+  <dialog id="dialog" class="dialog"></dialog>
+
+  <script src="../supabase-config.js?v=202609291800"></script>
+  <script src="../session-store.js?v=202609291800"></script>
+  <script src="wh-api.js?v=202609291800"></script>
+  <script src="wh-export.js?v=202609291800"></script>
+  <script src="wh-labels.js?v=202609291800"></script>
+  <script src="wh-import.js?v=202609291800"></script>
+  <script src="wh-app.js?v=202609291800"></script>
+</body>
+</html>
