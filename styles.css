@@ -2512,3 +2512,6 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
   .battery-badge { top: 106px; right: 100px; }
   .toast, .toast.active { left: 96px; right: 96px; width: auto; transform: none; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 }
+
+.community-calendar { max-width: 100%; overflow: hidden; margin-bottom: 16px; border-radius: 12px; }
+.community-calendar iframe { border: 0; width: 100%; height: 600px; display: block; background: #fff; }
