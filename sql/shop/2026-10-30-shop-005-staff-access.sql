@@ -11,14 +11,16 @@ order by created_at;
 select s.user_id, u.email, s.display_name, s.active
 from public.shop_staff s join auth.users u on u.id = s.user_id;
 
--- Step 2: add staff by EXACT email. Replace the placeholders. Each insert adds
+-- Step 2: add staff by EXACT email. Garrett is filled in; replace the other
+-- placeholders and uncomment them once confirmed. Each insert adds
 -- nothing if the email has no Ride account, so check the row count it reports.
 -- insert into public.shop_staff (user_id, display_name)
 --   select id, 'Tyler' from auth.users where lower(email) = lower('<tyler-email>')
 --   on conflict (user_id) do update set active = true, display_name = excluded.display_name;
--- insert into public.shop_staff (user_id, display_name)
---   select id, 'Garrett' from auth.users where lower(email) = lower('<garrett-email>')
---   on conflict (user_id) do update set active = true, display_name = excluded.display_name;
+-- Garrett: email confirmed by Tyler on 2026-10-30.
+insert into public.shop_staff (user_id, display_name)
+  select id, 'Garrett' from auth.users where lower(email) = lower('garchapman@gmail.com')
+  on conflict (user_id) do update set active = true, display_name = excluded.display_name;
 -- insert into public.shop_staff (user_id, display_name)
 --   select id, 'Fang' from auth.users where lower(email) = lower('<fang-email>')
 --   on conflict (user_id) do update set active = true, display_name = excluded.display_name;
