@@ -72,3 +72,20 @@ test('ids are stable so re-importing updates instead of duplicating; settings co
   assert.equal(p1.settings.default_tax_rate, '8.7'); assert.equal(p1.settings.phone, '520-000-0000');
   assert.match(p1.settings.estimate_terms, /Labor Rate: \$150/);
 });
+
+test('owner fixes: merge customers, bill line-total-only rows, add missed tax, mark reviewed', () => {
+  const fixes = { sameCustomer: [['Test A', 'Test B']], addRows: [2002], chargeTax: [2003], reviewed: { 2003: 'checked' } };
+  const pos = JSON.parse(JSON.stringify(DATA));
+  pos.invoices[1].lines[1].line_total = 50; // a real charge only in "Line Total $"
+  const plan = buildPlan(pos, fixes);
+  const keys = new Set(plan.jobs.map(j => j.customerKey));
+  assert.equal(keys.size, 1, 'Test B merged into Test A');
+  const a2 = plan.jobs.find(j => j.number === 2002);
+  assert.deepEqual(a2.items.map(i => [i.kind, i.description, i.unit_price]), [['labor', 'Fender', '150.00'], ['labor', 'payment @ pickup', '50.00']]);
+  const b = plan.jobs.find(j => j.number === 2003);
+  assert.equal(b.job.tax_applies_to, 'parts'); assert.equal(b.calc.total, 167.4);
+  assert.match(b.job.notes, /Reviewed: checked/); assert.match(b.job.notes, /Customer name on the sheet: "Test B"/);
+  assert.match(report(plan), /FIXED #2003/);
+  // without fixes nothing changes
+  assert.equal(buildPlan(pos).jobs.find(j => j.number === 2003).calc.total, 160);
+});

@@ -5,7 +5,9 @@
      python3 scripts/shop-import/sicsystems_to_json.py SICSYSTEMS.xlsx sicsystems.json
    Step 2 (dry run: shows every invoice, the new totals, and anything that does
    not match the sheet; writes nothing):
-     node scripts/shop-import/import.cjs sicsystems.json
+     node scripts/shop-import/import.cjs sicsystems.json [--fixes fixes.json]
+   (fixes.json = the owner's decisions on flagged invoices; see buildPlan.
+   It names customers, so keep it private like the data file.)
    Step 3 (write, as a shop staff account):
      SHOP_EMAIL=you@example.com SHOP_PASSWORD=... \
        node scripts/shop-import/import.cjs sicsystems.json --apply [--settings] [--url https://api.ride.siccycles.com]
@@ -44,7 +46,7 @@ function tabNumber(inv) {
 }
 
 // Sheet row -> 0..2 shop lines.
-function rowToLines(row, warnings, label) {
+function rowToLines(row, warnings, label, addTotalOnly = false) {
   const out = [];
   const desc = row.description || '(no description)';
   const hrs = Number(row.labor_hours || 0); const labor = Number(row.labor_amount || 0); const price = Number(row.parts_price || 0);
@@ -60,6 +62,11 @@ function rowToLines(row, warnings, label) {
   }
   if (price > 0) out.push({ kind: 'part', description: labor > 0 ? `${desc} (parts)` : desc, quantity: '1', unit_price: dec2(price), unit_cost: '' });
   if (!out.length) {
+    if (!declined && row.line_total && addTotalOnly && row.line_total > 0) {
+      // Owner said to bill these rows: amount only in "Line Total $" becomes a labor line.
+      out.push({ kind: 'labor', description: desc, quantity: '1', unit_price: dec2(row.line_total) });
+      return out;
+    }
     if (!declined && row.line_total) {
       // A money row with nothing in Labor $ or Cost (e.g. "payment @ pickup -100"):
       // not work, so it is not put on the estimate. It is reported instead.
@@ -88,7 +95,15 @@ function spreadCost(items, totalCost) {
 
 const plan_name = (customers, key) => customers.get(key)?.name || key;
 
-function buildPlan(data) {
+// fixes (owner decisions, kept in a private file, see --fixes):
+//   sameCustomer: [["Name to keep", "Other spelling"], ...]  merge into one customer
+//   addRows:      [1004, ...]  bill rows whose amount is only in "Line Total $"
+//   chargeTax:    [1016, ...]  charge tax on parts even though the sheet did not
+//   reviewed:     {"1026": "why the new total is right", ...}  checked by the owner
+function buildPlan(data, fixes = {}) {
+  const alias = new Map((fixes.sameCustomer || []).flatMap(([keep, ...others]) => others.map(o => [norm(o), keep])));
+  const addRows = new Set((fixes.addRows || []).map(Number)); const chargeTax = new Set((fixes.chargeTax || []).map(Number));
+  const reviewed = Object.fromEntries(Object.entries(fixes.reviewed || {}).map(([k, v]) => [Number(k), v]));
   const warnings = []; const skipped = [];
   const rate = isNum(data.settings?.['Sales Tax Rate']) ? (Number(data.settings['Sales Tax Rate']) * 100).toFixed(3).replace(/\.?0+$/, '') : null;
   if (!rate) warnings.push('Settings tab has no Sales Tax Rate; invoices will import with no tax rate.');
@@ -109,7 +124,9 @@ function buildPlan(data) {
   for (const [num, inv] of [...byNum.entries()].sort((a, b) => a[0] - b[0])) {
     const label = `#${num} (${inv.tab})`;
     const log = data.jobs_log?.[num] || data.jobs_log?.[String(num)] || {};
-    const c = inv.customer; const cname = c.name || log.Customer || `Unknown (#${num})`;
+    const c = inv.customer; const rawName = c.name || log.Customer || `Unknown (#${num})`;
+    const cname = alias.get(norm(rawName)) || rawName;
+    if (cname !== rawName) warnings.push(`${label}: customer "${rawName}" merged into "${cname}" (owner decision).`);
     let ckey = norm(cname);
     const existing = customers.get(ckey);
     if (existing && existing.phone && c.phone && digits(existing.phone) !== digits(c.phone)) {
@@ -133,15 +150,16 @@ function buildPlan(data) {
       bikes.set(bkey, bike);
     }
 
-    const items = inv.lines.flatMap(r => rowToLines(r, warnings, label));
+    const items = inv.lines.flatMap(r => rowToLines(r, warnings, label, addRows.has(num)));
     const costNote = [];
     if (isNum(log['Parts Cost $'])) spreadCost(items, Number(log['Parts Cost $']));
     else if (log['Parts Cost $']) costNote.push(`Our parts cost on Jobs_Log: "${log['Parts Cost $']}"`);
 
     const st = inv.sheet_totals || {};
     const sheetTax = Number(st.tax || 0); const sheetParts = items.filter(i => i.kind === 'part').reduce((s, i) => s + cents(i.unit_price), 0);
-    const applies = rate && (sheetTax > 0 || sheetParts === 0) ? 'parts' : 'none';
-    if (rate && sheetParts > 0 && sheetTax === 0) warnings.push(`${label}: sheet charged no tax on ${fmt(sheetParts)} of parts; imported as "No tax" to match what was charged.`);
+    const applies = rate && (sheetTax > 0 || sheetParts === 0 || chargeTax.has(num)) ? 'parts' : 'none';
+    if (rate && sheetParts > 0 && sheetTax === 0 && chargeTax.has(num)) warnings.push(`${label}: tax added on ${fmt(sheetParts)} of parts (owner decision; the sheet charged none).`);
+    else if (rate && sheetParts > 0 && sheetTax === 0) warnings.push(`${label}: sheet charged no tax on ${fmt(sheetParts)} of parts; imported as "No tax" to match what was charged.`);
     const calc = ShCalc.calculate(items, { rate: applies === 'none' ? '' : rate, appliesTo: applies });
     if (calc.errors.length) warnings.push(`${label}: ${calc.errors.join('; ')}`);
 
@@ -155,9 +173,13 @@ function buildPlan(data) {
 
     const pay = [inv.payment, inv.payment_note].filter(Boolean).join(' – ');
     const notes = [`Imported from SICSYSTEMS tab "${inv.tab}".`, pay && `Payment: ${pay}.`, inv.authorized_by && `Authorized by ${inv.authorized_by}.`,
-      log.Notes && `Jobs_Log note: ${log.Notes}`, ...costNote, ...inv.lines.filter(r => r.skippedNote).map(r => r.skippedNote), issues.length && `Sheet check: ${issues.join('; ')}.`].filter(Boolean).join('\n');
+      log.Notes && `Jobs_Log note: ${log.Notes}`, ...costNote, ...inv.lines.filter(r => r.skippedNote).map(r => r.skippedNote),
+      cname !== rawName && `Customer name on the sheet: "${rawName}".`,
+      addRows.has(num) && 'Rows with an amount only in "Line Total $" were added as labor (owner decision).',
+      chargeTax.has(num) && sheetTax === 0 && sheetParts > 0 && `Tax on parts added (owner decision); the sheet charged ${fmt(cents(st.grand))} with no tax.`,
+      issues.length && `Sheet check: ${issues.join('; ')}.`, reviewed[num] && `Reviewed: ${reviewed[num]}`].filter(Boolean).join('\n');
 
-    jobs.push({ number: num, label, customerKey: ckey, bike, items, calc, issues, sheet: st, log,
+    jobs.push({ number: num, label, customerKey: ckey, bike, items, calc, issues, reviewed: reviewed[num] || '', sheet: st, log,
       job: { status: STATUS(inv.status), job_date: inv.date || (typeof log.Date === 'string' ? log.Date.slice(0, 10) : '') || '',
         invoice_number: String(num), estimate_number: String(num), notes, work_description: '', customer_notes: '',
         tax_rate: applies === 'none' ? '' : rate, tax_applies_to: applies },
@@ -176,7 +198,9 @@ function buildPlan(data) {
   const names = [...customers.values()];
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
     const a = norm(names[i].name), b = norm(names[j].name);
-    if (a.split(' ')[0] && a.split(' ')[0] === b.split(' ')[0] && a !== b) warnings.push(`Possible same customer: "${names[i].name}" (#${names[i].invoices.join(', #')}) and "${names[j].name}" (#${names[j].invoices.join(', #')}) — kept separate.`);
+    const [af, ...ar] = a.split(' '), [bf, ...br] = b.split(' ');
+    const lastClose = !ar.length || !br.length || ar[ar.length - 1].slice(0, 4) === br[br.length - 1].slice(0, 4);
+    if (af && af === bf && a !== b && lastClose) warnings.push(`Possible same customer: "${names[i].name}" (#${names[i].invoices.join(', #')}) and "${names[j].name}" (#${names[j].invoices.join(', #')}) — kept separate.`);
   }
 
   const settings = {
@@ -205,9 +229,10 @@ function report(plan) {
   L.push(`Shop settings from the sheet: tax ${plan.settings.default_tax_rate || 'not set'}% on parts, phone ${plan.settings.phone}, email ${plan.settings.email}.`);
   L.push('');
   for (const j of plan.jobs) {
-    const flag = j.issues.length ? 'CHECK' : 'OK   ';
+    const flag = !j.issues.length ? 'OK   ' : j.reviewed ? 'FIXED' : 'CHECK';
     L.push(`${flag} #${j.number} ${plan.customers.get(j.customerKey).name} — ${j.job.status} — ${j.items.length} lines — parts ${fmt(Number(j.calc.partsCents))} labor ${fmt(Number(j.calc.laborCents))} tax ${fmt(Number(j.calc.taxCents))} = ${fmt(Number(j.calc.totalCents))}`);
     for (const i of j.issues) L.push(`        ${i}`);
+    if (j.reviewed) L.push(`        reviewed: ${j.reviewed}`);
   }
   if (plan.skipped.length) { L.push('', 'Skipped:'); plan.skipped.forEach(s => L.push(`  ${s}`)); }
   if (plan.warnings.length) { L.push('', 'Notes:'); plan.warnings.forEach(s => L.push(`  ${s}`)); }
@@ -243,9 +268,11 @@ module.exports = { buildPlan, rpcArgs, report, apply, rowToLines };
 if (require.main === module) {
   (async () => {
     const args = process.argv.slice(2);
-    const file = args.find(a => !a.startsWith('--'));
-    if (!file) { console.error('usage: import.cjs sicsystems.json [--apply] [--settings] [--url URL]'); process.exit(2); }
-    const plan = buildPlan(JSON.parse(fs.readFileSync(file, 'utf8')));
+    const file = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--fixes' && args[i - 1] !== '--url');
+    if (!file) { console.error('usage: import.cjs sicsystems.json [--fixes fixes.json] [--apply] [--settings] [--url URL]'); process.exit(2); }
+    const fixesFile = args.includes('--fixes') ? args[args.indexOf('--fixes') + 1] : null;
+    const fixes = fixesFile ? JSON.parse(fs.readFileSync(fixesFile, 'utf8')) : {};
+    const plan = buildPlan(JSON.parse(fs.readFileSync(file, 'utf8')), fixes);
     console.log(report(plan));
     if (!args.includes('--apply')) { console.log('\nDry run only. Add --apply to write.'); return; }
     const cfgText = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase-config.js'), 'utf8');

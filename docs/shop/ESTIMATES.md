@@ -71,8 +71,12 @@ run or checked live yet.
    private; `.gitignore` blocks `*sicsystems*.json`.
 2. Dry run (writes nothing; lists every invoice and anything that doesn't match
    the sheet or Jobs_Log): `node scripts/shop-import/import.cjs sicsystems.json`
+   Owner decisions on flagged invoices go in a private fixes file
+   (`--fixes fixes.json`: merge customers, bill line-total-only rows, add a
+   missed tax, mark invoices reviewed). Tyler's Oct 30 decisions are saved with
+   the private data, not in the repo.
 3. After the SQL is live and staff are added:
-   `SHOP_EMAIL=... SHOP_PASSWORD=... node scripts/shop-import/import.cjs sicsystems.json --apply --settings`
+   `SHOP_EMAIL=... SHOP_PASSWORD=... node scripts/shop-import/import.cjs sicsystems.json --fixes fixes.json --apply --settings`
    `--settings` also copies the sheet's Settings tab (8.7% tax on parts, phone,
    email) and the service policies into shop Settings.
 
