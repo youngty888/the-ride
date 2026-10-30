@@ -48,7 +48,5 @@ only, all writes through SECURITY DEFINER functions that check
 
 ## Status
 
-SQL drafted, NOT applied to the live database. Branch `shop-phase1`, not
-merged. App code written (`shop/index.html`, `sh-app.js`, `sh-api.js`,
-`sh.css`) - jobs list + single-entry-point estimate form. Not tested against
-a live DB yet; no tests written yet.
+Superseded — see `docs/shop/ESTIMATES.md` (updated 2026-10-30). The shop code
+is on `main`; database status on the live server is still unverified.
