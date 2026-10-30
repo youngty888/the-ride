@@ -107,7 +107,8 @@ end $$;
 -- so a double-tap on Save can never create a duplicate customer, bike or job.
 -- p_bike may be null (no bike on this job).
 -- p_job: {status, job_date, invoice_number, work_description, customer_notes,
---         notes (internal), tax_rate, tax_applies_to, expected_updated_at}
+--         notes (internal), tax_rate, tax_applies_to, expected_updated_at,
+--         estimate_number (optional, new jobs only; for importing old invoices)}
 -- p_items: [{kind: part|labor, description, quantity, unit_price, unit_cost}]
 create or replace function public.shop_save_estimate(
   p_job_id text, p_customer_id text, p_customer jsonb,
@@ -127,7 +128,7 @@ declare
   v_kind text; v_desc text; v_qty numeric; v_price numeric; v_cost numeric;
   v_parts numeric := 0; v_labor numeric := 0; v_parts_cost numeric := 0;
   v_rate numeric; v_applies text; v_taxable numeric; v_tax numeric;
-  v_status text; v_photos jsonb;
+  v_status text; v_photos jsonb; v_number bigint; v_fixed boolean := false;
 begin
   if not shop_has_staff_access() then raise exception 'not authorized'; end if;
   if p_job_id is null or p_job_id !~ '^[A-Za-z0-9_-]{6,64}$' then raise exception 'invalid job id'; end if;
@@ -210,11 +211,28 @@ begin
   v_status := coalesce(shop_clean(p_job->>'status'), v_job.status, 'estimate');
   if v_status not in ('estimate','in_progress','complete') then raise exception 'invalid status'; end if;
 
+  -- Optional fixed estimate number, only when creating a job (used to import
+  -- old invoices with their real numbers). New estimates then continue after
+  -- the highest number in use.
+  if not v_job_exists and shop_clean(p_job->>'estimate_number') is not null then
+    v_number := shop_int(p_job->>'estimate_number', 'Estimate number');
+    if v_number < 1 then raise exception 'Estimate number must be above 0'; end if;
+    if exists (select 1 from public.shop_jobs where estimate_number = v_number) then
+      raise exception 'Estimate number % is already used', v_number;
+    end if;
+    v_fixed := true;
+  elsif not v_job_exists then
+    v_number := nextval('public.shop_estimate_number_seq');
+  else
+    v_number := v_job.estimate_number;
+  end if;
+
   -- 4. Job
-  insert into public.shop_jobs (id, invoice_number, customer_id, bike_id, status, job_date,
+  insert into public.shop_jobs (id, estimate_number, invoice_number, customer_id, bike_id, status, job_date,
       parts_amount, labor_amount, tax_amount, total_amount, parts_cost, notes,
       work_description, customer_notes, tax_rate, tax_applies_to, created_by, updated_by)
-  values (p_job_id, shop_clean(p_job->>'invoice_number'), p_customer_id,
+  values (p_job_id, v_number,
+      shop_clean(p_job->>'invoice_number'), p_customer_id,
       case when p_bike is null then null else p_bike_id end, v_status,
       coalesce(nullif(p_job->>'job_date', '')::date, current_date),
       v_parts, v_labor, v_tax, v_parts + v_labor + v_tax, v_parts_cost,
@@ -229,6 +247,11 @@ begin
     work_description = excluded.work_description, customer_notes = excluded.customer_notes,
     tax_rate = excluded.tax_rate, tax_applies_to = excluded.tax_applies_to,
     updated_at = now(), updated_by = v_uid;
+
+  if v_fixed then
+    perform setval('public.shop_estimate_number_seq', greatest(v_number,
+      (select case when is_called then last_value else last_value - 1 end from public.shop_estimate_number_seq)), true);
+  end if;
 
   -- 5. Replace line items in entered order
   delete from public.shop_job_line_items where job_id = p_job_id;

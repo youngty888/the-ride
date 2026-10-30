@@ -61,12 +61,34 @@ run or checked live yet.
    access". The test job can stay (there is no delete) or be removed by the owner
    in SQL along with its line items.
 
+## Importing the SICSYSTEMS invoices
+
+`scripts/shop-import/` loads the per-invoice tabs of the SICSYSTEMS sheet:
+
+1. Download SICSYSTEMS as .xlsx, then
+   `python3 scripts/shop-import/sicsystems_to_json.py SICSYSTEMS.xlsx sicsystems.json`
+   (needs `pip install openpyxl`). The JSON holds customer details — keep it
+   private; `.gitignore` blocks `*sicsystems*.json`.
+2. Dry run (writes nothing; lists every invoice and anything that doesn't match
+   the sheet or Jobs_Log): `node scripts/shop-import/import.cjs sicsystems.json`
+3. After the SQL is live and staff are added:
+   `SHOP_EMAIL=... SHOP_PASSWORD=... node scripts/shop-import/import.cjs sicsystems.json --apply --settings`
+   `--settings` also copies the sheet's Settings tab (8.7% tax on parts, phone,
+   email) and the service policies into shop Settings.
+
+Imported invoices keep their numbers; new estimates continue after the highest.
+Re-running updates the same records (fixed ids), it never duplicates.
+Tested locally on the real sheet (Oct 30): 31 invoices loaded, every total, line
+count and status matched on read-back, re-import added nothing, and new
+estimates continued at #1038.
+
 ## Tests
 
 - `tests/shop-calc.test.cjs` — estimate math.
 - `tests/shop-sql.test.cjs` — the real SQL in PGlite: save/reopen/edit, double
   save, stale-edit protection, status, validation, permissions, photo privacy,
   applying 004 over existing jobs.
+- `tests/shop-import.test.cjs` — the SICSYSTEMS importer, with made-up data.
 - `tests/shop-e2e.test.cjs` — the real page in Chromium against a local fake
   server (`tests/support/shop-fake-backend.cjs`) running the same SQL: full
   acceptance flow, PDF, phone layout, unsafe text, failed save, non-staff API.

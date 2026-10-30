@@ -291,3 +291,26 @@ test('existing jobs get an estimate number when 004 is applied to a database tha
   assert.notEqual(rows[0].estimate_number, rows[1].estimate_number);
   await d2.close();
 });
+
+test('imported invoices keep their numbers; new estimates continue after the highest; edits never skip numbers', { skip }, async () => {
+  const { PGlite: PG } = await import('@electric-sql/pglite');
+  const old = db; db = new PG();
+  try {
+    await db.exec(STUB);
+    await db.query('insert into auth.users values ($1, $2)', [U.tyler, 't@x']);
+    for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql', '2026-10-30-shop-004-estimates.sql']) await db.exec(sql(f));
+    await db.query(`insert into public.shop_staff (user_id, display_name) values ($1, 'Tyler')`, [U.tyler]);
+    const imp = async (num, job = id('j')) => save('tyler', { job, customer: id('c'), items: ITEMS, j: { estimate_number: String(num), tax_rate: '8.7' } });
+    assert.equal(Number((await imp(1036)).estimate_number), 1036);
+    assert.equal(Number((await imp(1004)).estimate_number), 1004); // out of order is fine
+    await rejects(imp(1036), /Estimate number 1036 is already used/);
+    const fresh = { job: id('j'), customer: id('c'), items: ITEMS };
+    const r = await save('tyler', fresh);
+    assert.equal(Number(r.estimate_number), 1037);
+    await save('tyler', fresh); await save('tyler', fresh); // edits
+    // an edit cannot renumber an existing job
+    await save('tyler', { ...fresh, j: { estimate_number: '5000' } });
+    assert.equal(Number((await as('tyler', 'select estimate_number from public.shop_jobs where id = $1', [fresh.job]))[0].estimate_number), 1037);
+    assert.equal(Number((await save('tyler', { job: id('j'), customer: id('c') })).estimate_number), 1038);
+  } finally { await db.close(); db = old; }
+});
