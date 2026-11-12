@@ -42,7 +42,7 @@
     if (!s.refresh_token) throw new ApiError('Sign in to continue.', 401);
     if (!refreshing) {
       refreshing = raw('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token } })
-        .then(next => { saveSession(next); return next; })
+        .then(next => { saveSession(next); return next; }, err => { if (err.status === 400 || err.status === 401) clearSession(); throw new ApiError('Sign in to continue.', 401); })
         .finally(() => { refreshing = null; });
     }
     return refreshing;
@@ -78,6 +78,15 @@
       const p = path.split('/').map(encodeURIComponent).join('/');
       return raw(`/storage/v1/object/${bucket}/${p}`, { method: 'POST', token: s.access_token, rawBody: blob,
         headers: { 'Content-Type': contentType || blob.type || 'application/octet-stream', 'x-upsert': 'false', 'cache-control': '31536000' }, timeout: 180000 });
+    },
+    // Fetch a private photo with the staff sign-in; returns a Blob.
+    async download(bucket, path) {
+      const s = await session(); const c = cfg();
+      const p = path.split('/').map(encodeURIComponent).join('/');
+      const res = await fetch(`${c.url}/storage/v1/object/authenticated/${bucket}/${p}`, {
+        signal: AbortSignal.timeout(60000), headers: { apikey: c.anonKey, Authorization: `Bearer ${s.access_token}` } });
+      if (!res.ok) throw new ApiError(`Photo could not be loaded (${res.status}).`, res.status);
+      return res.blob();
     },
     publicUrl(bucket, path) {
       return `${cfg().url}/storage/v1/object/public/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;

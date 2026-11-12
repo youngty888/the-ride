@@ -3,65 +3,198 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
 <title>SIC Cycles — Shop</title>
-<link rel="stylesheet" href="sh.css">
+<link rel="stylesheet" href="sh.css?v=20261030a">
 </head>
 <body>
 <header class="sh-header">
-  <h1>Shop</h1>
-  <button type="button" id="shNewJobBtn">New estimate</button>
+  <div class="sh-brand">SIC <span>Cycles</span> <small>Shop</small></div>
+  <nav class="sh-nav" id="shNav" hidden>
+    <button type="button" class="sh-btn sh-btn-primary" id="shNewJobBtn">+ New estimate</button>
+    <button type="button" class="sh-btn" id="shSettingsBtn">Settings</button>
+    <button type="button" class="sh-btn sh-btn-quiet" id="shSignOutBtn">Sign out</button>
+  </nav>
 </header>
 
+<div id="shMsg" class="sh-msg" role="alert" hidden></div>
+
 <main>
-  <div class="sh-job-row sh-job-row-head">
-    <span>Invoice</span><span>Customer</span><span>Bike</span><span>Status</span><span>Total</span><span></span><span></span>
-  </div>
-  <div id="shJobsList"></div>
+  <section id="shLoading" class="sh-view"><p class="sh-muted">Loading…</p></section>
+
+  <!-- Sign in (staff use their Ride account) -->
+  <section id="shSignIn" class="sh-view sh-card sh-narrow" hidden>
+    <h1>Staff sign in</h1>
+    <p class="sh-muted">Use your RIDE account. Only accounts on the shop staff list can open shop records.</p>
+    <form id="shSignInForm">
+      <label>Email <input id="shSignInEmail" type="email" autocomplete="email" required></label>
+      <label>Password <input id="shSignInPassword" type="password" autocomplete="current-password" required></label>
+      <button type="submit" class="sh-btn sh-btn-primary sh-wide">Sign in</button>
+    </form>
+  </section>
+
+  <section id="shNoAccess" class="sh-view sh-card sh-narrow" hidden>
+    <h1>No shop access</h1>
+    <p>You are signed in as <strong id="shNoAccessEmail"></strong>, but this account is not on the shop staff list.</p>
+    <p class="sh-muted">Ask Tyler to add this account, then sign in again.</p>
+    <button type="button" class="sh-btn" id="shNoAccessSignOut">Sign out</button>
+  </section>
+
+  <!-- Jobs list -->
+  <section id="shList" class="sh-view" hidden>
+    <div class="sh-list-tools">
+      <input id="shSearch" type="search" placeholder="Search name, phone, bike, estimate #" aria-label="Search jobs">
+      <div class="sh-chips" id="shFilter" role="group" aria-label="Filter by status">
+        <button type="button" data-filter="" class="on">All</button>
+        <button type="button" data-filter="estimate">Estimates</button>
+        <button type="button" data-filter="in_progress">In progress</button>
+        <button type="button" data-filter="complete">Complete</button>
+      </div>
+    </div>
+    <div id="shTaxWarning" class="sh-warn" hidden>Tax rate is not set yet. Open <button type="button" class="sh-link" data-go-settings>Settings</button> to enter the shop's rate.</div>
+    <div id="shJobsList" class="sh-jobs"></div>
+  </section>
+
+  <!-- Estimate editor -->
+  <section id="shEditor" class="sh-view" hidden>
+    <form id="shEstimateForm" novalidate>
+      <div class="sh-editor-head">
+        <h1 id="shFormTitle">New estimate</h1>
+        <span id="shFormNumber" class="sh-muted"></span>
+      </div>
+
+      <fieldset class="sh-card">
+        <legend>Customer</legend>
+        <label>Customer <select id="shCustomerPick"></select></label>
+        <div class="sh-grid2">
+          <label>Name * <input id="shName" autocomplete="off" required></label>
+          <label>Phone <input id="shPhone" type="tel" autocomplete="off"></label>
+          <label>Email <input id="shEmail" type="email" autocomplete="off"></label>
+          <label>Address <input id="shAddress" autocomplete="off"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Bike</legend>
+        <label>Bike <select id="shBikePick"></select></label>
+        <div id="shBikeFields">
+          <div class="sh-grid3">
+            <label>Year <input id="shYear" inputmode="numeric" autocomplete="off"></label>
+            <label>Make <input id="shMake" autocomplete="off"></label>
+            <label>Model <input id="shModel" autocomplete="off"></label>
+          </div>
+          <div class="sh-grid2">
+            <label>VIN <input id="shVin" autocomplete="off" autocapitalize="characters"></label>
+            <label>Mileage <input id="shMileage" inputmode="numeric" autocomplete="off"></label>
+          </div>
+          <label>Add photos <input id="shPhotoFiles" type="file" accept="image/*" multiple></label>
+          <div id="shPhotoPreview" class="sh-photo-preview"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Estimate</legend>
+        <div class="sh-grid2">
+          <label>Date <input id="shJobDate" type="date" required></label>
+          <label>Status <input id="shStatusText" readonly tabindex="-1"></label>
+        </div>
+        <label>Work to be done <textarea id="shWorkDescription" rows="3" placeholder="What the customer asked for and what we'll do"></textarea></label>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Parts</legend>
+        <div class="sh-lines-head sh-lines-part"><span>Description</span><span>Qty</span><span>Price</span><span>Our cost</span><span>Amount</span><span></span></div>
+        <div id="shPartLines" class="sh-lines"></div>
+        <button type="button" class="sh-btn" id="shAddPart">+ Add part</button>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Labor</legend>
+        <div class="sh-lines-head sh-lines-labor"><span>Description</span><span>Hours</span><span>Rate</span><span>Amount</span><span></span></div>
+        <div id="shLaborLines" class="sh-lines"></div>
+        <button type="button" class="sh-btn" id="shAddLabor">+ Add labor</button>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Tax and total</legend>
+        <div class="sh-grid2">
+          <label>Tax rate % <input id="shTaxRate" inputmode="decimal" placeholder="not set"></label>
+          <label>Tax applies to
+            <select id="shTaxApplies">
+              <option value="parts">Parts only</option>
+              <option value="parts_labor">Parts and labor</option>
+              <option value="none">No tax</option>
+            </select>
+          </label>
+        </div>
+        <dl class="sh-totals" id="shTotals">
+          <dt>Parts</dt><dd id="shTotParts">$0.00</dd>
+          <dt>Labor</dt><dd id="shTotLabor">$0.00</dd>
+          <dt id="shTotTaxLabel">Tax</dt><dd id="shTotTax">$0.00</dd>
+          <dt class="sh-grand">Total</dt><dd class="sh-grand" id="shTotTotal">$0.00</dd>
+        </dl>
+        <p class="sh-internal" id="shTotInternal"></p>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Notes</legend>
+        <label>Notes for the customer (printed) <textarea id="shCustomerNotes" rows="2"></textarea></label>
+        <label>Internal notes (never printed) <textarea id="shNotes" rows="2"></textarea></label>
+        <label>Invoice # (optional, internal) <input id="shInvoiceNumber" autocomplete="off"></label>
+      </fieldset>
+
+      <div id="shFormErrors" class="sh-errors" role="alert" hidden></div>
+
+      <div class="sh-actions">
+        <button type="submit" class="sh-btn sh-btn-primary" id="shSaveBtn">Save estimate</button>
+        <button type="button" class="sh-btn" id="shCancelBtn">Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Customer copy -->
+  <section id="shPrintView" class="sh-view" hidden>
+    <div class="sh-print-tools">
+      <button type="button" class="sh-btn" id="shPrintBack">‹ Jobs</button>
+      <button type="button" class="sh-btn" id="shPrintEdit">Edit</button>
+      <button type="button" class="sh-btn sh-btn-primary" id="shPrintBtn">Print / Save PDF</button>
+    </div>
+    <p class="sh-muted sh-print-hint">Customer copy. Our costs, profit and internal notes are not shown. On a phone: Print, then choose “Save as PDF” (Android) or pinch out on the preview and Share › Save to Files (iPhone).</p>
+    <article id="shDoc" class="sh-doc"></article>
+  </section>
+
+  <!-- Settings -->
+  <section id="shSettings" class="sh-view" hidden>
+    <form id="shSettingsForm" class="sh-card sh-narrow">
+      <h1>Shop settings</h1>
+      <p class="sh-muted">Printed at the top of every estimate. Shared by all staff.</p>
+      <label>Business name <input id="shSetName"></label>
+      <label>Phone <input id="shSetPhone" type="tel"></label>
+      <label>Email <input id="shSetEmail" type="email"></label>
+      <label>Address <textarea id="shSetAddress" rows="2"></textarea></label>
+      <label>Default tax rate % <input id="shSetTaxRate" inputmode="decimal" placeholder="not set — enter the shop's real rate"></label>
+      <label>Tax applies to
+        <select id="shSetTaxApplies">
+          <option value="parts">Parts only</option>
+          <option value="parts_labor">Parts and labor</option>
+          <option value="none">No tax</option>
+        </select>
+      </label>
+      <p class="sh-muted">New estimates start with this rate. Saved estimates keep the rate they were saved with.</p>
+      <label>Terms printed at the bottom (optional) <textarea id="shSetTerms" rows="3"></textarea></label>
+      <div class="sh-actions">
+        <button type="submit" class="sh-btn sh-btn-primary" id="shSetSave">Save settings</button>
+        <button type="button" class="sh-btn" id="shSetCancel">Back</button>
+      </div>
+    </form>
+  </section>
 </main>
-
-<dialog id="shFormDialog">
-  <h2 id="shFormTitle">New estimate</h2>
-  <form id="shEstimateForm">
-    <fieldset>
-      <legend>Customer</legend>
-      <label>Existing customer <select id="shCustomerPick"></select></label>
-      <label>Name <input id="shName" required></label>
-      <label>Phone <input id="shPhone"></label>
-      <label>Email <input id="shEmail" type="email"></label>
-      <label>Address <input id="shAddress"></label>
-    </fieldset>
-
-    <fieldset>
-      <legend>Bike</legend>
-      <label>Existing bike <select id="shBikePick"></select></label>
-      <label>VIN <input id="shVin"></label>
-      <label>Make <input id="shMake"></label>
-      <label>Model <input id="shModel"></label>
-      <label>Year <input id="shYear" type="number"></label>
-      <label>Mileage <input id="shMileage" type="number"></label>
-      <label>Add photos <input id="shPhotoFiles" type="file" accept="image/*" multiple></label>
-      <div id="shPhotoPreview" class="sh-photo-preview"></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Job</legend>
-      <label>Invoice # <input id="shInvoiceNumber"></label>
-      <label>Parts $ <input id="shPartsAmount" type="number" step="0.01" value="0"></label>
-      <label>Labor $ <input id="shLaborAmount" type="number" step="0.01" value="0"></label>
-      <label>Tax $ <input id="shTaxAmount" type="number" step="0.01" value="0"></label>
-      <label>Total $ <input id="shTotalAmount" type="number" step="0.01" value="0"></label>
-      <label>Parts cost $ <input id="shPartsCost" type="number" step="0.01" value="0"></label>
-      <label>Notes <textarea id="shNotes"></textarea></label>
-    </fieldset>
-
-    <button type="submit">Save</button>
-    <button type="button" onclick="document.getElementById('shFormDialog').close()">Cancel</button>
-  </form>
-</dialog>
 
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
-<script src="sh-api.js"></script>
-<script src="sh-app.js"></script>
+<script src="sh-calc.js?v=20261030a"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="sh-app.js?v=20261030a"></script>
 </body>
 </html>
