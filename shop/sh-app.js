@@ -460,7 +460,7 @@
       } catch (e) { if (!this.handleAuthError(e)) this.message(`Could not open the estimate: ${e.message}`, true); return; }
       this.printJobId = jobId;
       $('shDoc').replaceChildren(...this.buildDoc(job, items).filter(Boolean));
-      document.title = `SIC Cycles Estimate ${job.estimate_number} — ${this.customer(job.customer_id)?.name || ''}`;
+      document.title = `SIC Cycles ${job.status === 'complete' ? 'Invoice' : 'Estimate'} ${job.estimate_number} — ${this.customer(job.customer_id)?.name || ''}`;
       this.show('shPrintView');
     },
 
@@ -477,6 +477,7 @@
         el('tr', { class: 'sh-doc-group' }, el('th', { text: title }), el('th', { class: 'num', text: qtyLabel }), el('th', { class: 'num', text: priceLabel }), el('th', { class: 'num', text: 'Amount' })),
         ...rows.map(lineRow)] : [];
       const taxLabel = job.tax_applies_to === 'none' ? 'Tax' : job.tax_rate === null || job.tax_rate === undefined ? 'Tax (not included)' : `Tax ${numText(job.tax_rate)}% ${TAX_LABEL[job.tax_applies_to]}`;
+      const isInv = job.status === 'complete';
       const contact = [s.phone, s.email].filter(Boolean).join(' · ');
       const bikeBits = b ? [bikeLabel(b), b.vin ? `VIN ${b.vin}` : '', b.mileage !== null && b.mileage !== undefined ? `${Number(b.mileage).toLocaleString('en-US')} mi` : ''].filter(Boolean) : [];
       return [
@@ -486,9 +487,10 @@
             s.address ? el('div', { class: 'sh-doc-addr', text: s.address }) : null,
             contact ? el('div', { text: contact }) : null),
           el('div', { class: 'sh-doc-meta' },
-            el('div', { class: 'sh-doc-title', text: 'ESTIMATE' }),
+            el('div', { class: 'sh-doc-title', text: isInv ? 'INVOICE' : 'ESTIMATE' }),
             el('div', { text: `No. ${job.estimate_number}` }),
-            el('div', { text: `Date ${fmtDate(job.job_date)}` }))),
+            el('div', { text: `Date ${fmtDate(job.job_date)}` }),
+            isInv ? el('div', { text: `Status: ${{ paid: 'Paid', partial: 'Partial payment', unpaid: 'Unpaid' }[job.payment_status] || 'Unpaid'}` }) : null)),
         el('div', { class: 'sh-doc-parties' },
           el('div', {}, el('h3', { text: 'Customer' }), el('div', { text: c.name || '' }),
             c.phone ? el('div', { text: c.phone }) : null, c.email ? el('div', { text: c.email }) : null,
@@ -503,7 +505,7 @@
           el('tr', {}, el('td', { text: 'Parts' }), el('td', { class: 'num', text: money(job.parts_amount) })),
           el('tr', {}, el('td', { text: 'Labor' }), el('td', { class: 'num', text: money(job.labor_amount) })),
           el('tr', {}, el('td', { text: taxLabel }), el('td', { class: 'num', text: money(job.tax_amount) })),
-          el('tr', { class: 'sh-doc-grand' }, el('td', { text: 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })))),
+          el('tr', { class: 'sh-doc-grand' }, el('td', { text: isInv ? 'Total' : 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })))),
         job.customer_notes ? el('div', { class: 'sh-doc-block' }, el('h3', { text: 'Notes' }), el('p', { class: 'sh-pre', text: job.customer_notes })) : null,
         s.estimate_terms ? el('div', { class: 'sh-doc-block sh-doc-terms' }, el('p', { class: 'sh-pre', text: s.estimate_terms })) : null,
         el('div', { class: 'sh-doc-sign' },
