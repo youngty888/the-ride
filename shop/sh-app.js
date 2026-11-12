@@ -482,7 +482,7 @@
       return [
         el('header', { class: 'sh-doc-head' },
           el('div', {},
-            el('div', { class: 'sh-doc-brand', text: s.business_name || 'SIC Cycles' }),
+            el('img', { class: 'sh-doc-logo', src: 'sic-logo.png', alt: s.business_name || 'SIC Cycles' }),
             s.address ? el('div', { class: 'sh-doc-addr', text: s.address }) : null,
             contact ? el('div', { text: contact }) : null),
           el('div', { class: 'sh-doc-meta' },

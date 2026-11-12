@@ -143,3 +143,10 @@ input[readonly] { color: var(--muted); }
   .sh-doc-table tr, .sh-doc-totals, .sh-doc-sign { break-inside: avoid; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Logo + RIDE switch (Nov 12) */
+.sh-brand { display: flex; align-items: center; gap: .5rem; }
+.sh-logo-badge { display: inline-flex; background: #fff; border-radius: .5rem; padding: .15rem .5rem; }
+.sh-logo { display: block; height: 52px; width: auto; }
+.sh-switch { text-decoration: none; display: inline-flex; align-items: center; margin-left: auto; margin-right: .5rem; }
+.sh-doc-logo { display: block; height: 90px; width: auto; margin-bottom: .3rem; }
