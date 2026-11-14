@@ -13,6 +13,7 @@ function localRefs(html) {
     const url = m[1];
     if (/^(https?:)?\/\//.test(url) || url.startsWith('data:')) continue;
     if (/rel="(preconnect|stylesheet)"/.test(m[0]) && !/\.(css)(\?|$)/.test(url)) continue;
+    if (/rel="manifest"/.test(m[0])) continue; // checked separately below
     refs.push(url);
   }
   return refs;
@@ -41,4 +42,14 @@ test('index.html loads every module the app depends on, once each', () => {
   for (const f of ['session-store.js', 'storage.js', 'rides-sync.js', 'routes-sync.js', 'poi.js', 'prefs.js', 'prefs-sync.js', 'cloud-rest.js', 'route.js', 'app.js', 'alerts.js']) {
     assert.equal(loaded.filter(x => x === f).length, 1, `${f} should be loaded exactly once`);
   }
+});
+
+test('index.html links a web app manifest that exists and has icons', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const m = html.match(/<link\s+rel="manifest"\s+href="([^"]+)"/);
+  assert.ok(m, 'no manifest link');
+  const mf = JSON.parse(fs.readFileSync(path.join(root, m[1]), 'utf8'));
+  assert.ok(mf.name && mf.start_url && mf.display);
+  assert.ok(mf.icons.length >= 2);
+  for (const i of mf.icons) assert.ok(fs.existsSync(path.join(root, i.src)), `missing icon ${i.src}`);
 });
