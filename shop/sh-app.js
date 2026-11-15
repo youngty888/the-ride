@@ -508,8 +508,9 @@
           el('tr', { class: 'sh-doc-grand' }, el('td', { text: isInv ? 'Total' : 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })))),
         job.customer_notes ? el('div', { class: 'sh-doc-block' }, el('h3', { text: 'Notes' }), el('p', { class: 'sh-pre', text: job.customer_notes })) : null,
         s.estimate_terms ? el('div', { class: 'sh-doc-block sh-doc-terms' }, el('p', { class: 'sh-pre', text: s.estimate_terms })) : null,
+        isInv ? null : el('p', { class: 'sh-doc-auth', text: 'I authorize the work listed above.' }),
         el('div', { class: 'sh-doc-sign' },
-          el('div', {}, el('span', { text: 'Customer approval' })), el('div', {}, el('span', { text: 'Date' }))),
+          el('div', {}, el('span', { text: 'Authorized by (signature)' })), el('div', {}, el('span', { text: 'Date' }))),
       ];
     },
 
