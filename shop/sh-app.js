@@ -11,6 +11,7 @@
   const $ = id => document.getElementById(id);
   const BUCKET = 'shop-bike-photos';
   const STATUS_LABEL = { estimate: 'Estimate', in_progress: 'In progress', complete: 'Complete' };
+  const PAY_LABEL = { unpaid: 'Unpaid', partial: 'Part paid', paid: 'Paid' };
   const NEXT = { estimate: ['in_progress', 'Start job'], in_progress: ['complete', 'Mark complete'] };
   const TAX_LABEL = { parts: 'on parts', parts_labor: 'on parts and labor', none: '' };
 
@@ -186,11 +187,14 @@
               el('span', { text: `#${j.estimate_number ?? '—'}` }),
               el('span', { text: fmtDate(j.job_date) }),
               el('span', { class: 'sh-pill', text: STATUS_LABEL[j.status] || j.status }),
+              j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: PAY_LABEL[j.payment_status] || 'Unpaid' }),
               b ? el('span', { text: bikeLabel(b) || b.vin || '' }) : null),
             j.work_description ? el('div', { class: 'sh-job-desc', text: j.work_description }) : null),
           el('div', { class: 'sh-job-actions' },
             el('button', { type: 'button', class: 'sh-btn', text: 'View / Print', onclick: () => this.openPrint(j.id) }),
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
+            j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for #${j.estimate_number}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
+              ...Object.entries(PAY_LABEL).map(([v, t]) => el('option', { value: v, text: t, selected: (j.payment_status || 'unpaid') === v }))),
             next ? el('button', { type: 'button', class: 'sh-btn sh-btn-step', text: next[1], onclick: ev => this.setStatus(j.id, next[0], ev.currentTarget) }) : null));
       }));
     },
@@ -205,6 +209,18 @@
         this.message(`#${j?.estimate_number} is now ${STATUS_LABEL[status].toLowerCase()}.`);
       } catch (e) {
         if (!this.handleAuthError(e)) this.message(`Status not changed: ${e.message}`, true);
+      } finally { this.busy = false; await this.refresh(); }
+    },
+
+    async setPayment(jobId, sel) {
+      if (this.busy) { await this.refresh(); return; }
+      const j = this.jobs.find(x => x.id === jobId);
+      this.busy = true; sel.disabled = true;
+      try {
+        await ShApi.rpc('shop_set_payment_status', { p_job_id: jobId, p_payment_status: sel.value });
+        this.message(`#${j?.estimate_number} marked ${PAY_LABEL[sel.value].toLowerCase()}.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`Payment not changed: ${e.message}${/Could not find the function/i.test(e.message) ? ' (ask Tyler to run the shop-006 SQL file)' : ''}`, true);
       } finally { this.busy = false; await this.refresh(); }
     },
 

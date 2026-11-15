@@ -76,6 +76,8 @@ before(async () => {
   await db.exec(sql('2026-10-04-shop-003-storage.sql'));
   await db.exec(sql('2026-10-30-shop-004-estimates.sql'));
   await db.exec(sql('2026-10-30-shop-004-estimates.sql')); // re-running is safe
+  await db.exec(sql('2026-11-15-shop-006-payment-status.sql'));
+  await db.exec(sql('2026-11-15-shop-006-payment-status.sql')); // re-running is safe
   await db.query(`insert into public.shop_staff (user_id, display_name) values ($1, 'Tyler'), ($2, 'Garrett')`, [U.tyler, U.garrett]);
 });
 
@@ -209,6 +211,22 @@ test('status moves estimate -> in progress -> complete without touching amounts'
   // editing keeps the status it has
   await save('tyler', { ...a, j: { ...a.j, status: 'complete' } });
   assert.equal((await as('tyler', 'select status from public.shop_jobs where id = $1', [a.job]))[0].status, 'complete');
+});
+
+test('payment status: staff can set it, amounts stay, riders and bad values are refused', { skip }, async () => {
+  const a = { job: id('j'), customer: id('c'), items: ITEMS, j: { tax_rate: '8.7' } };
+  await save('tyler', a);
+  const before = (await as('tyler', 'select total_amount, status from public.shop_jobs where id = $1', [a.job]))[0];
+  await rpc('garrett', 'shop_set_payment_status', { p_job_id: a.job, p_payment_status: 'partial' });
+  await rpc('garrett', 'shop_set_payment_status', { p_job_id: a.job, p_payment_status: 'paid' });
+  const after = (await as('tyler', 'select total_amount, status, payment_status from public.shop_jobs where id = $1', [a.job]))[0];
+  assert.equal(after.payment_status, 'paid'); assert.equal(after.total_amount, before.total_amount); assert.equal(after.status, before.status);
+  // editing the estimate later keeps the payment status
+  await save('tyler', { ...a, j: { ...a.j, status: after.status } });
+  assert.equal((await as('tyler', 'select payment_status from public.shop_jobs where id = $1', [a.job]))[0].payment_status, 'paid');
+  await rejects(rpc('garrett', 'shop_set_payment_status', { p_job_id: a.job, p_payment_status: 'bogus' }), /invalid payment status/);
+  await rejects(rpc('garrett', 'shop_set_payment_status', { p_job_id: 'nope', p_payment_status: 'paid' }), /Job not found/);
+  await rejects(rpc('rider', 'shop_set_payment_status', { p_job_id: a.job, p_payment_status: 'unpaid' }), /not authorized/);
 });
 
 test('validation: blank year/mileage are fine, bad values give readable errors', { skip }, async () => {
