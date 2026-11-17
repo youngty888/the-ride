@@ -167,6 +167,13 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   await page.waitForFunction(() => /Complete/.test(document.querySelector('.sh-job')?.innerText));
   const [done] = await backend.sql('select status, total_amount from public.shop_jobs');
   assert.equal(done.status, 'complete'); assert.equal(Number(done.total_amount), 267.67);
+  // payment status: new jobs show Unpaid; staff can mark Paid; amounts untouched
+  await page.waitForSelector('#shList:not([hidden])');
+  assert.match(await page.locator('.sh-job').first().innerText(), /Unpaid/);
+  await page.locator('.sh-job').first().getByRole('combobox').selectOption('paid');
+  await page.waitForFunction(() => /Paid/.test(document.querySelector('.sh-job .sh-pay-paid')?.textContent || ''));
+  const [paid] = await backend.sql('select payment_status, total_amount from public.shop_jobs');
+  assert.equal(paid.payment_status, 'paid'); assert.equal(Number(paid.total_amount), 267.67);
   assert.deepEqual(page.errors, []);
 
   // Garrett (other staff) sees the same job and photo
