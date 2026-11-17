@@ -1,0 +1,15 @@
+{
+  "name": "RIDE by SIC Cycles",
+  "short_name": "RIDE",
+  "description": "Motorcycle group riding app with maps, pack tracking, mileage, and emergency features",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "icons": [
+    { "src": "shop/sic-icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "shop/sic-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
