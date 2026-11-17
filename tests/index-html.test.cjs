@@ -12,6 +12,7 @@ function localRefs(html) {
   for (const m of html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"[^>]*>/g)) {
     const url = m[1];
     if (/^(https?:)?\/\//.test(url) || url.startsWith('data:')) continue;
+    if (/rel="(icon|apple-touch-icon)"/.test(m[0])) continue; // images, not code
     if (/rel="(preconnect|stylesheet)"/.test(m[0]) && !/\.(css)(\?|$)/.test(url)) continue;
     refs.push(url);
   }
