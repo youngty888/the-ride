@@ -205,6 +205,7 @@ test('customer text is shown as text, never run as page code', { skip }, async (
   await page.locator('#shPartLines .sh-line').nth(0).locator('.sh-l-desc').fill('<b onmouseover=window.__xss=3>x</b>');
   await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
   assert.ok((await text(page, '#shDoc')).includes(evil));
+  assert.ok((await text(page, '#shDoc')).includes('Authorized by'));
   await page.click('#shPrintBack'); await page.waitForSelector('#shList:not([hidden])');
   assert.ok((await text(page, '#shJobsList')).includes(evil));
   assert.equal(await page.evaluate(() => window.__xss), undefined);
