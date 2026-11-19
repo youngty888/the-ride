@@ -107,3 +107,8 @@ needs Playwright; it is skipped without it).
 - Work order numbers display as IV#1001 (the stored number is still the plain 1001).
 - The customer copy is one table (Job / Parts / Hours / Labor / Amount) and prints on one page.
 - The labor rate is a constant (`LABOR_RATE` in shop/sh-calc.js).
+
+## Saved jobs (Nov 19, needs SQL shop-007)
+- The Job box offers saved names (Brake pads, Tires, Mounting to start). Picking one refills its usual hours if Hours is still empty. Parts are never saved.
+- Hours are learned: each saved estimate stores the latest hours for every job on it. No hours are invented; a new name stays empty until used once.
+- Needs `sql/shop/2026-11-19-shop-007-saved-jobs.sql` run once on the server. Until then the screen works as before with no saved list.

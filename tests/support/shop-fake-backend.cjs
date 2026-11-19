@@ -35,7 +35,7 @@ async function startFakeBackend({ users, staff }) {
   const { PGlite } = await import('@electric-sql/pglite');
   const db = new PGlite();
   await db.exec(STUB);
-  for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql', '2026-10-30-shop-004-estimates.sql', '2026-11-15-shop-006-payment-status.sql']) {
+  for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql', '2026-10-30-shop-004-estimates.sql', '2026-11-15-shop-006-payment-status.sql', '2026-11-19-shop-007-saved-jobs.sql']) {
     await db.exec(fs.readFileSync(path.join(ROOT, 'sql', 'shop', f), 'utf8'));
   }
   const byEmail = new Map();
