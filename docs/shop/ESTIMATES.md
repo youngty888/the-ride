@@ -100,3 +100,10 @@ estimates continued at #1038.
 
 Run: `npm i --no-save @electric-sql/pglite && npm test` (the browser test also
 needs Playwright; it is skipped without it).
+
+## Job-line layout (Nov 19)
+- The estimate screen has one row per job: Job, Parts, Our cost (internal), Hours, Labor (hours x $150, filled in), Amount. There is no labor price or labor description box.
+- Each row is saved as up to two line items sharing the job name (a part line, qty 1; a labor line, qty = hours, rate $150). The database is unchanged. Older estimates fold back into rows by matching description; an older labor rate that is not $150 is kept so totals do not change.
+- Work order numbers display as IV#1001 (the stored number is still the plain 1001).
+- The customer copy is one table (Job / Parts / Hours / Labor / Amount) and prints on one page.
+- The labor rate is a constant (`LABOR_RATE` in shop/sh-calc.js).

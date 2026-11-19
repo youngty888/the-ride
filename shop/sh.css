@@ -78,16 +78,18 @@ input[readonly] { color: var(--muted); }
 .sh-lf span { display: none; font-size: .75rem; }
 .sh-l-total { text-align: right; font-weight: 600; white-space: nowrap; }
 .sh-l-x { width: 44px; height: 44px; border-radius: .5rem; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 1.3rem; cursor: pointer; }
-.sh-lines-head.sh-lines-part, .sh-line.sh-lines-part { grid-template-columns: 1fr 64px 90px 90px 90px 44px; }
-.sh-lines-head.sh-lines-labor, .sh-line.sh-lines-labor { grid-template-columns: 1fr 64px 90px 90px 44px; }
+.sh-lines-head.sh-lines-job, .sh-line.sh-lines-job { grid-template-columns: 1fr 90px 90px 76px 84px 90px 44px; }
+.sh-l-labor { text-align: right; white-space: nowrap; color: var(--muted); }
+.sh-rate-note { margin: .2rem 0 0; font-size: .85rem; }
 @media (max-width: 620px) {
   .sh-lines-head { display: none !important; }
   .sh-line { padding: .5rem; border: 1px solid var(--border); border-radius: .5rem; }
-  .sh-line.sh-lines-part, .sh-line.sh-lines-labor { grid-template-columns: 1fr 1fr 44px; }
+  .sh-line.sh-lines-job { grid-template-columns: 1fr 1fr 44px; }
+  .sh-l-labor { grid-column: 1 / 3; text-align: left; }
   .sh-lf span { display: block; }
   .sh-f-desc { grid-column: 1 / 3; }
   .sh-l-x { grid-column: 3; grid-row: 1; align-self: end; }
-  .sh-l-total { grid-column: 1 / -1; }
+  .sh-l-total { grid-column: 1 / -1; font-size: 1.05rem; }
   .sh-f-cost { grid-column: 1 / 3; }
   .sh-f-cost span { color: var(--amber); }
 }
@@ -159,3 +161,21 @@ input[readonly] { color: var(--muted); }
 .sh-pay-unpaid { background: #8a2a2a; color: #fff; }
 .sh-pay-select { min-height: 44px; }
 .sh-job-sub .sh-pay-paid, .sh-job-sub .sh-pay-partial, .sh-job-sub .sh-pay-unpaid { padding: 0 .5rem; border-radius: 1rem; font-size: .8rem; }
+
+/* One-job-table customer copy + one-page print (Nov 19) */
+.sh-doc-table tfoot td { font-weight: 700; border-top: 2px solid #111; border-bottom: 0; padding-top: .45rem; }
+@media print {
+  @page { margin: 9mm; }
+  .sh-doc { font-size: 9.5pt; line-height: 1.3; }
+  .sh-doc-head { padding-bottom: .4rem; }
+  .sh-doc-logo { height: 52px; margin-bottom: .1rem; }
+  .sh-doc-title { font-size: 1.1rem; }
+  .sh-doc-parties { margin: .5rem 0; gap: .5rem; }
+  .sh-doc-block { margin: .5rem 0; }
+  .sh-doc-table td, .sh-doc-table th { padding: .22rem .3rem; }
+  .sh-doc-totals { margin-top: .4rem; }
+  .sh-doc-totals td { padding: .12rem .3rem; }
+  .sh-doc-terms { font-size: 7pt; line-height: 1.2; margin: .5rem 0; color: #333; }
+  .sh-doc-auth { margin: .5rem 0 0; font-size: 8.5pt; }
+  .sh-doc-sign { margin-top: 1.4rem; gap: 1.2rem; }
+}

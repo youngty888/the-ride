@@ -57,3 +57,34 @@ test('money formatting with thousands separators and $ / commas in input', () =>
   assert.equal(C.calculate([part('x', '1', '$1,200.00')]).parts, 1200);
   assert.equal(C.money(0n), '$0.00');
 });
+
+test('job rows become a part line and/or a labor line at the fixed $150/hr rate', () => {
+  const items = C.jobsToItems([
+    { name: 'Brakes', parts: '120', cost: '70', hours: '2' },
+    { name: 'Tires', parts: '', cost: '', hours: '1.5' },
+    { name: 'Wheel', parts: '45.5', cost: '', hours: '' },
+    { name: '', parts: '', cost: '', hours: '' }, // empty row ignored
+  ]);
+  assert.deepEqual(items.map(i => [i.kind, i.description, i.quantity, i.unit_price]), [
+    ['part', 'Brakes', '1', '120'], ['labor', 'Brakes', '2', '150.00'],
+    ['labor', 'Tires', '1.5', '150.00'], ['part', 'Wheel', '1', '45.5']]);
+  const r = C.calculate(items, { rate: '', appliesTo: 'parts' });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.parts, 165.5); assert.equal(r.labor, 525); assert.equal(r.partsCost, 70);
+});
+
+test('saved items fold back into one row per job (and keep a non-$150 rate)', () => {
+  const rows = C.groupJobs([
+    { kind: 'part', description: 'Brakes', quantity: 1, unit_price: 120, unit_cost: 70 },
+    { kind: 'labor', description: 'brakes', quantity: 2, unit_price: 150 },
+    { kind: 'part', description: 'Oil', quantity: 4, unit_price: 12.5, unit_cost: 7.25 },
+    { kind: 'labor', description: 'Old job', quantity: 1.5, unit_price: 95 },
+  ]);
+  assert.equal(rows.length, 3);
+  assert.deepEqual([rows[0].name, rows[0].parts, rows[0].cost, rows[0].hours, rows[0].rate], ['Brakes', '120.00', '70.00', '2', '']);
+  assert.equal(C.money(rows[0].totalCents), '$420.00');
+  assert.deepEqual([rows[1].parts, rows[1].cost], ['50.00', '29.00']); // qty 4 x price folded to one amount
+  assert.deepEqual([rows[2].hours, rows[2].rate, C.money(rows[2].laborCents)], ['1.5', '95', '$142.50']); // old rate preserved
+  const round = C.calculate(C.jobsToItems(rows.map(r => ({ name: r.name, parts: r.parts, cost: r.cost, hours: r.hours, rate: r.rate }))), {});
+  assert.equal(round.total, 420 + 50 + 142.5);
+});

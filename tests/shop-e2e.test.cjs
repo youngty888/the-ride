@@ -84,18 +84,17 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   await page.fill('#shYear', '2018'); await page.fill('#shMake', 'Harley-Davidson'); await page.fill('#shModel', 'Street Glide');
   await page.fill('#shVin', '1hd1kb4197y000002'); await page.fill('#shMileage', '23,456');
   await page.setInputFiles('#shPhotoFiles', { name: 'bike.png', mimeType: 'image/png', buffer: PNG });
-  await page.fill('#shWorkDescription', 'Oil service.\nCheck brakes.');
-  const parts = page.locator('#shPartLines .sh-line'); const labor = page.locator('#shLaborLines .sh-line');
-  await parts.nth(0).locator('.sh-l-desc').fill('Oil filter'); await parts.nth(0).locator('.sh-l-price').fill('18.95'); await parts.nth(0).locator('.sh-l-cost').fill('9.10');
-  await page.click('#shAddPart');
-  await parts.nth(1).locator('.sh-l-desc').fill('Synthetic oil 1 qt'); await parts.nth(1).locator('.sh-l-qty').fill('4'); await parts.nth(1).locator('.sh-l-price').fill('12.50'); await parts.nth(1).locator('.sh-l-cost').fill('7.25');
-  await labor.nth(0).locator('.sh-l-desc').fill('Oil change labor'); await labor.nth(0).locator('.sh-l-qty').fill('1.5'); await labor.nth(0).locator('.sh-l-price').fill('95');
+  const jobs = page.locator('#shJobLines .sh-line');
+  await jobs.nth(0).locator('.sh-l-desc').fill('Oil filter'); await jobs.nth(0).locator('.sh-l-parts').fill('18.95'); await jobs.nth(0).locator('.sh-l-cost').fill('9.10');
+  await page.click('#shAddJob');
+  await jobs.nth(1).locator('.sh-l-desc').fill('Oil change'); await jobs.nth(1).locator('.sh-l-parts').fill('50'); await jobs.nth(1).locator('.sh-l-cost').fill('29'); await jobs.nth(1).locator('.sh-l-hours').fill('1.5');
   await page.fill('#shCustomerNotes', 'Customer will pick up Friday.'); await page.fill('#shNotes', 'INTERNAL-SECRET-NOTE');
-  assert.equal(await parts.nth(1).locator('.sh-l-total').innerText(), '$50.00');
+  assert.equal(await jobs.nth(1).locator('.sh-l-labor').innerText(), '$225.00'); // 1.5 h x $150
+  assert.equal(await jobs.nth(1).locator('.sh-l-total').innerText(), '$275.00');
   assert.equal(await text(page, '#shTotParts'), '$68.95');
-  assert.equal(await text(page, '#shTotLabor'), '$142.50');
+  assert.equal(await text(page, '#shTotLabor'), '$225.00');
   assert.equal(await text(page, '#shTotTax'), '$6.00');
-  assert.equal(await text(page, '#shTotTotal'), '$217.45');
+  assert.equal(await text(page, '#shTotTotal'), '$299.95');
   assert.match(await text(page, '#shTotInternal'), /\$38\.10.*\$30\.85/);
   await shot(page, '1-editor-desktop.png');
 
@@ -104,13 +103,13 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   await page.waitForSelector('#shPrintView:not([hidden])');
   assert.equal((await backend.sql('select count(*)::int as n from public.shop_jobs'))[0].n, 1);
   const [saved] = await backend.sql('select * from public.shop_jobs');
-  assert.equal(Number(saved.total_amount), 217.45); assert.equal(Number(saved.estimate_number), 1001);
+  assert.equal(Number(saved.total_amount), 299.95); assert.equal(Number(saved.estimate_number), 1001); assert.equal(saved.work_description, 'Oil filter, Oil change');
 
   // Customer copy: right content, no internal numbers
   const doc = await text(page, '#shDoc');
-  for (const s of [TEST_NAME, 'No. 1001', '2018 Harley-Davidson Street Glide', 'VIN 1HD1KB4197Y000002', '23,456 mi', 'Oil filter', 'Synthetic oil 1 qt', 'Oil change labor',
-    '$68.95', '$142.50', '$6.00', '$217.45', 'Tax 8.7% on parts', 'Customer will pick up Friday.', '(520) 420-4214']) assert.ok(doc.includes(s), `doc shows ${s}`);
-  for (const s of ['9.10', '7.25', '38.10', '30.85', 'INTERNAL-SECRET-NOTE', 'Our cost', 'profit', 'null', 'undefined']) assert.ok(!doc.includes(s), `doc hides ${s}`);
+  for (const s of [TEST_NAME, 'IV#1001', '2018 Harley-Davidson Street Glide', 'VIN 1HD1KB4197Y000002', '23,456 mi', 'Oil filter', 'Oil change', 'WORK TO BE DONE',
+    '$68.95', '$225.00', '1.5 hr', '$6.00', '$299.95', 'Tax 8.7% on parts', 'Customer will pick up Friday.', '(520) 420-4214']) assert.ok(doc.includes(s), `doc shows ${s}`);
+  for (const s of ['9.10', '29.00', '38.10', '30.85', 'INTERNAL-SECRET-NOTE', 'Our cost', 'profit', 'null', 'undefined']) assert.ok(!doc.includes(s), `doc hides ${s}`);
   await shot(page, '2-customer-copy-desktop.png');
 
   // Print / PDF: app chrome hidden, document visible
@@ -126,7 +125,7 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   // Reload the page: still signed in, job listed
   await page.reload(); await page.waitForSelector('#shList:not([hidden])');
   const card = page.locator('.sh-job').first();
-  assert.match(await card.innerText(), /TEST ESTIMATE[\s\S]*\$217\.45[\s\S]*#1001[\s\S]*Estimate/);
+  assert.match(await card.innerText(), /TEST ESTIMATE[\s\S]*\$299\.95[\s\S]*IV#1001[\s\S]*Estimate/);
 
   // Reopen: every field comes back, including bike fields, photo and lines
   await card.getByRole('button', { name: 'Edit' }).click(); await page.waitForSelector('#shEditor:not([hidden])');
@@ -134,30 +133,30 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   assert.equal(await page.inputValue('#shYear'), '2018'); assert.equal(await page.inputValue('#shMake'), 'Harley-Davidson');
   assert.equal(await page.inputValue('#shModel'), 'Street Glide'); assert.equal(await page.inputValue('#shVin'), '1HD1KB4197Y000002');
   assert.equal(await page.inputValue('#shMileage'), '23456');
-  assert.equal(await page.inputValue('#shWorkDescription'), 'Oil service.\nCheck brakes.');
   assert.equal(await page.inputValue('#shNotes'), 'INTERNAL-SECRET-NOTE');
   assert.equal(await page.inputValue('#shTaxRate'), '8.7');
   await page.waitForFunction(() => { const i = document.querySelector('#shPhotoPreview img'); return i && i.complete && i.naturalWidth > 0; });
   assert.equal(await page.locator('#shPhotoPreview img').count(), 1);
-  assert.equal(await parts.count(), 2); assert.equal(await labor.count(), 1);
-  assert.equal(await parts.nth(1).locator('.sh-l-qty').inputValue(), '4');
-  assert.equal(await parts.nth(1).locator('.sh-l-cost').inputValue(), '7.25');
-  assert.equal(await text(page, '#shTotTotal'), '$217.45');
+  assert.equal(await jobs.count(), 2);
+  assert.equal(await jobs.nth(1).locator('.sh-l-hours').inputValue(), '1.5');
+  assert.equal(await jobs.nth(1).locator('.sh-l-parts').inputValue(), '50.00');
+  assert.equal(await jobs.nth(1).locator('.sh-l-cost').inputValue(), '29.00');
+  assert.equal(await text(page, '#shTotTotal'), '$299.95');
 
   // Edit: 2 hours labor, add a part; save; totals recalculated
-  await labor.nth(0).locator('.sh-l-qty').fill('2');
-  await page.click('#shAddPart'); await parts.nth(2).locator('.sh-l-desc').fill('Drain plug washer'); await parts.nth(2).locator('.sh-l-price').fill('2.50');
-  assert.equal(await text(page, '#shTotTotal'), '$267.67'); // parts 71.45 + labor 190 + tax 6.22
+  await jobs.nth(1).locator('.sh-l-hours').fill('2');
+  await page.click('#shAddJob'); await jobs.nth(2).locator('.sh-l-desc').fill('Drain plug washer'); await jobs.nth(2).locator('.sh-l-parts').fill('2.50');
+  assert.equal(await text(page, '#shTotTotal'), '$377.67'); // parts 71.45 + labor 300 + tax 6.22
   await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
-  assert.ok((await text(page, '#shDoc')).includes('$267.67'));
+  assert.ok((await text(page, '#shDoc')).includes('$377.67'));
 
   // Reload + reopen again after edit
   await page.reload(); await page.waitForSelector('#shList:not([hidden])');
   await page.locator('.sh-job').first().getByRole('button', { name: 'Edit' }).click(); await page.waitForSelector('#shEditor:not([hidden])');
-  assert.equal(await page.inputValue('#shYear'), '2018'); assert.equal(await parts.count(), 3);
-  assert.equal(await labor.nth(0).locator('.sh-l-qty').inputValue(), '2');
+  assert.equal(await page.inputValue('#shYear'), '2018'); assert.equal(await jobs.count(), 3);
+  assert.equal(await jobs.nth(1).locator('.sh-l-hours').inputValue(), '2');
   await page.waitForFunction(() => document.querySelector('#shPhotoPreview img')?.naturalWidth > 0);
-  assert.equal(await text(page, '#shTotTotal'), '$267.67');
+  assert.equal(await text(page, '#shTotTotal'), '$377.67');
   await page.click('#shCancelBtn'); await page.waitForSelector('#shList:not([hidden])');
 
   // Workflow: estimate -> in progress -> complete, amounts unchanged
@@ -166,19 +165,19 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   await page.locator('.sh-job').first().getByRole('button', { name: 'Mark complete' }).click();
   await page.waitForFunction(() => /Complete/.test(document.querySelector('.sh-job')?.innerText));
   const [done] = await backend.sql('select status, total_amount from public.shop_jobs');
-  assert.equal(done.status, 'complete'); assert.equal(Number(done.total_amount), 267.67);
+  assert.equal(done.status, 'complete'); assert.equal(Number(done.total_amount), 377.67);
   // payment status: new jobs show Unpaid; staff can mark Paid; amounts untouched
   await page.waitForSelector('#shList:not([hidden])');
   assert.match(await page.locator('.sh-job').first().innerText(), /Unpaid/);
   await page.locator('.sh-job').first().getByRole('combobox').selectOption('paid');
   await page.waitForFunction(() => /Paid/.test(document.querySelector('.sh-job .sh-pay-paid')?.textContent || ''));
   const [paid] = await backend.sql('select payment_status, total_amount from public.shop_jobs');
-  assert.equal(paid.payment_status, 'paid'); assert.equal(Number(paid.total_amount), 267.67);
+  assert.equal(paid.payment_status, 'paid'); assert.equal(Number(paid.total_amount), 377.67);
   assert.deepEqual(page.errors, []);
 
   // Garrett (other staff) sees the same job and photo
   const g = await newPage(); await signIn(g, 'garrett@test.local'); await g.waitForSelector('#shList:not([hidden])');
-  assert.match(await g.locator('.sh-job').first().innerText(), /TEST ESTIMATE[\s\S]*\$267\.67/);
+  assert.match(await g.locator('.sh-job').first().innerText(), /TEST ESTIMATE[\s\S]*\$377\.67/);
   await g.context().close();
 
   // Phone layout (iPhone-sized)
@@ -201,8 +200,8 @@ test('customer text is shown as text, never run as page code', { skip }, async (
   await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
   await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   const evil = '<img src=x onerror="window.__xss=1">Bob';
-  await page.fill('#shName', evil); await page.fill('#shWorkDescription', '<script>window.__xss=2</script>');
-  await page.locator('#shPartLines .sh-line').nth(0).locator('.sh-l-desc').fill('<b onmouseover=window.__xss=3>x</b>');
+  await page.fill('#shName', evil); await page.fill('#shNotes', '<script>window.__xss=2</script>');
+  await page.locator('#shJobLines .sh-line').nth(0).locator('.sh-l-desc').fill('<b onmouseover=window.__xss=3>x</b>');
   await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
   assert.ok((await text(page, '#shDoc')).includes(evil));
   assert.ok((await text(page, '#shDoc')).includes('Authorized by'));
@@ -220,8 +219,8 @@ test('failed save shows the reason and keeps everything typed; nothing half-save
   await page.click('#shSaveBtn');
   assert.match(await text(page, '#shFormErrors'), /Customer name is required/);
   await page.fill('#shName', 'Retry Customer');
-  await page.locator('#shPartLines .sh-line').nth(0).locator('.sh-l-desc').fill('Chain');
-  await page.locator('#shPartLines .sh-line').nth(0).locator('.sh-l-price').fill('89.99');
+  await page.locator('#shJobLines .sh-line').nth(0).locator('.sh-l-desc').fill('Chain');
+  await page.locator('#shJobLines .sh-line').nth(0).locator('.sh-l-parts').fill('89.99');
   const before = (await backend.sql('select count(*)::int as n from public.shop_jobs'))[0].n;
   await page.route('**/rest/v1/rpc/shop_save_estimate', r => r.abort('internetdisconnected'));
   await page.click('#shSaveBtn');

@@ -8,7 +8,7 @@
 <title>SIC Cycles — Shop</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
-<link rel="stylesheet" href="sh.css?v=20261117a">
+<link rel="stylesheet" href="sh.css?v=20261119b">
 </head>
 <body>
 <header class="sh-header">
@@ -102,21 +102,15 @@
           <label>Date <input id="shJobDate" type="date" required></label>
           <label>Status <input id="shStatusText" readonly tabindex="-1"></label>
         </div>
-        <label>Work to be done <textarea id="shWorkDescription" rows="3" placeholder="What the customer asked for and what we'll do"></textarea></label>
       </fieldset>
 
       <fieldset class="sh-card">
-        <legend>Parts</legend>
-        <div class="sh-lines-head sh-lines-part"><span>Description</span><span>Qty</span><span>Price</span><span>Our cost</span><span>Amount</span><span></span></div>
-        <div id="shPartLines" class="sh-lines"></div>
-        <button type="button" class="sh-btn" id="shAddPart">+ Add part</button>
-      </fieldset>
-
-      <fieldset class="sh-card">
-        <legend>Labor</legend>
-        <div class="sh-lines-head sh-lines-labor"><span>Description</span><span>Hours</span><span>Rate</span><span>Amount</span><span></span></div>
-        <div id="shLaborLines" class="sh-lines"></div>
-        <button type="button" class="sh-btn" id="shAddLabor">+ Add labor</button>
+        <legend>Work to be done</legend>
+        <div class="sh-lines-head sh-lines-job"><span>Job</span><span>Parts</span><span>Our cost</span><span>Hours</span><span>Labor</span><span>Amount</span><span></span></div>
+        <div id="shJobLines" class="sh-lines"></div>
+        <datalist id="shHoursList"></datalist>
+        <button type="button" class="sh-btn" id="shAddJob">+ Add job</button>
+        <p class="sh-muted sh-rate-note">Labor is $150.00 an hour. Pick the hours; the labor amount fills in.</p>
       </fieldset>
 
       <fieldset class="sh-card">
@@ -133,7 +127,7 @@
         </div>
         <dl class="sh-totals" id="shTotals">
           <dt>Parts</dt><dd id="shTotParts">$0.00</dd>
-          <dt>Labor</dt><dd id="shTotLabor">$0.00</dd>
+          <dt id="shTotLaborLabel">Labor</dt><dd id="shTotLabor">$0.00</dd>
           <dt id="shTotTaxLabel">Tax</dt><dd id="shTotTax">$0.00</dd>
           <dt class="sh-grand">Total</dt><dd class="sh-grand" id="shTotTotal">$0.00</dd>
         </dl>
@@ -197,8 +191,8 @@
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
 <script src="../show-password.js?v=20261119a"></script>
-<script src="sh-calc.js?v=20261030a"></script>
+<script src="sh-calc.js?v=20261119b"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="sh-app.js?v=20261117a"></script>
+<script src="sh-app.js?v=20261119b"></script>
 </body>
 </html>

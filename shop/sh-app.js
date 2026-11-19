@@ -20,6 +20,8 @@
   const fmtDate = iso => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}/${y}`; };
   const money = v => ShCalc.money(ShCalc.centsOf(v ?? 0));
   const numText = v => { if (v === null || v === undefined || v === '') return ''; const n = Number(v); return Number.isInteger(n) ? String(n) : String(n); };
+  // Work order numbers show as IV#1001. The database still stores the plain number.
+  const wo = n => (n === null || n === undefined || n === '') ? 'IV#—' : `IV#${n}`;
   const bikeLabel = b => b ? [b.year, b.make, b.model].filter(Boolean).join(' ') : '';
 
   // Tiny safe DOM builder: text children become text nodes.
@@ -67,8 +69,8 @@
       $('shCancelBtn').addEventListener('click', () => { if (this.confirmLeave()) this.show('shList'); });
       $('shCustomerPick').addEventListener('change', () => this.pickCustomer($('shCustomerPick').value));
       $('shBikePick').addEventListener('change', () => this.pickBike($('shBikePick').value));
-      $('shAddPart').addEventListener('click', () => { this.addLine('part'); this.form.dirty = true; });
-      $('shAddLabor').addEventListener('click', () => { this.addLine('labor'); this.form.dirty = true; });
+      $('shAddJob').addEventListener('click', () => { this.addJob(); this.form.dirty = true; });
+      const hl = $('shHoursList'); for (let h = 0.5; h <= 16; h += 0.5) hl.append(el('option', { value: String(h) }));
       $('shPhotoFiles').addEventListener('change', () => this.renderPhotos());
       $('shPrintBtn').addEventListener('click', () => root.print());
       $('shPrintBack').addEventListener('click', () => this.show('shList'));
@@ -167,7 +169,7 @@
         if (this.filter && j.status !== this.filter) return false;
         if (!q) return true;
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id) || {};
-        return [c.name, c.phone, c.email, b.vin, bikeLabel(b), j.estimate_number, j.invoice_number, j.work_description]
+        return [c.name, c.phone, c.email, b.vin, bikeLabel(b), j.estimate_number, wo(j.estimate_number), j.invoice_number, j.work_description]
           .some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q));
       });
       const box = $('shJobsList');
@@ -184,7 +186,7 @@
               el('strong', { text: c.name || '(no name)' }),
               el('span', { class: 'sh-job-total', text: money(j.total_amount) })),
             el('div', { class: 'sh-job-sub' },
-              el('span', { text: `#${j.estimate_number ?? '—'}` }),
+              el('span', { text: wo(j.estimate_number) }),
               el('span', { text: fmtDate(j.job_date) }),
               el('span', { class: 'sh-pill', text: STATUS_LABEL[j.status] || j.status }),
               j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: PAY_LABEL[j.payment_status] || 'Unpaid' }),
@@ -193,7 +195,7 @@
           el('div', { class: 'sh-job-actions' },
             el('button', { type: 'button', class: 'sh-btn', text: 'View / Print', onclick: () => this.openPrint(j.id) }),
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
-            j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for #${j.estimate_number}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
+            j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for ${wo(j.estimate_number)}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
               ...Object.entries(PAY_LABEL).map(([v, t]) => el('option', { value: v, text: t, selected: (j.payment_status || 'unpaid') === v }))),
             next ? el('button', { type: 'button', class: 'sh-btn sh-btn-step', text: next[1], onclick: ev => this.setStatus(j.id, next[0], ev.currentTarget) }) : null));
       }));
@@ -202,11 +204,11 @@
     async setStatus(jobId, status, btn) {
       if (this.busy) return;
       const j = this.jobs.find(x => x.id === jobId);
-      if (status === 'complete' && !root.confirm(`Mark #${j?.estimate_number} complete?`)) return;
+      if (status === 'complete' && !root.confirm(`Mark ${wo(j?.estimate_number)} complete?`)) return;
       this.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
       try {
         await ShApi.rpc('shop_set_job_status', { p_job_id: jobId, p_status: status });
-        this.message(`#${j?.estimate_number} is now ${STATUS_LABEL[status].toLowerCase()}.`);
+        this.message(`${wo(j?.estimate_number)} is now ${STATUS_LABEL[status].toLowerCase()}.`);
       } catch (e) {
         if (!this.handleAuthError(e)) this.message(`Status not changed: ${e.message}`, true);
       } finally { this.busy = false; await this.refresh(); }
@@ -218,7 +220,7 @@
       this.busy = true; sel.disabled = true;
       try {
         await ShApi.rpc('shop_set_payment_status', { p_job_id: jobId, p_payment_status: sel.value });
-        this.message(`#${j?.estimate_number} marked ${PAY_LABEL[sel.value].toLowerCase()}.`);
+        this.message(`${wo(j?.estimate_number)} marked ${PAY_LABEL[sel.value].toLowerCase()}.`);
       } catch (e) {
         if (!this.handleAuthError(e)) this.message(`Payment not changed: ${e.message}${/Could not find the function/i.test(e.message) ? ' (ask Tyler to run the shop-006 SQL file)' : ''}`, true);
       } finally { this.busy = false; await this.refresh(); }
@@ -247,13 +249,13 @@
         photos: [], uploaded: [], dirty: false,
       };
       $('shEstimateForm').reset();
-      $('shPartLines').replaceChildren(); $('shLaborLines').replaceChildren();
+      $('shJobLines').replaceChildren();
       $('shFormErrors').hidden = true;
       $('shFormTitle').textContent = job ? 'Edit estimate' : 'New estimate';
-      $('shFormNumber').textContent = job ? `#${job.estimate_number}` : 'Number is assigned when saved';
+      const nextNo = Math.max(1000, ...this.jobs.map(j => Number(j.estimate_number) || 0)) + 1;
+      $('shFormNumber').textContent = job ? wo(job.estimate_number) : `${wo(nextNo)} (confirmed when saved)`;
       $('shStatusText').value = STATUS_LABEL[this.form.status];
       $('shJobDate').value = job?.job_date?.slice(0, 10) || localToday();
-      $('shWorkDescription').value = job?.work_description || '';
       $('shCustomerNotes').value = job?.customer_notes || '';
       $('shNotes').value = job?.notes || '';
       $('shInvoiceNumber').value = job?.invoice_number || '';
@@ -269,8 +271,8 @@
       else if (job) { $('shBikePick').value = '__none'; this.fillBike(null); }
       else { $('shBikePick').value = ''; this.fillBike(null); }
 
-      for (const it of items) this.addLine(it.kind, it);
-      if (!items.length) { this.addLine('part'); this.addLine('labor'); }
+      for (const row of ShCalc.groupJobs(items)) this.addJob(row);
+      if (!items.length) this.addJob();
       this.recalc();
       this.show('shEditor');
       $('shSaveBtn').disabled = false; $('shSaveBtn').textContent = 'Save estimate';
@@ -351,52 +353,63 @@
       box.replaceChildren(...saved, ...pending);
     },
 
-    addLine(kind, it = {}) {
-      const isPart = kind === 'part';
+    // One row per job: name, parts price, our cost (internal), hours (pick or
+    // type), labor (hours x the shop rate, filled in), amount.
+    addJob(it = {}) {
       const field = (cls, label, props) => el('label', { class: `sh-lf sh-f-${cls}` }, el('span', { text: label }), el('input', { class: `sh-l-${cls}`, 'aria-label': label, autocomplete: 'off', ...props }));
-      const moneyText = v => (v === undefined || v === null || v === '') ? '' : Number(v).toFixed(2);
-      const row = el('div', { class: `sh-line sh-lines-${kind}`, dataset: { kind } },
-        field('desc', isPart ? 'Part description' : 'Labor description', { placeholder: isPart ? 'Part' : 'Labor', value: it.description || '' }),
-        field('qty', isPart ? 'Qty' : 'Hours', { inputmode: 'decimal', value: it.quantity !== undefined ? numText(it.quantity) : '1' }),
-        field('price', isPart ? 'Price each' : 'Rate / hr', { inputmode: 'decimal', placeholder: '0.00', value: moneyText(it.unit_price) }),
-        isPart ? field('cost', 'Our cost each (internal)', { inputmode: 'decimal', placeholder: '0.00', value: Number(it.unit_cost) ? moneyText(it.unit_cost) : '' }) : null,
-        el('output', { class: 'sh-l-total', text: '$0.00' }),
-        el('button', { type: 'button', class: 'sh-l-x', 'aria-label': 'Remove line', title: 'Remove line', onclick: () => { row.remove(); this.form.dirty = true; this.recalc(); } }, '×'));
-      $(isPart ? 'shPartLines' : 'shLaborLines').append(row);
+      const row = el('div', { class: 'sh-line sh-lines-job', dataset: { rate: it.rate || '' } },
+        field('desc', 'Job', { placeholder: 'e.g. Brakes', value: it.name || '' }),
+        field('parts', 'Parts', { inputmode: 'decimal', placeholder: '0.00', value: it.parts || '' }),
+        field('cost', 'Our cost (internal)', { inputmode: 'decimal', placeholder: '0.00', value: it.cost || '' }),
+        field('hours', 'Hours', { inputmode: 'decimal', placeholder: '0', list: 'shHoursList', value: it.hours || '' }),
+        el('output', { class: 'sh-l-labor', 'aria-label': 'Labor amount', text: '$0.00' }),
+        el('output', { class: 'sh-l-total', 'aria-label': 'Job amount', text: '$0.00' }),
+        el('button', { type: 'button', class: 'sh-l-x', 'aria-label': 'Remove job', title: 'Remove job', onclick: () => { row.remove(); this.form.dirty = true; this.recalc(); } }, '×'));
+      $('shJobLines').append(row);
       this.recalc();
       return row;
     },
 
-    // Line rows -> items. Completely empty rows are ignored (not saved).
-    readLines() {
-      const rows = [...document.querySelectorAll('#shPartLines .sh-line, #shLaborLines .sh-line')];
-      const out = [];
-      for (const r of rows) {
+    // Job rows as typed. Completely empty rows are ignored (not saved).
+    readJobs() {
+      return [...document.querySelectorAll('#shJobLines .sh-line')].map(r => {
         const v = c => r.querySelector(c)?.value?.trim() ?? '';
-        const item = { kind: r.dataset.kind, description: v('.sh-l-desc'), quantity: v('.sh-l-qty'), unit_price: v('.sh-l-price'), unit_cost: r.dataset.kind === 'part' ? v('.sh-l-cost') : '' };
-        const empty = !item.description && !item.unit_price && !item.unit_cost && (item.quantity === '' || item.quantity === '1');
-        out.push({ row: r, item, empty });
-      }
-      return out;
+        const job = { name: v('.sh-l-desc'), parts: v('.sh-l-parts'), cost: v('.sh-l-cost'), hours: v('.sh-l-hours'), rate: r.dataset.rate || '' };
+        return { row: r, job, empty: !job.name && !job.parts && !job.cost && !job.hours };
+      });
     },
 
     recalc() {
       if (!this.form) return null;
-      const lines = this.readLines();
-      const used = lines.filter(l => !l.empty);
-      const r = ShCalc.calculate(used.map(l => l.item), { rate: $('shTaxRate').value, appliesTo: $('shTaxApplies').value });
-      lines.forEach(l => { l.row.querySelector('.sh-l-total').textContent = l.empty ? '' : ShCalc.money(r.lines[used.indexOf(l)].totalCents); });
+      const rows = this.readJobs();
+      const used = rows.filter(r => !r.empty);
+      const items = ShCalc.jobsToItems(used.map(r => r.job));
+      const r = ShCalc.calculate(items, { rate: $('shTaxRate').value, appliesTo: $('shTaxApplies').value });
+      // per-row display: add up the (part, labor) items that belong to each job row
+      let idx = 0;
+      const hoursTotal = used.reduce((n, u) => n + (Number(u.job.hours) || 0), 0);
+      for (const u of rows) {
+        const out = u.row.querySelector('.sh-l-total'), lab = u.row.querySelector('.sh-l-labor');
+        if (u.empty) { out.textContent = ''; lab.textContent = ''; continue; }
+        const mine = ShCalc.jobsToItems([u.job]);
+        let jobTotal = 0n, labTotal = 0n;
+        for (const it of mine) { const t = r.lines[idx++].totalCents; jobTotal += t; if (it.kind === 'labor') labTotal += t; }
+        lab.textContent = u.job.hours ? ShCalc.money(labTotal) : '';
+        out.textContent = ShCalc.money(jobTotal);
+      }
       $('shTotParts').textContent = ShCalc.money(r.partsCents);
+      $('shTotLaborLabel').textContent = hoursTotal ? `Labor (${hoursTotal} hr${hoursTotal === 1 ? '' : 's'})` : 'Labor';
       $('shTotLabor').textContent = ShCalc.money(r.laborCents);
       $('shTotTaxLabel').textContent = r.appliesTo === 'none' ? 'Tax (none)' : r.taxRateSet ? `Tax ${$('shTaxRate').value.trim()}% ${TAX_LABEL[r.appliesTo]}` : 'Tax (rate not set)';
       $('shTotTax').textContent = ShCalc.money(r.taxCents);
       $('shTotTotal').textContent = ShCalc.money(r.totalCents);
       $('shTotInternal').textContent = `Internal: our parts cost ${ShCalc.money(r.partsCostCents)} · parts profit ${ShCalc.money(r.partsCents - r.partsCostCents)}`;
-      return { calc: r, items: used.map(l => l.item) };
+      return { calc: r, items, jobs: used.map(u => u.job) };
     },
 
     validate(calc) {
-      const errs = [...calc.errors];
+      const errs = calc.errors.filter(e => !/description is required/.test(e));
+      this.readJobs().forEach((u, i) => { if (!u.empty && !u.job.name) errs.push(`Job ${i + 1}: enter what the job is (like Brakes).`); });
       if (!$('shName').value.trim()) errs.unshift('Customer name is required.');
       if (!$('shJobDate').value) errs.push('Date is required.');
       if (!this.form.noBike) {
@@ -426,7 +439,7 @@
 
     async save() {
       const f = this.form; if (!f || this.busy) return;
-      const { calc, items } = this.recalc();
+      const { calc, items, jobs } = this.recalc();
       const errs = this.validate(calc);
       const box = $('shFormErrors');
       if (errs.length) { box.replaceChildren(el('strong', { text: 'Fix before saving:' }), el('ul', {}, errs.map(e => el('li', { text: e })))); box.hidden = false; box.scrollIntoView?.({ block: 'center' }); return; }
@@ -445,7 +458,7 @@
           p_bike: withBike ? { vin: $('shVin').value, make: $('shMake').value, model: $('shModel').value, year: $('shYear').value, mileage: $('shMileage').value.replace(/,/g, ''), photos } : null,
           p_job: {
             status: f.status, job_date: $('shJobDate').value, invoice_number: $('shInvoiceNumber').value,
-            work_description: $('shWorkDescription').value, customer_notes: $('shCustomerNotes').value, notes: $('shNotes').value,
+            work_description: jobs.map(j => j.name).filter(Boolean).join(', '), customer_notes: $('shCustomerNotes').value, notes: $('shNotes').value,
             tax_rate: $('shTaxRate').value.trim(), tax_applies_to: $('shTaxApplies').value,
             expected_updated_at: f.expectedUpdatedAt,
           },
@@ -453,7 +466,7 @@
         });
         if (ShCalc.centsOf(res.total_amount) !== calc.totalCents) console.warn('Server total differs from screen total', res.total_amount, calc.total);
         f.dirty = false;
-        this.message(`Estimate #${res.estimate_number} saved.`);
+        this.message(`${wo(res.estimate_number)} saved.`);
         this.busy = false;
         await this.openPrint(res.job_id);
       } catch (e) {
@@ -476,7 +489,7 @@
       } catch (e) { if (!this.handleAuthError(e)) this.message(`Could not open the estimate: ${e.message}`, true); return; }
       this.printJobId = jobId;
       $('shDoc').replaceChildren(...this.buildDoc(job, items).filter(Boolean));
-      document.title = `SIC Cycles ${job.status === 'complete' ? 'Invoice' : 'Estimate'} ${job.estimate_number} — ${this.customer(job.customer_id)?.name || ''}`;
+      document.title = `SIC Cycles ${job.status === 'complete' ? 'Invoice' : 'Estimate'} ${wo(job.estimate_number)} — ${this.customer(job.customer_id)?.name || ''}`;
       this.show('shPrintView');
     },
 
@@ -484,14 +497,13 @@
     // cost, profit, invoice-internal fields or internal notes.
     buildDoc(job, items) {
       const s = this.settings || {}; const c = this.customer(job.customer_id) || {}; const b = this.bike(job.bike_id);
-      const lines = kind => items.filter(i => i.kind === kind);
-      const lineRow = i => el('tr', {},
-        el('td', { text: i.description }), el('td', { class: 'num', text: numText(i.quantity) }),
-        el('td', { class: 'num', text: money(i.unit_price) }),
-        el('td', { class: 'num', text: ShCalc.money(ShCalc.calculate([{ ...i, quantity: String(i.quantity), unit_price: String(i.unit_price) }]).lines[0].totalCents) }));
-      const section = (title, qtyLabel, priceLabel, rows) => rows.length ? [
-        el('tr', { class: 'sh-doc-group' }, el('th', { text: title }), el('th', { class: 'num', text: qtyLabel }), el('th', { class: 'num', text: priceLabel }), el('th', { class: 'num', text: 'Amount' })),
-        ...rows.map(lineRow)] : [];
+      const jobs = ShCalc.groupJobs(items);
+      const jobRow = j => el('tr', {},
+        el('td', { text: j.name }),
+        el('td', { class: 'num', text: j.partsCents ? ShCalc.money(j.partsCents) : '' }),
+        el('td', { class: 'num', text: j.hours ? `${j.hours} hr` : '' }),
+        el('td', { class: 'num', text: j.laborCents ? ShCalc.money(j.laborCents) : '' }),
+        el('td', { class: 'num', text: ShCalc.money(j.totalCents) }));
       const taxLabel = job.tax_applies_to === 'none' ? 'Tax' : job.tax_rate === null || job.tax_rate === undefined ? 'Tax (not included)' : `Tax ${numText(job.tax_rate)}% ${TAX_LABEL[job.tax_applies_to]}`;
       const isInv = job.status === 'complete';
       const contact = [s.phone, s.email].filter(Boolean).join(' · ');
@@ -504,7 +516,7 @@
             contact ? el('div', { text: contact }) : null),
           el('div', { class: 'sh-doc-meta' },
             el('div', { class: 'sh-doc-title', text: isInv ? 'INVOICE' : 'ESTIMATE' }),
-            el('div', { text: `No. ${job.estimate_number}` }),
+            el('div', { text: wo(job.estimate_number) }),
             el('div', { text: `Date ${fmtDate(job.job_date)}` }),
             isInv ? el('div', { text: `Status: ${{ paid: 'Paid', partial: 'Partial payment', unpaid: 'Unpaid' }[job.payment_status] || 'Unpaid'}` }) : null)),
         el('div', { class: 'sh-doc-parties' },
@@ -512,14 +524,15 @@
             c.phone ? el('div', { text: c.phone }) : null, c.email ? el('div', { text: c.email }) : null,
             c.address ? el('div', { text: c.address }) : null),
           el('div', {}, el('h3', { text: 'Motorcycle' }), ...(bikeBits.length ? bikeBits.map(t => el('div', { text: t })) : [el('div', { text: '—' })]))),
-        job.work_description ? el('div', { class: 'sh-doc-block' }, el('h3', { text: 'Work to be done' }), el('p', { class: 'sh-pre', text: job.work_description })) : null,
-        el('table', { class: 'sh-doc-table' }, el('tbody', {},
-          ...section('Parts', 'Qty', 'Price', lines('part')),
-          ...section('Labor', 'Hours', 'Rate', lines('labor')),
-          !items.length ? el('tr', {}, el('td', { colspan: '4', text: 'No line items.' })) : null)),
+        el('table', { class: 'sh-doc-table' },
+          el('thead', {}, el('tr', {}, el('th', { text: 'Work to be done' }), el('th', { class: 'num', text: 'Parts' }), el('th', { class: 'num', text: 'Hours' }), el('th', { class: 'num', text: 'Labor' }), el('th', { class: 'num', text: 'Amount' }))),
+          el('tbody', {}, ...(jobs.length ? jobs.map(jobRow) : [el('tr', {}, el('td', { colspan: '5', text: 'No work listed.' }))])),
+          jobs.length ? el('tfoot', {}, el('tr', { class: 'sh-doc-sum' }, el('td', { text: 'Subtotal' }),
+            el('td', { class: 'num', text: money(job.parts_amount) }),
+            el('td', { class: 'num', text: jobs.some(j => j.hours) ? `${jobs.reduce((n, j) => n + (Number(j.hours) || 0), 0)} hr` : '' }),
+            el('td', { class: 'num', text: money(job.labor_amount) }),
+            el('td', { class: 'num', text: ShCalc.money(jobs.reduce((n, j) => n + j.totalCents, 0n)) }))) : null),
         el('table', { class: 'sh-doc-totals' }, el('tbody', {},
-          el('tr', {}, el('td', { text: 'Parts' }), el('td', { class: 'num', text: money(job.parts_amount) })),
-          el('tr', {}, el('td', { text: 'Labor' }), el('td', { class: 'num', text: money(job.labor_amount) })),
           el('tr', {}, el('td', { text: taxLabel }), el('td', { class: 'num', text: money(job.tax_amount) })),
           el('tr', { class: 'sh-doc-grand' }, el('td', { text: isInv ? 'Total' : 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })))),
         job.customer_notes ? el('div', { class: 'sh-doc-block' }, el('h3', { text: 'Notes' }), el('p', { class: 'sh-pre', text: job.customer_notes })) : null,
