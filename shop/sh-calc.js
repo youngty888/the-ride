@@ -72,7 +72,51 @@
     };
   }
 
-  const ShCalc = { calculate, money, parseScaled, centsOf: v => parseScaled(v, 2) ?? 0n };
+  // ---- Job lines (the estimate screen shows ONE row per job) ----
+  // A job row is {name, parts, cost, hours, rate?}. It is stored in the database
+  // as up to two line items that share the job name: a 'part' line (qty 1, the
+  // parts price + our cost) and a 'labor' line (qty = hours, unit price = the
+  // shop rate). The database schema is unchanged.
+  const LABOR_RATE = '150.00';
+  const blank = v => String(v ?? '').trim() === '';
+
+  function jobsToItems(rows) {
+    const items = [];
+    for (const r of rows || []) {
+      const name = String(r.name ?? '').trim();
+      if (!name && blank(r.parts) && blank(r.cost) && blank(r.hours)) continue; // empty row
+      const hasPart = !blank(r.parts) || !blank(r.cost);
+      const hasLabor = !blank(r.hours);
+      if (hasPart || !hasLabor) items.push({ kind: 'part', description: name, quantity: '1', unit_price: blank(r.parts) ? '0' : String(r.parts).trim(), unit_cost: blank(r.cost) ? '' : String(r.cost).trim() });
+      if (hasLabor) items.push({ kind: 'labor', description: name, quantity: String(r.hours).trim(), unit_price: blank(r.rate) ? LABOR_RATE : String(r.rate).trim() });
+    }
+    return items;
+  }
+
+  const scaledText = n => { const s = (Number(n) / 100).toFixed(2); return s.replace(/\.?0+$/, ''); };
+
+  // Saved items -> job rows (first appearance order). Lines with the same
+  // description are folded into one job. Amounts are exact cents.
+  function groupJobs(items) {
+    const map = new Map(); const order = [];
+    for (const it of items || []) {
+      const key = String(it.description || '').trim().toLowerCase();
+      if (!map.has(key)) { map.set(key, { name: String(it.description || '').trim(), partsCents: 0n, costCents: 0n, hoursScaled: 0n, laborCents: 0n, rate: null }); order.push(key); }
+      const g = map.get(key);
+      const one = calculate([{ kind: it.kind, description: 'x', quantity: String(it.quantity), unit_price: String(it.unit_price), unit_cost: String(it.unit_cost ?? '') }]);
+      if (it.kind === 'part') { g.partsCents += one.lines[0].totalCents; g.costCents += one.lines[0].costCents; }
+      else { g.laborCents += one.lines[0].totalCents; g.hoursScaled += parseScaled(it.quantity, 2) ?? 0n; const r = ((parseScaled(it.unit_price, 2) ?? 0n)); if (g.rate === null) g.rate = r; else if (g.rate !== r) g.rate = -1n; }
+    }
+    return order.map(k => {
+      const g = map.get(k);
+      const rateText = g.rate !== null && g.rate >= 0n && g.rate !== BigInt(Math.round(Number(LABOR_RATE) * 100)) ? scaledText(g.rate) : '';
+      return { name: g.name, partsCents: g.partsCents, costCents: g.costCents, laborCents: g.laborCents, hours: g.hoursScaled === 0n ? '' : scaledText(g.hoursScaled),
+        parts: g.partsCents === 0n && g.costCents === 0n ? '' : (Number(g.partsCents) / 100).toFixed(2), cost: g.costCents === 0n ? '' : (Number(g.costCents) / 100).toFixed(2),
+        rate: rateText, totalCents: g.partsCents + g.laborCents };
+    });
+  }
+
+  const ShCalc = { calculate, money, parseScaled, jobsToItems, groupJobs, LABOR_RATE, centsOf: v => parseScaled(v, 2) ?? 0n };
   root.ShCalc = ShCalc;
   if (typeof module !== 'undefined' && module.exports) module.exports = ShCalc;
 })(typeof window !== 'undefined' ? window : globalThis);
