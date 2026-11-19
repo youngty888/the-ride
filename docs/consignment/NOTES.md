@@ -27,9 +27,9 @@ Updated 2026-11-19 from Tyler's request. No code or SQL yet. This is the plan to
 - Days open: every day.
 
 ## Pieces (one small PR each)
-1. SQL (NEW numbered file, Tyler must run it): `consignment_requests` (customer contact, item type bike/part, description, preferred time, status Requested/Scheduled/Inspected/Accepted/Declined/Sold, optional bike year/make/model/VIN, optional wh_item_id, photos) with RLS: staff read/write, public insert only through one rate-limited function.
+1. SQL (NEW numbered file, Tyler must run it): `consignment_requests` (customer contact, item type bike/part, description, preferred time, status Requested/Scheduled/Inspected/Approved (only then shown on the site)/Declined/Sold, optional bike year/make/model/VIN, optional wh_item_id, photos) with RLS: staff read/write, public insert only through one rate-limited function.
 2. Staff screen in /shop/: Consignment list, status changes, "Add several" rows (name, phone, email, address copied down from the previous row), and a shop-owned-bike toggle that fills the owner as SIC Cycles.
-3. Public inspection request form (fields above, AI part check, then calendar slot picker) on the store (siccycles.com) that posts to the function above, with a thank-you message and no account needed.
+3. Public inspection request form (fields above, AI part check, then calendar slot picker) on ride.siccycles.com that posts to the function above, with a thank-you message and no account needed.
 4. Email/calendar notify to staff when a request arrives.
 5. Link accepted parts into the Warehouse and bulk-import photos.
 
