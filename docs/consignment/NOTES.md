@@ -10,7 +10,7 @@ Updated 2026-11-19 from Tyler's request. No code or SQL yet. This is the plan to
 ## Decisions from Tyler (2026-11-19)
 1. Inspection request form fields: description, fitment, part number (if known), year, part rank/quality (condition grade), photos. Bikes use the same form.
 2. AI check: after submit, an AI step compares the form (and photos) with the part number/fitment to identify the part and flag if it does not match what the customer claims. It only flags and explains for staff, it never auto-rejects. Runs server-side so no API key ever lives in this repo.
-3. Then the customer picks an inspection time on a calendar. Slot length/intervals: Tyler's message was cut off, so still OPEN (needs a number, e.g. 15 or 30 min, plus open days/hours).
+3. Then the customer picks an inspection time on a calendar: 30-minute slots from 12:00 noon to 12:00 midnight Tucson time (24 slots a day, last one starts 11:30 pm). Days open not stated, so assumed every day until Tyler says otherwise. Slots already booked or blocked by staff are hidden.
 4. Admin = Garrett and Tyler only for now (not Fang). Uses the existing staff table, one row per person.
 
 ## Still assumed
