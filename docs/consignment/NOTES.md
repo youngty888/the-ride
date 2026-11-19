@@ -7,15 +7,20 @@ Updated 2026-11-19 from Tyler's request. No code or SQL yet. This is the plan to
 - Shop-owned bikes can be sold through the same screen. Basic form info auto-fills: name, address, phone, email. We will NOT know bike year/make/model up front, so those fields are optional and filled in at inspection.
 - Customers (non-admin) never list directly. They use the website form, which books an appointment for the part or bike to be inspected.
 
-## Assumptions (Tyler did not answer these, change if wrong)
-1. Inspection request = a booking form (item, preferred day/time, contact info). It creates a "Requested" record that staff see in the Consignment list and get an email about. Calendar sync is a later step.
-2. Admin = same flat staff access already used by Shop and Warehouse (Tyler, Garrett, Fang). No separate owner-only tier yet.
-3. Parts bulk upload reuses the existing Warehouse CSV import and quick-add instead of a second parts system. Consignment parts link to a Warehouse item once inspected.
+## Decisions from Tyler (2026-11-19)
+1. Inspection request form fields: description, fitment, part number (if known), year, part rank/quality (condition grade), photos. Bikes use the same form.
+2. AI check: after submit, an AI step compares the form (and photos) with the part number/fitment to identify the part and flag if it does not match what the customer claims. It only flags and explains for staff, it never auto-rejects. Runs server-side so no API key ever lives in this repo.
+3. Then the customer picks an inspection time on a calendar. Slot length/intervals: Tyler's message was cut off, so still OPEN (needs a number, e.g. 15 or 30 min, plus open days/hours).
+4. Admin = Garrett and Tyler only for now (not Fang). Uses the existing staff table, one row per person.
+
+## Still assumed
+- Staff get an email on each new request; Google Calendar sync can follow.
+- Parts bulk upload reuses the existing Warehouse CSV import and quick-add.
 
 ## Pieces (one small PR each)
 1. SQL (NEW numbered file, Tyler must run it): `consignment_requests` (customer contact, item type bike/part, description, preferred time, status Requested/Scheduled/Inspected/Accepted/Declined/Sold, optional bike year/make/model/VIN, optional wh_item_id, photos) with RLS: staff read/write, public insert only through one rate-limited function.
 2. Staff screen in /shop/: Consignment list, status changes, "Add several" rows (name, phone, email, address copied down from the previous row), and a shop-owned-bike toggle that fills the owner as SIC Cycles.
-3. Public inspection request form on the store (siccycles.com) that posts to the function above, with a thank-you message and no account needed.
+3. Public inspection request form (fields above, AI part check, then calendar slot picker) on the store (siccycles.com) that posts to the function above, with a thank-you message and no account needed.
 4. Email/calendar notify to staff when a request arrives.
 5. Link accepted parts into the Warehouse and bulk-import photos.
 
