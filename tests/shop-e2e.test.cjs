@@ -235,15 +235,47 @@ test('failed save shows the reason and keeps everything typed; nothing half-save
   await page.context().close();
 });
 
+test('saved jobs: names are offered, hours are remembered and refill next time', { skip }, async () => {
+  const page = await newPage();
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  const names = await page.$$eval('#shJobNames option', o => o.map(x => x.value));
+  for (const n of ['Brake pads', 'Tires', 'Mounting']) assert.ok(names.includes(n), `offers ${n}`);
+  let row = page.locator('#shJobLines .sh-line').nth(0);
+  await row.locator('.sh-l-desc').fill('Brake pads'); await row.locator('.sh-l-desc').blur();
+  assert.equal(await row.locator('.sh-l-hours').inputValue(), '', 'no hours are invented for a name that has none saved');
+  await page.fill('#shName', 'Saved Jobs Customer');
+  await row.locator('.sh-l-parts').fill('80'); await row.locator('.sh-l-hours').fill('1.5');
+  await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
+  const [saved] = await backend.sql(`select name, hours::float as hours, use_count from public.shop_saved_jobs where name_key = 'brake pads'`);
+  assert.deepEqual(saved, { name: 'Brake pads', hours: 1.5, use_count: 1 });
+  // next estimate: picking the saved job refills the hours, parts stay empty
+  await page.click('#shPrintBack'); await page.waitForSelector('#shList:not([hidden])');
+  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  row = page.locator('#shJobLines .sh-line').nth(0);
+  await row.locator('.sh-l-desc').fill('brake PADS'); await row.locator('.sh-l-desc').blur();
+  assert.equal(await row.locator('.sh-l-hours').inputValue(), '1.5');
+  assert.equal(await row.locator('.sh-l-parts').inputValue(), '');
+  assert.equal(await row.locator('.sh-l-labor').innerText(), '$225.00');
+  // a different job is not filled; typing hours first is never overwritten
+  await page.click('#shAddJob'); const r2 = page.locator('#shJobLines .sh-line').nth(1);
+  await r2.locator('.sh-l-hours').fill('3'); await r2.locator('.sh-l-desc').fill('Brake pads'); await r2.locator('.sh-l-desc').blur();
+  assert.equal(await r2.locator('.sh-l-hours').inputValue(), '3');
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
 test('direct API calls by a non-staff account are refused', { skip }, async () => {
   const s = backend.sessionFor('rider@test.local');
   const call = (p, opts = {}) => fetch(backend.origin + p, { ...opts, headers: { apikey: 'k', Authorization: `Bearer ${s.access_token}`, 'Content-Type': 'application/json' } });
-  for (const t of ['shop_jobs', 'shop_customers', 'shop_bikes', 'shop_job_line_items', 'shop_settings']) {
+  for (const t of ['shop_jobs', 'shop_customers', 'shop_bikes', 'shop_job_line_items', 'shop_settings', 'shop_saved_jobs']) {
     assert.deepEqual(await (await call(`/rest/v1/${t}?select=*`)).json(), [], t);
   }
   const [job] = await backend.sql('select id, customer_id from public.shop_jobs limit 1');
   const r = await call('/rest/v1/rpc/shop_save_estimate', { method: 'POST', body: JSON.stringify({ p_job_id: job.id, p_customer_id: job.customer_id, p_customer: { name: 'Hijack' }, p_bike_id: null, p_bike: null, p_job: {}, p_items: [] }) });
   assert.equal(r.status, 400); assert.match((await r.json()).message, /not authorized/);
+  const rm = await call('/rest/v1/rpc/shop_remember_jobs', { method: 'POST', body: JSON.stringify({ p_jobs: [{ name: 'Hijack', hours: '1' }] }) });
+  assert.match((await rm.json()).message, /not authorized/);
   const st = await call('/rest/v1/rpc/shop_set_job_status', { method: 'POST', body: JSON.stringify({ p_job_id: job.id, p_status: 'estimate' }) });
   assert.match((await st.json()).message, /not authorized/);
   const [{ path: photo }] = await backend.sql(`select name as path from storage.objects where bucket_id = 'shop-bike-photos' limit 1`);

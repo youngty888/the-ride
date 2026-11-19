@@ -41,7 +41,7 @@
   }
 
   const App = {
-    user: null, jobs: [], customers: [], bikes: [], settings: null,
+    user: null, jobs: [], customers: [], bikes: [], settings: null, savedJobs: [],
     filter: '', search: '', form: null, busy: false, photoCache: new Map(),
 
     // ---------- startup / sign-in ----------
@@ -134,6 +134,7 @@
           ShApi.select('shop_settings', 'select=*'),
         ]);
         this.jobs = jobs; this.customers = customers; this.bikes = bikes; this.settings = settings[0] || {};
+        await this.loadSavedJobs();
         this.renderJobs();
         return true;
       } catch (e) {
@@ -141,6 +142,16 @@
         return false;
       }
     },
+
+    // Saved jobs (name + usual hours). Optional: if the shop-007 SQL has not been
+    // run yet, the list is simply empty and everything else works.
+    async loadSavedJobs() {
+      try { this.savedJobs = await ShApi.select('shop_saved_jobs', 'select=name,name_key,hours,use_count&order=use_count.desc,name.asc'); }
+      catch (e) { if (e?.status === 401) throw e; this.savedJobs = []; }
+      $('shJobNames')?.replaceChildren(...this.savedJobs.map(j => el('option', { value: j.name })));
+    },
+
+    savedJob(name) { const k = String(name || '').trim().toLowerCase(); return k ? this.savedJobs.find(j => j.name_key === k) : null; },
 
     customer(id) { return this.customers.find(c => c.id === id); },
     bike(id) { return this.bikes.find(b => b.id === id); },
@@ -358,13 +369,18 @@
     addJob(it = {}) {
       const field = (cls, label, props) => el('label', { class: `sh-lf sh-f-${cls}` }, el('span', { text: label }), el('input', { class: `sh-l-${cls}`, 'aria-label': label, autocomplete: 'off', ...props }));
       const row = el('div', { class: 'sh-line sh-lines-job', dataset: { rate: it.rate || '' } },
-        field('desc', 'Job', { placeholder: 'e.g. Brakes', value: it.name || '' }),
+        field('desc', 'Job', { placeholder: 'e.g. Brake pads', list: 'shJobNames', value: it.name || '' }),
         field('parts', 'Parts', { inputmode: 'decimal', placeholder: '0.00', value: it.parts || '' }),
         field('cost', 'Our cost (internal)', { inputmode: 'decimal', placeholder: '0.00', value: it.cost || '' }),
         field('hours', 'Hours', { inputmode: 'decimal', placeholder: '0', list: 'shHoursList', value: it.hours || '' }),
         el('output', { class: 'sh-l-labor', 'aria-label': 'Labor amount', text: '$0.00' }),
         el('output', { class: 'sh-l-total', 'aria-label': 'Job amount', text: '$0.00' }),
         el('button', { type: 'button', class: 'sh-l-x', 'aria-label': 'Remove job', title: 'Remove job', onclick: () => { row.remove(); this.form.dirty = true; this.recalc(); } }, '×'));
+      // Picking a saved job refills its usual hours (only if hours is still empty).
+      row.querySelector('.sh-l-desc').addEventListener('change', () => {
+        const sj = this.savedJob(row.querySelector('.sh-l-desc').value); const h = row.querySelector('.sh-l-hours');
+        if (sj && sj.hours && !h.value.trim()) { h.value = String(Number(sj.hours)); this.form.dirty = true; this.recalc(); }
+      });
       $('shJobLines').append(row);
       this.recalc();
       return row;
@@ -466,6 +482,8 @@
         });
         if (ShCalc.centsOf(res.total_amount) !== calc.totalCents) console.warn('Server total differs from screen total', res.total_amount, calc.total);
         f.dirty = false;
+        // Remember these jobs and their hours for next time (best effort, never blocks the save).
+        try { await ShApi.rpc('shop_remember_jobs', { p_jobs: jobs.map(j => ({ name: j.name, hours: j.hours })) }); await this.loadSavedJobs(); } catch { /* shop-007 not installed yet */ }
         this.message(`${wo(res.estimate_number)} saved.`);
         this.busy = false;
         await this.openPrint(res.job_id);
