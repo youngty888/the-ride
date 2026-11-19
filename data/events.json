@@ -1,0 +1,14 @@
+{
+  "updated": "2026-11-18",
+  "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
+  "events": [
+    {
+      "id": "el-tour-2026",
+      "title": "El Tour de Tucson - Sat Nov 21, 7am",
+      "detail": "Expect road closures and delays. Cushing St is closed Fri and Sat. I-10/6th Ave ramp closed 10am-5pm and I-19/Continental closed 8:30am-2pm on Saturday.",
+      "start": "2026-11-18",
+      "end": "2026-11-21",
+      "source": "https://www.kold.com/2026/10/14/el-tour-de-tucson-road-closures-delays/"
+    }
+  ]
+}

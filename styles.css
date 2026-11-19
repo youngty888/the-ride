@@ -2524,3 +2524,30 @@ summary:focus-visible,
   outline: 2px solid #ff6b1a;
   outline-offset: 2px;
 }
+
+/* --- Heads-up banner (events.js) --- */
+.events-banner {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
+  z-index: 1200;
+  padding: var(--space-3) calc(var(--space-6) + var(--space-3)) var(--space-3) var(--space-3);
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+.events-item { display: flex; flex-direction: column; gap: 2px; }
+.events-item + .events-item { margin-top: var(--space-2); }
+.events-item a { color: var(--color-accent); }
+.events-close {
+  position: absolute;
+  top: 0; right: 0;
+  width: 44px; height: 44px;
+  background: none; border: 0;
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+}
