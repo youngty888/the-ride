@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-18",
+  "updated": "2026-11-19",
   "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
   "events": [
     {
@@ -9,6 +9,14 @@
       "start": "2026-11-18",
       "end": "2026-11-21",
       "source": "https://www.kold.com/2026/10/14/el-tour-de-tucson-road-closures-delays/"
+    },
+    {
+      "id": "az-bike-week-2027",
+      "title": "Arizona Bike Week - Mar 31 to Apr 4, 2027",
+      "detail": "30th anniversary at WestWorld of Scottsdale. Expect heavy motorcycle traffic around Scottsdale.",
+      "start": "2027-03-17",
+      "end": "2027-04-04",
+      "source": "https://azbikeweek.com/"
     }
   ]
 }
