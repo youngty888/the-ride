@@ -28,7 +28,7 @@ before(async () => {
   const { startFakeBackend } = require('./support/shop-fake-backend.cjs');
   backend = await startFakeBackend({ users: USERS, staff: [
     { email: 'tyler@test.local', name: 'Tyler' }, { email: 'garrett@test.local', name: 'Garrett' }, { email: 'fang@test.local', name: 'Fang' }] });
-  browser = await chromium.launch();
+  browser = await chromium.launch(process.env.SHOP_E2E_CHROME ? { executablePath: process.env.SHOP_E2E_CHROME } : {});
 });
 after(async () => { await browser?.close(); await backend?.close(); });
 
@@ -79,7 +79,7 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   assert.equal(await page.locator('#shTaxWarning').isVisible(), false);
 
   // New estimate
-  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   await page.fill('#shName', TEST_NAME); await page.fill('#shPhone', '520-555-0100'); await page.fill('#shEmail', 'test@example.com');
   await page.fill('#shYear', '2018'); await page.fill('#shMake', 'Harley-Davidson'); await page.fill('#shModel', 'Street Glide');
   await page.fill('#shVin', '1hd1kb4197y000002'); await page.fill('#shMileage', '23,456');
@@ -198,7 +198,7 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
 test('customer text is shown as text, never run as page code', { skip }, async () => {
   const page = await newPage();
   await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
-  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   const evil = '<img src=x onerror="window.__xss=1">Bob';
   await page.fill('#shName', evil); await page.fill('#shNotes', '<script>window.__xss=2</script>');
   await page.locator('#shJobLines .sh-line').nth(0).locator('.sh-l-desc').fill('<b onmouseover=window.__xss=3>x</b>');
@@ -215,7 +215,7 @@ test('customer text is shown as text, never run as page code', { skip }, async (
 test('failed save shows the reason and keeps everything typed; nothing half-saved', { skip }, async () => {
   const page = await newPage();
   await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
-  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   await page.click('#shSaveBtn');
   assert.match(await text(page, '#shFormErrors'), /Customer name is required/);
   await page.fill('#shName', 'Retry Customer');
@@ -238,7 +238,7 @@ test('failed save shows the reason and keeps everything typed; nothing half-save
 test('saved jobs: names are offered, hours are remembered and refill next time', { skip }, async () => {
   const page = await newPage();
   await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
-  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   const names = await page.$$eval('#shJobNames option', o => o.map(x => x.value));
   for (const n of ['Brake pads', 'Tires', 'Mounting']) assert.ok(names.includes(n), `offers ${n}`);
   let row = page.locator('#shJobLines .sh-line').nth(0);
@@ -251,7 +251,7 @@ test('saved jobs: names are offered, hours are remembered and refill next time',
   assert.deepEqual(saved, { name: 'Brake pads', hours: 1.5, use_count: 1 });
   // next estimate: picking the saved job refills the hours, parts stay empty
   await page.click('#shPrintBack'); await page.waitForSelector('#shList:not([hidden])');
-  await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
   row = page.locator('#shJobLines .sh-line').nth(0);
   await row.locator('.sh-l-desc').fill('brake PADS'); await row.locator('.sh-l-desc').blur();
   assert.equal(await row.locator('.sh-l-hours').inputValue(), '1.5');

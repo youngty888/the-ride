@@ -31,11 +31,11 @@ grant select, insert, update on storage.objects to anon, authenticated;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const ident = s => /^[a-z_][a-z0-9_]*$/.test(s);
 
-async function startFakeBackend({ users, staff }) {
+async function startFakeBackend({ users, staff, extraSql = [] }) {
   const { PGlite } = await import('@electric-sql/pglite');
   const db = new PGlite();
   await db.exec(STUB);
-  for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql', '2026-10-30-shop-004-estimates.sql', '2026-11-15-shop-006-payment-status.sql', '2026-11-19-shop-007-saved-jobs.sql']) {
+  for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql', '2026-10-30-shop-004-estimates.sql', '2026-11-15-shop-006-payment-status.sql', '2026-11-19-shop-007-saved-jobs.sql', ...extraSql]) {
     await db.exec(fs.readFileSync(path.join(ROOT, 'sql', 'shop', f), 'utf8'));
   }
   const byEmail = new Map();

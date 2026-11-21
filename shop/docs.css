@@ -1,0 +1,43 @@
+/* Document library, customer intake form and legal documents. */
+main { max-width: 1000px; margin: 0 auto; padding: 1rem; }
+.dc-h1 { margin: .2rem 0 .8rem; font-size: 1.4rem; }
+.dc-filters { display: grid; gap: .5rem .75rem; grid-template-columns: 1fr; align-items: end; }
+@media (min-width: 640px) { .dc-filters { grid-template-columns: repeat(3, 1fr); } .dc-search { grid-column: 1 / -1; } }
+.dc-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+.dc-check input { width: auto; margin: 0; }
+.dc-rows { display: grid; gap: .5rem; }
+.dc-row { display: grid; grid-template-columns: 1fr auto; gap: .2rem .75rem; align-items: center; padding: .7rem .8rem; background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--border); border-radius: .6rem; color: var(--text); text-decoration: none; }
+.dc-row:hover, .dc-row:focus-visible { border-color: var(--muted); }
+.dc-row[data-kind=estimate] { border-left-color: var(--orange); }
+.dc-row[data-kind=intake] { border-left-color: #4cc38a; }
+.dc-row[data-kind=meeting] { border-left-color: #7aa7ff; }
+.dc-row[data-kind=plan] { border-left-color: #e0b84c; }
+.dc-row[data-kind=legal] { border-left-color: #c38cff; }
+.dc-row.dc-archived { opacity: .6; }
+.dc-row-title { font-weight: 700; overflow-wrap: anywhere; }
+.dc-row-sub { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+.dc-row-meta { grid-row: 1 / span 2; grid-column: 2; text-align: right; font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.dc-kind { display: inline-block; margin-bottom: .2rem; padding: .1rem .5rem; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: .8rem; }
+.dc-doc { max-width: 820px; margin: 0 auto; }
+.dc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: .5rem; margin-bottom: .8rem; }
+.dc-brand { font-size: 1.5rem; font-weight: 800; letter-spacing: .06em; color: var(--orange); }
+.dc-sub { color: var(--muted); }
+.dc-date { max-width: 12rem; }
+.dc-consent p { margin: 0 0 .5rem; line-height: 1.45; }
+.dc-sigline { margin: 2.2rem 0 .4rem; border-top: 1px solid var(--muted); padding-top: .25rem; font-size: .85rem; color: var(--muted); }
+.dc-sigline:first-of-type { margin-top: 2.6rem; }
+.dc-empty { padding: 1.2rem; text-align: center; color: var(--muted); }
+
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff !important; color: #000 !important; }
+  .dc-noprint, .sh-header, .sh-msg { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .sh-card { background: #fff !important; border: 1px solid #999 !important; break-inside: avoid; }
+  legend, .dc-brand { color: #000 !important; }
+  input, select, textarea { background: #fff !important; color: #000 !important; border: 0 !important; border-bottom: 1px solid #999 !important; border-radius: 0 !important; padding: .2rem 0 !important; }
+  textarea { resize: none; border: 1px solid #bbb !important; }
+  select { appearance: none; -webkit-appearance: none; }
+  .dc-sigline { border-top-color: #000; color: #000; }
+  .sh-muted, .dc-sub { color: #333 !important; }
+}

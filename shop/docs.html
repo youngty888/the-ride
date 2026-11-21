@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>SIC Cycles — Documents</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="sic-icon-180.png">
+<link rel="stylesheet" href="sh.css?v=20261121b">
+<link rel="stylesheet" href="docs.css?v=20261121a">
+</head>
+<body>
+<header class="sh-header dc-noprint">
+  <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Documents</small></div>
+  <nav class="sh-nav" id="dcNav" hidden>
+    <a class="sh-btn" href="docs.html" id="dcAllBtn">All documents</a>
+    <a class="sh-btn" href="docs.html?new=intake">+ Intake form</a>
+    <a class="sh-btn" href="docs.html?new=legal">+ Legal doc</a>
+    <a class="sh-btn sh-btn-quiet" href="./">Back to shop</a>
+  </nav>
+</header>
+
+<div id="dcMsg" class="sh-msg dc-noprint" role="alert" hidden></div>
+
+<main>
+  <section id="dcLoading" class="dc-view"><p class="sh-muted">Loading…</p></section>
+
+  <section id="dcSignedOut" class="dc-view sh-card sh-narrow" hidden>
+    <h1>Sign in first</h1>
+    <p id="dcSignedOutText">Sign in on the shop page with a staff account, then come back here.</p>
+    <a class="sh-btn sh-btn-primary" href="./">Go to shop sign in</a>
+  </section>
+
+  <!-- Library: every shop document in one list -->
+  <section id="dcList" class="dc-view" hidden>
+    <h1 class="dc-h1">Document library</h1>
+    <div class="dc-filters sh-card">
+      <label class="dc-search">Search <input id="dcSearch" type="search" placeholder="Name, phone, bike, VIN, title, IV#"></label>
+      <label>Type
+        <select id="dcType">
+          <option value="">All types</option>
+          <option value="estimate">Estimates and invoices</option>
+          <option value="intake">Customer intake forms</option>
+          <option value="meeting">Syndicate meetings</option>
+          <option value="plan">Finance agreements / payment plans</option>
+          <option value="legal">Legal documents</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Customer <select id="dcCustomer"><option value="">All customers</option></select></label>
+      <label>Bike <select id="dcBike"><option value="">All bikes</option></select></label>
+      <label>From <input id="dcFrom" type="date"></label>
+      <label>To <input id="dcTo" type="date"></label>
+      <label class="dc-check"><input id="dcArchived" type="checkbox"> Show archived</label>
+      <button type="button" class="sh-btn sh-btn-quiet" id="dcReset">Clear filters</button>
+    </div>
+    <p class="sh-muted" id="dcCount"></p>
+    <div id="dcRows" class="dc-rows"></div>
+  </section>
+
+  <!-- Customer intake form -->
+  <section id="dcIntake" class="dc-view" hidden>
+    <form id="dcIntakeForm" class="dc-doc" novalidate>
+      <div class="dc-head">
+        <div><div class="dc-brand">SIC CYCLES</div><div class="dc-sub">New customer intake</div></div>
+        <label class="dc-date">Date <input id="inDate" type="date"></label>
+      </div>
+
+      <fieldset class="sh-card">
+        <legend>Customer</legend>
+        <label class="dc-noprint">Customer record <select id="inCustomerPick"></select></label>
+        <div class="sh-grid2">
+          <label>Name * <input id="inName" autocomplete="off" required></label>
+          <label>Phone <input id="inPhone" type="tel" autocomplete="off"></label>
+          <label>Email <input id="inEmail" type="email" autocomplete="off"></label>
+          <label>Address <input id="inAddress" autocomplete="off"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Bike</legend>
+        <label class="dc-noprint">Bike record <select id="inBikePick"></select></label>
+        <div class="sh-grid3">
+          <label>Year <input id="inYear" inputmode="numeric" autocomplete="off"></label>
+          <label>Make <input id="inMake" autocomplete="off"></label>
+          <label>Model <input id="inModel" autocomplete="off"></label>
+        </div>
+        <div class="sh-grid2">
+          <label>VIN <input id="inVin" autocomplete="off" autocapitalize="characters"></label>
+          <label>Miles <input id="inMiles" inputmode="numeric" autocomplete="off"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="sh-card">
+        <legend>Insurance and how they found us</legend>
+        <div class="sh-grid2">
+          <label>Insurance company <input id="inInsCo" autocomplete="off"></label>
+          <label>Policy number <input id="inInsPolicy" autocomplete="off"></label>
+          <label>How did you hear about us?
+            <select id="inHeard">
+              <option value=""></option>
+              <option>Google</option><option>Instagram</option><option>Facebook</option>
+              <option>Friend or referral</option><option>Drove by</option><option>Event or bike night</option>
+              <option>Returning customer</option><option>Other</option>
+            </select>
+          </label>
+          <label>Referred by / other <input id="inHeardOther" autocomplete="off"></label>
+        </div>
+        <label>What brings the bike in? <textarea id="inReason" rows="3"></textarea></label>
+      </fieldset>
+
+      <fieldset class="sh-card dc-consent">
+        <legend>Customer consent</legend>
+        <p id="inConsentText">I own this bike or have the owner's permission to bring it in. I authorize SIC Cycles to inspect it and contact me with an estimate. No repair work starts until I approve the estimate. SIC Cycles may contact me by phone, text or email about this bike.</p>
+        <label class="dc-check"><input id="inConsent" type="checkbox"> Customer agrees</label>
+        <div class="sh-grid2">
+          <label>Printed name <input id="inSignName" autocomplete="off"></label>
+          <label>Date <input id="inSignDate" type="date"></label>
+        </div>
+        <div class="dc-sigline"><span>Customer signature</span></div>
+      </fieldset>
+
+      <p class="sh-muted dc-noprint" id="inStamp"></p>
+      <div class="sh-actions dc-noprint">
+        <button type="submit" class="sh-btn sh-btn-primary" id="inSave">Save intake</button>
+        <button type="button" class="sh-btn" id="inPrint">Print</button>
+        <button type="button" class="sh-btn" id="inEstimate" hidden>Start estimate</button>
+        <button type="button" class="sh-btn" id="inArchive" hidden>Archive</button>
+        <a class="sh-btn sh-btn-quiet" href="docs.html">Back to library</a>
+      </div>
+    </form>
+  </section>
+
+  <!-- Legal document -->
+  <section id="dcLegal" class="dc-view" hidden>
+    <form id="dcLegalForm" class="dc-doc" novalidate>
+      <div class="dc-head">
+        <div><div class="dc-brand">SIC CYCLES</div><div class="dc-sub" id="lgPrintTitle">Legal document</div></div>
+        <label class="dc-date">Date <input id="lgDate" type="date"></label>
+      </div>
+      <fieldset class="sh-card">
+        <legend>Document</legend>
+        <div class="sh-grid2">
+          <label>Title * <input id="lgTitle" autocomplete="off" maxlength="200" required></label>
+          <label>Category
+            <select id="lgCategory">
+              <option>Repair authorization</option><option>Storage policy</option><option>Liability waiver</option>
+              <option>Bill of sale</option><option>Consignment agreement</option><option>Contract</option>
+              <option>Title or registration</option><option>Other</option>
+            </select>
+          </label>
+          <label>Customer (optional) <select id="lgCustomer"></select></label>
+          <label>Bike (optional) <select id="lgBike"></select></label>
+          <label>Job (optional) <select id="lgJob"></select></label>
+          <label class="dc-noprint">Start from a template
+            <select id="lgTemplate">
+              <option value="">Keep what's typed</option>
+              <option value="blank">Blank</option>
+              <option value="repair">Repair authorization (sample)</option>
+              <option value="storage">Storage policy (sample)</option>
+            </select>
+          </label>
+        </div>
+        <p class="sh-muted dc-noprint">Templates are sample wording only. Have a lawyer review any legal wording before customers sign it.</p>
+        <label>Text <textarea id="lgBody" rows="14"></textarea></label>
+        <div class="dc-sigline"><span>Customer signature</span></div>
+        <div class="dc-sigline"><span>SIC Cycles</span></div>
+      </fieldset>
+      <fieldset class="sh-card dc-noprint">
+        <legend>Attached file</legend>
+        <p id="lgFileNow" class="sh-muted">No file attached.</p>
+        <button type="button" class="sh-btn" id="lgFileView" hidden>Open attached file</button>
+        <label>Attach a PDF or picture (up to 20 MB) <input id="lgFile" type="file" accept="application/pdf,image/*"></label>
+      </fieldset>
+      <p class="sh-muted dc-noprint" id="lgStamp"></p>
+      <div class="sh-actions dc-noprint">
+        <button type="submit" class="sh-btn sh-btn-primary" id="lgSave">Save document</button>
+        <button type="button" class="sh-btn" id="lgPrint">Print</button>
+        <button type="button" class="sh-btn" id="lgArchive" hidden>Archive</button>
+        <a class="sh-btn sh-btn-quiet" href="docs.html">Back to library</a>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="docs-app.js?v=20261121a"></script>
+</body>
+</html>

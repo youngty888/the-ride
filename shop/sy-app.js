@@ -1,9 +1,12 @@
 /* SICC Syndicate weekly meeting form.
    Reads shop data (jobs, customers, bikes, part orders) with the staff
    sign-in and fills the job call board, parts on order and shop numbers.
-   Read-only: this page never writes to the database. Notes typed on the
-   page are kept in this browser only (localStorage), per meeting date,
-   so a half-filled form survives a reload. Print gives a paper copy. */
+   Notes typed on the page are kept in this browser (localStorage), per
+   meeting date, so a half-filled form survives a reload. Save to library
+   stores the whole meeting (every field plus a copy of the job board,
+   parts and tech hours as they were) in the shop document library
+   (shop_save_document, shop-010); ?doc=<id> opens a saved meeting.
+   Print gives a paper copy. */
 (function (root) {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -225,6 +228,79 @@
     $('stParts').textContent = parts ? parts.length : '—';
   }
 
+  // ---------- document library (shop-010) ----------
+  let saved = null;                                     // the library copy this page is showing, if any
+  const SNAP_TABLES = ['syBoard', 'syParts', 'syTech'];
+  const cellText = c => { const i = c.querySelector('input'); return i ? (i.type === 'checkbox' ? (i.checked ? '✓' : '') : i.value) : c.innerText.trim(); };
+  function snapshot() {
+    const tables = {};
+    for (const id of SNAP_TABLES) {
+      tables[id] = [...$(id).tBodies[0].rows].map(r => [...r.cells].map(cellText)).filter(r => r.some(Boolean));
+    }
+    const stats = {}; for (const s of $('syStats').querySelectorAll('[id^=st]')) stats[s.id] = s.textContent;
+    return { tables, stats, as_of: $('syAsOf').textContent };
+  }
+  function fields() {
+    const data = {};
+    for (const f of $('syForm').elements) {
+      if (!f.name || f.closest('#syBoard, #syParts, #syTech')) continue;
+      data[f.name] = f.type === 'checkbox' ? f.checked : f.value;
+    }
+    return data;
+  }
+  function showSnapshot(snap, savedAt) {
+    for (const id of SNAP_TABLES) {
+      const rows = snap?.tables?.[id]; if (!rows) continue;
+      const tb = $(id).tBodies[0]; tb.replaceChildren();
+      const cols = $(id).tHead.rows[0].cells.length;
+      for (const r of rows) tb.append(el('tr', {}, r.slice(0, cols).map(t => td(t))));
+      for (let i = 0; i < 2; i++) tb.append(el('tr', { cls: 'sy-blank' }, Array.from({ length: cols }, () => td(''))));
+    }
+    for (const [k, v] of Object.entries(snap?.stats || {})) if ($(k)) $(k).textContent = v;
+    $('syAsOf').textContent = `Saved copy from ${savedAt}. ${snap?.as_of || ''} Tap Refresh data to fill the board from the shop as it is now.`;
+  }
+  async function saveToLibrary() {
+    const btn = $('sySave'); if (btn.disabled) return;
+    const date = $('syDate').value;
+    if (!date) { msg('Pick the meeting date first.', true); return; }
+    btn.disabled = true; btn.textContent = 'Saving…'; msg('');
+    try {
+      let id = saved?.id, expected = saved?.updated_at || null;
+      if (!saved || String(saved.doc_date || '').slice(0, 10) !== date) {
+        id = 'meet-' + date;                             // one saved meeting per date
+        const [old] = await ShApi.select('shop_documents', `select=id,updated_at&id=eq.${id}`);
+        if (old && !root.confirm(`A meeting for ${new Date(date + 'T12:00:00').toLocaleDateString('en-US')} is already saved. Replace it with this one?`)) return;
+        expected = old ? old.updated_at : null;
+      }
+      const data = { ...fields(), meeting_date: date, snapshot: snapshot() };
+      const title = `Syndicate meeting · ${new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      saved = await ShApi.rpc('shop_save_document', { p_id: id, p_type: 'meeting', p_doc: { title, doc_date: date, data, expected_updated_at: expected } });
+      root.history.replaceState(null, '', `syndicate.html?doc=${encodeURIComponent(saved.id)}`);
+      msg('Saved to the shop document library.');
+    } catch (e) {
+      if (e.status === 401) msg('Sign in on the shop page first, then save again. Your notes are still here.', true);
+      else if (e.status === 404 || /shop_save_document|shop_documents/.test(e.message)) msg('The document library is not set up on the server yet (ask Tyler to run the shop-010 SQL file).', true);
+      else if (/changed by someone else/.test(e.message)) msg('Someone else saved this meeting after you opened it. Reload to see theirs, then add your notes again.', true);
+      else msg(`Not saved: ${e.message}`, true);
+    } finally { btn.disabled = false; btn.textContent = 'Save to library'; }
+  }
+  async function openSaved(id) {
+    try {
+      await ShApi.verify();
+      const [d] = await ShApi.select('shop_documents', `select=*&id=eq.${encodeURIComponent(id)}`);
+      if (!d || d.doc_type !== 'meeting') { msg('That saved meeting was not found.', true); return false; }
+      saved = d;
+      $('syDate').value = String(d.doc_date || d.data?.meeting_date || $('syDate').value).slice(0, 10);
+      for (const f of $('syForm').elements) {
+        if (!f.name || f.name === 'meeting_date' || !(f.name in (d.data || {}))) continue;
+        if (f.type === 'checkbox') f.checked = !!d.data[f.name]; else f.value = d.data[f.name];
+      }
+      showSnapshot(d.data?.snapshot, new Date(d.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+      saveDraft();
+      return true;
+    } catch (e) { msg(e.status === 401 ? 'Sign in on the shop page to open saved meetings.' : `Could not open the saved meeting: ${e.message}`, true); return false; }
+  }
+
   // ---------- start ----------
   function nextSunday(from) { const d = new Date(from); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); return d; }
   function init() {
@@ -244,7 +320,10 @@
       try { localStorage.removeItem(keyFor()); } catch { /* ignore */ }
       loadDraft();
     });
-    loadShop().then(loadDraft);
+    $('sySave').addEventListener('click', saveToLibrary);
+    const docId = new URLSearchParams(root.location.search).get('doc');
+    if (docId) openSaved(docId).then(ok => { if (!ok) loadShop().then(loadDraft); });
+    else loadShop().then(loadDraft);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })(window);

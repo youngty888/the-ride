@@ -54,7 +54,12 @@
       $('shSignInForm').addEventListener('submit', e => { e.preventDefault(); this.signIn(); });
       $('shSignOutBtn').addEventListener('click', () => this.signOut());
       $('shNoAccessSignOut').addEventListener('click', () => this.signOut());
-      $('shNewJobBtn').addEventListener('click', () => this.openEditor(null));
+      $('shNewJobBtn').addEventListener('click', () => { this.closeMenu(); this.openEditor(null); });
+      $('shNewMenuBtn').addEventListener('click', () => this.toggleMenu());
+      $('shNewSignoff').addEventListener('click', () => { this.closeMenu(); this.pickJobForSignoff(); });
+      $('shNewList').addEventListener('click', e => { if (e.target.closest('a')) this.closeMenu(); });
+      document.addEventListener('click', e => { if (!e.target.closest('#shNewMenu')) this.closeMenu(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('shNewList').hidden) { this.closeMenu(); $('shNewMenuBtn').focus(); } });
       $('shSettingsBtn').addEventListener('click', () => this.openSettings());
       document.querySelectorAll('[data-go-settings]').forEach(b => b.addEventListener('click', () => this.openSettings()));
       $('shSearch').addEventListener('input', e => { this.search = e.target.value; this.renderJobs(); });
@@ -96,7 +101,34 @@
       if (ok !== true) { $('shNoAccessEmail').textContent = this.user?.email || 'this account'; this.show('shNoAccess'); return; }
       $('shNav').hidden = false;
       ShApi.rpc('shop_log_login', {}).catch(() => { /* shop-008 not installed yet */ });
-      if (await this.refresh()) this.show('shList');
+      if (await this.refresh()) this.openFromUrl();
+    },
+
+    // Links from the document library and the New menu: ?job=<id> opens the
+    // customer copy, ?new=estimate opens a blank estimate, ?signoff=1 picks a job.
+    openFromUrl() {
+      const q = new URLSearchParams(root.location.search);
+      const job = q.get('job');
+      if (job && this.jobs.some(j => j.id === job)) return this.openPrint(job);
+      if (q.get('new') === 'estimate') return this.openEditor(null);
+      if (q.get('signoff')) return this.pickJobForSignoff();
+      this.show('shList');
+    },
+
+    toggleMenu() {
+      const list = $('shNewList'); const open = list.hidden;
+      list.hidden = !open; $('shNewMenuBtn').setAttribute('aria-expanded', String(open));
+      if (open) list.querySelector('[role=menuitem]')?.focus();
+    },
+    closeMenu() { $('shNewList').hidden = true; $('shNewMenuBtn').setAttribute('aria-expanded', 'false'); },
+
+    // Tech sign-off belongs to a job, so show the jobs in work and say what to press.
+    pickJobForSignoff() {
+      if (!this.confirmLeave()) return;
+      this.filter = 'in_progress'; this.search = ''; $('shSearch').value = '';
+      $('shFilter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.filter === 'in_progress'));
+      this.renderJobs(); this.show('shList');
+      this.message('Pick the job, then press Tech sign-off on it.');
     },
 
     async signIn() {

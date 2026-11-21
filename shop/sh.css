@@ -185,3 +185,11 @@ a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .sh-so-row label { margin: 0; width: 110px; }
 .sh-so-settle { margin-top: .6rem; border-top: 1px solid var(--border); padding-top: .5rem; }
 .sh-so-settle summary { cursor: pointer; color: var(--orange); font-weight: 600; }
+
+/* "+ New" menu: one button that starts any shop form */
+.sh-menu { position: relative; }
+.sh-menu-list { position: absolute; right: 0; top: calc(100% + .3rem); z-index: 20; min-width: 15rem; display: grid; padding: .3rem; background: var(--surface); border: 1px solid var(--border); border-radius: .6rem; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.sh-menu-list[hidden] { display: none; }
+.sh-menu-list > a, .sh-menu-list > button { display: block; min-height: 44px; padding: .65rem .8rem; text-align: left; font: inherit; color: var(--text); background: none; border: 0; border-radius: .4rem; text-decoration: none; cursor: pointer; }
+.sh-menu-list > a:hover, .sh-menu-list > button:hover, .sh-menu-list > a:focus-visible, .sh-menu-list > button:focus-visible { background: var(--surface-2); outline: none; }
+@media (max-width: 559px) { .sh-menu-list { left: 0; right: auto; } }

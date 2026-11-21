@@ -8,15 +8,25 @@
 <title>SIC Cycles — Shop</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
-<link rel="stylesheet" href="sh.css?v=20261121a">
+<link rel="stylesheet" href="sh.css?v=20261121b">
 </head>
 <body>
 <header class="sh-header">
   <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Shop</small></div>
   <a class="sh-btn sh-btn-quiet sh-switch" href="../" id="shToRide">⇄ RIDE app</a>
   <nav class="sh-nav" id="shNav" hidden>
-    <button type="button" class="sh-btn sh-btn-primary" id="shNewJobBtn">+ New estimate</button>
-    <a class="sh-btn" href="syndicate.html">Syndicate meeting</a>
+    <div class="sh-menu" id="shNewMenu">
+      <button type="button" class="sh-btn sh-btn-primary" id="shNewMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="shNewList">+ New ▾</button>
+      <div class="sh-menu-list" id="shNewList" role="menu" hidden>
+        <button type="button" role="menuitem" id="shNewJobBtn">Estimate sheet</button>
+        <a role="menuitem" href="docs.html?new=intake">Customer intake form</a>
+        <a role="menuitem" href="syndicate.html">Syndicate meeting form</a>
+        <button type="button" role="menuitem" id="shNewSignoff">Tech sign-off</button>
+        <a role="menuitem" href="payments.html?new=1" id="shNewPlan">Finance agreement / payment plan</a>
+        <a role="menuitem" href="docs.html?new=legal">Legal document</a>
+      </div>
+    </div>
+    <a class="sh-btn" href="docs.html">Documents</a>
     <button type="button" class="sh-btn" id="shSettingsBtn">Settings</button>
     <button type="button" class="sh-btn sh-btn-quiet" id="shSignOutBtn">Sign out</button>
   </nav>
@@ -203,6 +213,6 @@
 <script src="../show-password.js?v=20261119a"></script>
 <script src="sh-calc.js?v=20261119b"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="sh-app.js?v=20261121a"></script>
+<script src="sh-app.js?v=20261121b"></script>
 </body>
 </html>
