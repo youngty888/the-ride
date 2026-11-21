@@ -116,13 +116,16 @@
       return;
     }
     try {
-      const [jobs, customers, bikes, parts, audit, staff] = await Promise.all([
+      const weekAgoTs = new Date(Date.now() - 7 * 86400000).toISOString();
+      const [jobs, customers, bikes, parts, audit, staff, signs, logins] = await Promise.all([
         ShApi.select('shop_jobs', 'select=id,invoice_number,estimate_number,customer_id,bike_id,status,payment_status,job_date,total_amount,work_description,notes,customer_notes&order=job_date.asc'),
         ShApi.select('shop_customers', 'select=id,name,phone'),
         ShApi.select('shop_bikes', 'select=id,vin,make,model,year,mileage'),
         ShApi.select('shop_part_orders', 'select=*&received=eq.false&order=date_ordered.asc').catch(() => null),
         ShApi.select('shop_audit_log', 'select=row_id,actor,changed_at,detail&table_name=eq.shop_jobs&action=eq.status&order=changed_at.asc').catch(() => []),
         ShApi.select('shop_staff', 'select=user_id,display_name').catch(() => []),
+        ShApi.select('shop_labor_signoffs', `select=job_id,tech_id,hours,disputed&signed_at=gte.${encodeURIComponent(weekAgoTs)}`).catch(() => null),
+        ShApi.select('shop_staff_logins', `select=user_id&logged_at=gte.${encodeURIComponent(weekAgoTs)}`).catch(() => null),
       ]);
       const staffName = Object.fromEntries((staff || []).map(s => [s.user_id, s.display_name]));
       const signedBy = {};
@@ -134,6 +137,7 @@
       renderBoard(open, cById, bById, signedBy);
       renderParts(parts || [], jById, cById);
       renderStats(jobs, parts);
+      renderTech(signs, logins, staffName);
       $('syAsOf').textContent = `Filled from the shop ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` + (parts ? '' : ' Parts orders could not be read.');
     } catch (e) {
       msg(`Could not load shop data: ${e.message}`, true);
@@ -186,6 +190,25 @@
       ]));
     }
     blankRows(tb, 6, parts.length ? 3 : 6, 'part');
+  }
+
+  function renderTech(signs, logins, staffName) {
+    const table = $('syTech'); fillBlankRows(table);
+    if (!signs && !logins) return;                       // shop-008 not installed: stays fill-in
+    const by = {};
+    const row = id => (by[id] ||= { name: staffName[id] || 'Staff', jobs: new Set(), hours: 0, disputed: 0, logins: 0 });
+    for (const x of signs || []) { const r = row(x.tech_id); r.jobs.add(x.job_id); r.hours += Number(x.hours) || 0; if (x.disputed) r.disputed++; }
+    for (const x of logins || []) row(x.user_id).logins++;
+    const tb = table.tBodies[0]; const blanks = [...tb.rows];
+    const rows = Object.values(by).sort((a, b) => b.hours - a.hours);
+    rows.forEach((r, i) => {
+      const tr = el('tr', {}, [td(r.name), td(String(r.jobs.size), 'num'), td(r.hours ? r.hours.toFixed(2) : '0', 'num'),
+        el('td', {}, [el('input', { name: `techhours_auto_${i}`, 'aria-label': 'notes' }),
+          el('div', { cls: 'sy-small', text: [r.logins ? `${r.logins} shop logins` : '', r.disputed ? `${r.disputed} disputed` : ''].filter(Boolean).join(' · ') })])]);
+      tb.insertBefore(tr, blanks[0] || null);
+    });
+    blanks.slice(2).forEach(b => b.remove());
+    table.previousElementSibling.textContent = 'Hours each tech signed off in the last 7 days, from the shop. Disputes are settled by the payroll manager.';
   }
 
   function renderStats(jobs, parts) {

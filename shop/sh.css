@@ -180,3 +180,8 @@ input[readonly] { color: var(--muted); }
   .sh-doc-sign { margin-top: 1.4rem; gap: 1.2rem; }
 }
 a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
+.sh-so-list { margin: .4rem 0; padding-left: 1.2rem; }
+.sh-so-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; }
+.sh-so-row label { margin: 0; width: 110px; }
+.sh-so-settle { margin-top: .6rem; border-top: 1px solid var(--border); padding-top: .5rem; }
+.sh-so-settle summary { cursor: pointer; color: var(--orange); font-weight: 600; }
