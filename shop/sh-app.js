@@ -101,7 +101,7 @@
       if (ok !== true) { $('shNoAccessEmail').textContent = this.user?.email || 'this account'; this.show('shNoAccess'); return; }
       $('shNav').hidden = false;
       ShApi.rpc('shop_log_login', {}).catch(() => { /* shop-008 not installed yet */ });
-      if (await this.refresh()) this.openFromUrl();
+      if (await this.refresh()) { this.openFromUrl(); document.dispatchEvent(new CustomEvent('shop:ready', { detail: { user: this.user } })); }
     },
 
     // Links from the document library and the New menu: ?job=<id> opens the
@@ -149,7 +149,7 @@
       if (!this.confirmLeave()) return;
       await ShApi.signOut();
       this.jobs = []; this.customers = []; this.bikes = []; this.form = null;
-      $('shNav').hidden = true; $('shJobsList').replaceChildren();
+      $('shNav').hidden = true; $('shJobsList').replaceChildren(); document.dispatchEvent(new CustomEvent('shop:signedout'));
       this.show('shSignIn');
     },
 

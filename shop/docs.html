@@ -8,8 +8,8 @@
 <title>SIC Cycles — Documents</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
-<link rel="stylesheet" href="sh.css?v=20261121b">
-<link rel="stylesheet" href="docs.css?v=20261121a">
+<link rel="stylesheet" href="sh.css?v=20261121c">
+<link rel="stylesheet" href="docs.css?v=20261121b">
 </head>
 <body>
 <header class="sh-header dc-noprint">
@@ -18,6 +18,8 @@
     <a class="sh-btn" href="docs.html" id="dcAllBtn">All documents</a>
     <a class="sh-btn" href="docs.html?new=intake">+ Intake form</a>
     <a class="sh-btn" href="docs.html?new=legal">+ Legal doc</a>
+    <a class="sh-btn" href="docs.html?new=receipt">+ Receipt</a>
+    <a class="sh-btn" href="docs.html?new=paystub" id="dcNewStub" hidden>+ Pay stub</a>
     <a class="sh-btn sh-btn-quiet" href="./">Back to shop</a>
   </nav>
 </header>
@@ -45,6 +47,9 @@
           <option value="intake">Customer intake forms</option>
           <option value="meeting">Syndicate meetings</option>
           <option value="plan">Finance agreements / payment plans</option>
+          <option value="consignment">Consignment agreements</option>
+          <option value="receipt">Receipts</option>
+          <option value="paystub">Pay stubs</option>
           <option value="legal">Legal documents</option>
           <option value="other">Other</option>
         </select>
@@ -183,11 +188,162 @@
       </div>
     </form>
   </section>
+
+  <!-- Receipt: picture or document of something the shop paid for -->
+  <section id="dcReceipt" class="dc-view" hidden>
+    <form id="dcReceiptForm" class="dc-doc" novalidate>
+      <h1 class="dc-h1">Receipt</h1>
+      <fieldset class="sh-card">
+        <legend>Picture or file *</legend>
+        <p id="rcFileNow" class="sh-muted">No file attached yet.</p>
+        <button type="button" class="sh-btn" id="rcFileView" hidden>Open attached receipt</button>
+        <div class="dc-upload">
+          <label class="sh-btn sh-btn-primary dc-filebtn">Take a picture<input id="rcCamera" type="file" accept="image/*" capture="environment"></label>
+          <label class="sh-btn dc-filebtn">Upload a file<input id="rcFile" type="file" accept="application/pdf,image/*"></label>
+        </div>
+        <p id="rcPicked" class="sh-muted"></p>
+        <img id="rcPreview" class="dc-preview" alt="Receipt picture preview" hidden>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>What was bought</legend>
+        <div class="sh-grid2">
+          <label>Amount * <input id="rcAmount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
+          <label>Date <input id="rcDate" type="date"></label>
+          <label>Store or vendor <input id="rcVendor" autocomplete="off" maxlength="120"></label>
+          <label>Category
+            <select id="rcCategory">
+              <option>Parts</option><option>Supplies</option><option>Tools</option><option>Shipping</option>
+              <option>Fuel</option><option>Rent/utilities</option><option>Marketing</option><option>Other</option>
+            </select>
+          </label>
+          <label>Paid with
+            <select id="rcPaidWith">
+              <option value="shop card">Shop card</option><option value="cash">Shop cash</option>
+              <option value="personal">My own money (pay me back)</option><option value="other">Other</option>
+            </select>
+          </label>
+          <label>Job (optional) <select id="rcJob"></select></label>
+        </div>
+        <label class="dc-check"><input id="rcBill" type="checkbox"> Bill this to the customer on the job</label>
+        <label>Notes <textarea id="rcNotes" rows="3" maxlength="2000"></textarea></label>
+      </fieldset>
+      <p class="sh-muted" id="rcStamp"></p>
+      <div class="sh-actions">
+        <button type="submit" class="sh-btn sh-btn-primary" id="rcSave">Save receipt</button>
+        <button type="button" class="sh-btn" id="rcArchive" hidden>Archive</button>
+        <a class="sh-btn sh-btn-quiet" href="docs.html?type=receipt">All receipts</a>
+      </div>
+    </form>
+  </section>
+
+  <!-- Pay stub: filed by the payroll manager, seen only by that staff member and payroll -->
+  <section id="dcPaystub" class="dc-view" hidden>
+    <form id="dcPaystubForm" class="dc-doc" novalidate>
+      <h1 class="dc-h1">Pay stub</h1>
+      <p class="sh-muted">Only the person it belongs to and the payroll manager can see a pay stub.</p>
+      <fieldset class="sh-card">
+        <legend>Pay stub</legend>
+        <div class="sh-grid2">
+          <label>Staff member * <select id="psOwner"></select></label>
+          <label>Pay date <input id="psDate" type="date"></label>
+          <label>Period start <input id="psFrom" type="date"></label>
+          <label>Period end <input id="psTo" type="date"></label>
+          <label>Net pay <input id="psAmount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
+          <label>Hours <input id="psHours" inputmode="decimal" autocomplete="off"></label>
+        </div>
+        <label>Notes <textarea id="psNotes" rows="2" maxlength="2000"></textarea></label>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Pay stub file</legend>
+        <p id="psFileNow" class="sh-muted">No file attached.</p>
+        <button type="button" class="sh-btn" id="psFileView" hidden>Open pay stub</button>
+        <label id="psFileWrap">Attach the pay stub (PDF or picture, up to 20 MB) <input id="psFile" type="file" accept="application/pdf,image/*"></label>
+      </fieldset>
+      <p class="sh-muted" id="psStamp"></p>
+      <div class="sh-actions">
+        <button type="submit" class="sh-btn sh-btn-primary" id="psSave">Save pay stub</button>
+        <button type="button" class="sh-btn" id="psArchive" hidden>Archive</button>
+        <a class="sh-btn sh-btn-quiet" href="docs.html?type=paystub">All pay stubs</a>
+      </div>
+    </form>
+  </section>
+
+  <!-- Consignment agreement: a bike or an item sold for someone else -->
+  <section id="dcConsign" class="dc-view" hidden>
+    <form id="dcConsignForm" class="dc-doc" novalidate>
+      <div class="dc-head">
+        <div><div class="dc-brand">SIC CYCLES</div><div class="dc-sub">Consignment agreement</div></div>
+        <label class="dc-date">Date <input id="cnDate" type="date"></label>
+      </div>
+      <fieldset class="sh-card dc-noprint">
+        <legend>What is being consigned</legend>
+        <label class="dc-check"><input type="radio" name="cnKind" value="bike" checked> A bike</label>
+        <label class="dc-check"><input type="radio" name="cnKind" value="item"> Parts, gear or another item</label>
+        <p class="sh-muted">Parts that should sell online go in the <a href="../warehouse/">Warehouse (Fang inventory)</a> too.</p>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Owner (consignor)</legend>
+        <label class="dc-noprint">Customer record <select id="cnCustomerPick"></select></label>
+        <div class="sh-grid2">
+          <label>Name * <input id="cnName" autocomplete="off" required></label>
+          <label>Phone <input id="cnPhone" type="tel" autocomplete="off"></label>
+          <label>Email <input id="cnEmail" type="email" autocomplete="off"></label>
+          <label>Address <input id="cnAddress" autocomplete="off"></label>
+        </div>
+      </fieldset>
+      <fieldset class="sh-card" id="cnBikeBox">
+        <legend>Bike</legend>
+        <label class="dc-noprint">Bike record <select id="cnBikePick"></select></label>
+        <div class="sh-grid3">
+          <label>Year <input id="cnYear" inputmode="numeric" autocomplete="off"></label>
+          <label>Make <input id="cnMake" autocomplete="off"></label>
+          <label>Model <input id="cnModel" autocomplete="off"></label>
+        </div>
+        <div class="sh-grid2">
+          <label>VIN <input id="cnVin" autocomplete="off" autocapitalize="characters"></label>
+          <label>Miles <input id="cnMiles" inputmode="numeric" autocomplete="off"></label>
+          <label>Title in owner's name?
+            <select id="cnTitle"><option value=""></option><option>Yes, clear title</option><option>Yes, with a lien</option><option>No</option></select>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset class="sh-card" id="cnItemBox" hidden>
+        <legend>Item</legend>
+        <div class="sh-grid2">
+          <label>What it is * <input id="cnItem" autocomplete="off" maxlength="200"></label>
+          <label>Quantity <input id="cnQty" inputmode="numeric" autocomplete="off" value="1"></label>
+        </div>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Price and terms</legend>
+        <div class="sh-grid2">
+          <label>Asking price <input id="cnAsk" inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
+          <label>Lowest price owner will take <input id="cnMin" inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
+          <label>Shop commission % <input id="cnCommission" inputmode="decimal" autocomplete="off"></label>
+          <label>Term (days) <input id="cnTerm" inputmode="numeric" autocomplete="off"></label>
+          <label>Owner gets paid by
+            <select id="cnPayout"><option value=""></option><option>Check</option><option>Cash</option><option>Bank transfer</option><option>Store credit</option></select>
+          </label>
+        </div>
+        <label>Condition and known issues <textarea id="cnCondition" rows="3" maxlength="2000"></textarea></label>
+        <label>Terms (sample wording, have a lawyer review before use) <textarea id="cnTerms" rows="8"></textarea></label>
+        <div class="dc-sigline"><span>Owner signature</span></div>
+        <div class="dc-sigline"><span>SIC Cycles</span></div>
+      </fieldset>
+      <p class="sh-muted dc-noprint" id="cnStamp"></p>
+      <div class="sh-actions dc-noprint">
+        <button type="submit" class="sh-btn sh-btn-primary" id="cnSave">Save agreement</button>
+        <button type="button" class="sh-btn" id="cnPrint">Print</button>
+        <button type="button" class="sh-btn" id="cnArchive" hidden>Archive</button>
+        <a class="sh-btn sh-btn-quiet" href="docs.html?type=consignment">All consignments</a>
+      </div>
+    </form>
+  </section>
 </main>
 
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="docs-app.js?v=20261121a"></script>
+<script src="docs-app.js?v=20261121b"></script>
 </body>
 </html>

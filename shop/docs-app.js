@@ -11,7 +11,17 @@
   const $ = id => document.getElementById(id);
   const BUCKET = 'shop-documents';
   const MAX_FILE = 20 * 1024 * 1024;
-  const KIND = { estimate: 'Estimate', invoice: 'Invoice', intake: 'Intake form', meeting: 'Syndicate meeting', plan: 'Finance agreement', legal: 'Legal', other: 'Other' };
+  const KIND = { estimate: 'Estimate', invoice: 'Invoice', intake: 'Intake form', meeting: 'Syndicate meeting', plan: 'Finance agreement', legal: 'Legal', receipt: 'Receipt', paystub: 'Pay stub', consignment: 'Consignment', other: 'Other' };
+  const CONSIGN_TERMS = [
+    'CONSIGNMENT TERMS (sample wording, have a lawyer review before use)',
+    '',
+    'The owner says they own the bike or item above, or have the right to sell it, and that it is free of liens except as written above.',
+    'SIC Cycles will show and try to sell it for the term above. The owner may take it back during the term by giving SIC Cycles notice.',
+    'When it sells, SIC Cycles keeps the commission above and pays the owner the rest within ______ days, by the method above.',
+    'SIC Cycles will not sell below the lowest price above without the owner\'s OK.',
+    'SIC Cycles is not responsible for loss or damage except as the law requires. The owner keeps their own insurance on a bike.',
+    'If it has not sold by the end of the term, the owner picks it up within ______ days or agrees to new terms.',
+  ].join('\n');
   const TEMPLATES = {
     blank: '',
     repair: [
@@ -56,7 +66,7 @@
   }
 
   const App = {
-    docs: [], jobs: [], plans: null, customers: [], bikes: [], cur: null, busy: false, dirty: false,
+    docs: [], jobs: [], plans: null, customers: [], bikes: [], staff: [], me: null, cur: null, pendingFile: null, busy: false, dirty: false,
 
     async init() {
       this.bind();
@@ -102,6 +112,25 @@
       $('lgPrint').addEventListener('click', () => root.print());
       $('lgArchive').addEventListener('click', () => this.archive());
       $('lgFileView').addEventListener('click', () => this.viewFile());
+      // receipt
+      $('dcReceiptForm').addEventListener('submit', e => { e.preventDefault(); this.saveReceipt(); });
+      $('dcReceiptForm').addEventListener('input', () => { this.dirty = true; });
+      ['rcCamera', 'rcFile'].forEach(id => $(id).addEventListener('change', () => this.pickReceiptFile($(id))));
+      $('rcArchive').addEventListener('click', () => this.archive());
+      $('rcFileView').addEventListener('click', () => this.viewFile());
+      // pay stub
+      $('dcPaystubForm').addEventListener('submit', e => { e.preventDefault(); this.savePaystub(); });
+      $('dcPaystubForm').addEventListener('input', () => { this.dirty = true; });
+      $('psArchive').addEventListener('click', () => this.archive());
+      $('psFileView').addEventListener('click', () => this.viewFile());
+      // consignment
+      $('dcConsignForm').addEventListener('submit', e => { e.preventDefault(); this.saveConsignment(); });
+      $('dcConsignForm').addEventListener('input', () => { this.dirty = true; });
+      document.querySelectorAll('input[name=cnKind]').forEach(r => r.addEventListener('change', () => this.showConsignKind()));
+      $('cnCustomerPick').addEventListener('change', () => this.pickConsignCustomer());
+      $('cnBikePick').addEventListener('change', () => { this.setConsignBike(this.bike($('cnBikePick').value)); this.dirty = true; });
+      $('cnPrint').addEventListener('click', () => root.print());
+      $('cnArchive').addEventListener('click', () => this.archive());
       root.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
     },
 
@@ -127,6 +156,9 @@
         // Payment plans live in their own table (shop-009). If that is not on the server yet, skip them.
         try { this.plans = (await ShApi.select('shop_payment_plans', 'select=id,customer_id,bike_id,item,sale_date,sale_price,status&order=sale_date.desc')).map(p => ({ ...p, sale_date: day(p.sale_date) })); }
         catch { this.plans = null; }
+        try { this.staff = await ShApi.select('shop_staff', 'select=user_id,display_name,active&order=display_name.asc'); } catch { this.staff = []; }
+        try { this.me = await ShApi.rpc('shop_me', {}); } catch { this.me = null; }
+        $('dcNewStub').hidden = !this.me?.payroll_manager;
         this.fillFilters();
         return true;
       } catch (e) {
@@ -144,6 +176,12 @@
       if (q.get('type')) $('dcType').value = q.get('type');
       if (neu === 'intake') return this.openIntake(null);
       if (neu === 'legal') return this.openLegal(null);
+      if (neu === 'receipt') return this.openReceipt(null);
+      if (neu === 'consignment') return this.openConsign(null);
+      if (neu === 'paystub') {
+        if (!this.me?.payroll_manager) { this.message('Only the payroll manager can file pay stubs.', true); $('dcType').value = 'paystub'; return this.openList(); }
+        return this.openPaystub(null);
+      }
       if (doc) {
         const d = this.docs.find(x => x.id === doc);
         if (!d) { this.message('That document was not found.', true); return this.openList(); }
@@ -155,11 +193,15 @@
     openDoc(d) {
       if (d.doc_type === 'intake') return this.openIntake(d);
       if (d.doc_type === 'meeting') { root.location.href = `syndicate.html?doc=${encodeURIComponent(d.id)}`; return; }
+      if (d.doc_type === 'receipt') return this.openReceipt(d);
+      if (d.doc_type === 'paystub') return this.openPaystub(d);
+      if (d.doc_type === 'consignment') return this.openConsign(d);
       return this.openLegal(d);
     },
 
     // ---------- library ----------
     customer(id) { return this.customers.find(c => c.id === id) || null; },
+    staffName(uid) { if (!uid) return 'unknown'; if (uid === this.me?.user_id) return 'me'; return this.staff.find(s => s.user_id === uid)?.display_name || 'staff'; },
     bike(id) { return this.bikes.find(b => b.id === id) || null; },
 
     fillFilters() {
@@ -192,10 +234,14 @@
       }
       for (const d of this.docs) {
         const kind = KIND[d.doc_type] ? d.doc_type : 'other';
-        out.push({ kind, label: d.doc_type === 'legal' && d.data?.category ? `Legal · ${d.data.category}` : KIND[kind], archived: !!d.archived,
+        const label = d.doc_type === 'legal' && d.data?.category ? `Legal · ${d.data.category}`
+          : d.doc_type === 'receipt' ? `Receipt · ${d.data?.category || 'Other'}`
+          : d.doc_type === 'consignment' ? `Consignment · ${d.data?.kind === 'item' ? 'item' : 'bike'}` : KIND[kind];
+        const amt = ['receipt', 'paystub', 'consignment'].includes(d.doc_type) ? money(d.amount) : '';
+        out.push({ kind, label, archived: !!d.archived, amt, who: d.doc_type === 'paystub' ? `For ${this.staffName(d.owner_user_id)}` : d.doc_type === 'receipt' ? `Turned in by ${this.staffName(d.owner_user_id)}` : '',
           title: d.title, date: d.doc_date || String(d.created_at || '').slice(0, 10), customer_id: d.customer_id, bike_id: d.bike_id,
-          extra: [d.file_name ? 'File attached' : ''], href: d.doc_type === 'meeting' ? `syndicate.html?doc=${encodeURIComponent(d.id)}` : `docs.html?doc=${encodeURIComponent(d.id)}`,
-          search: [d.title, d.data?.category, d.file_name, d.data?.reason, d.data?.insurance_company].join(' ') });
+          extra: [amt, d.file_name ? 'File attached' : ''], href: d.doc_type === 'meeting' ? `syndicate.html?doc=${encodeURIComponent(d.id)}` : `docs.html?doc=${encodeURIComponent(d.id)}`,
+          search: [d.title, d.data?.category, d.file_name, d.data?.reason, d.data?.insurance_company, d.data?.vendor, d.data?.item, this.staffName(d.owner_user_id)].join(' ') });
       }
       return out;
     },
@@ -223,7 +269,7 @@
         const c = this.customer(r.customer_id); const b = this.bike(r.bike_id);
         return el('a', { class: 'dc-row' + (r.archived ? ' dc-archived' : ''), href: r.href, dataset: { kind: r.kind } },
           el('div', {}, el('span', { class: 'dc-kind', text: r.label + (r.archived ? ' · archived' : '') }), el('div', { class: 'dc-row-title', text: r.title })),
-          el('div', { class: 'dc-row-sub', text: [c?.name, bikeLabel(b)].filter(Boolean).join(' · ') || (r.kind === 'meeting' ? 'Shop meeting' : 'No customer linked') }),
+          el('div', { class: 'dc-row-sub', text: [c?.name, bikeLabel(b)].filter(Boolean).join(' · ') || (r.kind === 'meeting' ? 'Shop meeting' : r.kind === 'paystub' || r.kind === 'receipt' ? r.who : 'No customer linked') }),
           el('div', { class: 'dc-row-meta' }, fmtDate(r.date), ...r.extra.filter(Boolean).map(x => [el('br'), x])));
       }));
       if (!list.length) box.append(el('div', { class: 'dc-empty', text: 'No documents match. Clear the filters or make one with + New on the shop page.' }));
@@ -242,8 +288,7 @@
       sel.replaceChildren(el('option', { value: '', text: blankText }), ...list.map(b => el('option', { value: b.id, text: bikeLabel(b) + (b.vin ? ` · VIN …${String(b.vin).slice(-6)}` : '') })));
       sel.value = chosen && list.some(b => b.id === chosen) ? chosen : '';
     },
-    fillJobSelect(chosen) {
-      const cid = $('lgCustomer').value; const sel = $('lgJob');
+    fillJobSelect(chosen, sel = $('lgJob'), cid = $('lgCustomer').value) {
       const list = this.jobs.filter(j => !cid || j.customer_id === cid);
       sel.replaceChildren(el('option', { value: '', text: 'No job' }), ...list.map(j => el('option', { value: j.id, text: `IV#${j.estimate_number ?? '—'} · ${fmtDate(j.job_date)}${j.work_description ? ' · ' + j.work_description.slice(0, 40) : ''}` })));
       sel.value = chosen && list.some(j => j.id === chosen) ? chosen : '';
@@ -375,6 +420,188 @@
         if (win) win.location.href = url; else root.location.href = url;
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (e) { win?.close(); this.message(`Could not open the file: ${e.message}`, true); }
+    },
+
+    // ---------- file upload shared by receipts and pay stubs ----------
+    checkFile(file) {
+      if (!file) return true;
+      if (file.size > MAX_FILE) { this.message('That file is over 20 MB. Pick a smaller one.', true); return false; }
+      if (!/^(application\/pdf|image\/)/.test(file.type || '')) { this.message('Attach a PDF or a picture.', true); return false; }
+      return true;
+    },
+    async uploadFor(id, file, btn) {
+      const label = btn.textContent; this.busy = true; btn.disabled = true; btn.textContent = 'Uploading file…';
+      const path = `docs/${id}/${Date.now()}-${safeName(file.name)}`;
+      try { await ShApi.upload(BUCKET, path, file, file.type); return { file_path: path, file_name: file.name.slice(0, 200), file_type: file.type }; }
+      catch (e) { this.message(e.status === 401 ? 'Your sign-in expired. Sign in again on the shop page.' : `The file did not upload: ${e.message}`, true); return null; }
+      finally { this.busy = false; btn.disabled = false; btn.textContent = label; }
+    },
+    fileLine(d, nowId, viewId, none) {
+      $(nowId).textContent = d?.file_name ? `Attached: ${d.file_name}` : none;
+      $(viewId).hidden = !d?.file_path;
+    },
+
+    // ---------- receipts ----------
+    openReceipt(d) {
+      this.cur = d ? { ...d } : { id: genId(), doc_type: 'receipt', isNew: true };
+      const data = d?.data || {};
+      $('rcAmount').value = d?.amount ?? ''; $('rcDate').value = d?.doc_date || today();
+      $('rcVendor').value = data.vendor || ''; $('rcCategory').value = data.category || 'Parts';
+      $('rcPaidWith').value = data.paid_with || 'shop card'; $('rcBill').checked = !!data.bill_customer; $('rcNotes').value = data.notes || '';
+      this.fillJobSelect(d?.job_id, $('rcJob'), '');
+      ['rcCamera', 'rcFile'].forEach(id => { $(id).value = ''; });
+      this.pendingFile = null; $('rcPicked').textContent = ''; $('rcPreview').hidden = true; $('rcPreview').removeAttribute('src');
+      this.fileLine(d, 'rcFileNow', 'rcFileView', 'No file attached yet.');
+      $('rcStamp').textContent = d ? `${this.stamp(d)} · turned in by ${this.staffName(d.owner_user_id)}` : '';
+      $('rcArchive').hidden = !d; $('rcArchive').textContent = d?.archived ? 'Bring back' : 'Archive';
+      this.dirty = false; this.message(''); this.show('dcReceipt');
+    },
+    pickReceiptFile(input) {
+      const file = input.files[0]; if (!file) return;
+      if (!this.checkFile(file)) { input.value = ''; return; }
+      this.pendingFile = file; this.dirty = true; this.message('');
+      $('rcPicked').textContent = `Ready to attach: ${file.name}`;
+      const img = $('rcPreview');
+      if (/^image\//.test(file.type)) { if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(file); img.hidden = false; }
+      else img.hidden = true;
+    },
+    async saveReceipt() {
+      if (this.busy) return;
+      const amount = val('rcAmount').replace(/[$,]/g, '');
+      if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) { this.message('Enter the amount, like 42.50.', true); $('rcAmount').focus(); return; }
+      if (!this.pendingFile && !this.cur.file_path) { this.message('Take a picture of the receipt or upload the file.', true); return; }
+      const vendor = val('rcVendor'); const cat = $('rcCategory').value;
+      const job = this.jobs.find(j => j.id === $('rcJob').value);
+      const doc = {
+        title: `Receipt · ${vendor || cat} · ${money(amount)}`.slice(0, 200), doc_date: $('rcDate').value || today(), amount,
+        job_id: job?.id || null, customer_id: job?.customer_id || null, bike_id: job?.bike_id || null,
+        expected_updated_at: this.cur.isNew ? null : this.cur.updated_at,
+        data: { vendor, category: cat, paid_with: $('rcPaidWith').value, bill_customer: $('rcBill').checked, notes: val('rcNotes') },
+      };
+      const btn = $('rcSave');
+      if (this.pendingFile) {
+        const f = await this.uploadFor(this.cur.id, this.pendingFile, btn); if (!f) return;
+        Object.assign(doc, f);
+      }
+      await this.runSave(btn, 'shop_save_receipt', { p_id: this.cur.id, p_doc: doc }, d => this.openReceipt(d), 'Receipt saved.');
+    },
+
+    // ---------- pay stubs ----------
+    openPaystub(d) {
+      const canEdit = !!this.me?.payroll_manager;
+      this.cur = d ? { ...d } : { id: genId(), doc_type: 'paystub', isNew: true };
+      const data = d?.data || {};
+      const active = this.staff.filter(s => s.active || s.user_id === d?.owner_user_id);
+      $('psOwner').replaceChildren(el('option', { value: '', text: 'Pick a staff member' }), ...active.map(s => el('option', { value: s.user_id, text: s.display_name })));
+      $('psOwner').value = d?.owner_user_id || '';
+      if (d && !$('psOwner').value && d.owner_user_id) $('psOwner').append(el('option', { value: d.owner_user_id, text: this.staffName(d.owner_user_id), selected: true }));
+      $('psOwner').disabled = !!d || !canEdit;                          // a stub never moves to another person
+      $('psDate').value = d?.doc_date || today(); $('psFrom').value = data.period_start || ''; $('psTo').value = data.period_end || '';
+      $('psAmount').value = d?.amount ?? ''; $('psHours').value = data.hours ?? ''; $('psNotes').value = data.notes || ''; $('psFile').value = '';
+      this.fileLine(d, 'psFileNow', 'psFileView', 'No file attached.');
+      // Staff see their own stub read-only; the Open button stays usable.
+      $('dcPaystubForm').querySelectorAll('input,textarea').forEach(x => { x.disabled = !canEdit; });
+      $('psFileWrap').hidden = !canEdit; $('psSave').hidden = !canEdit;
+      $('psStamp').textContent = this.stamp(d);
+      $('psArchive').hidden = !d || !canEdit; $('psArchive').textContent = d?.archived ? 'Bring back' : 'Archive';
+      this.dirty = false; this.message(''); this.show('dcPaystub');
+    },
+    async savePaystub() {
+      if (this.busy || !this.me?.payroll_manager) return;
+      const owner = $('psOwner').value;
+      if (!owner) { this.message('Pick the staff member this pay stub is for.', true); $('psOwner').focus(); return; }
+      const amount = val('psAmount').replace(/[$,]/g, '');
+      if (amount && !/^\d+(\.\d{1,2})?$/.test(amount)) { this.message('Net pay should be a number, like 812.40.', true); $('psAmount').focus(); return; }
+      if (val('psHours') && !/^\d+(\.\d{1,2})?$/.test(val('psHours'))) { this.message('Hours should be a number, like 38.5.', true); $('psHours').focus(); return; }
+      if ($('psFrom').value && $('psTo').value && $('psTo').value < $('psFrom').value) { this.message('The period ends before it starts.', true); return; }
+      const file = $('psFile').files[0];
+      if (!this.checkFile(file)) return;
+      const name = this.staff.find(s => s.user_id === owner)?.display_name || 'staff';
+      const doc = {
+        title: `Pay stub · ${name} · ${fmtDate($('psDate').value || today())}`.slice(0, 200), doc_date: $('psDate').value || today(), amount,
+        expected_updated_at: this.cur.isNew ? null : this.cur.updated_at,
+        data: { period_start: $('psFrom').value, period_end: $('psTo').value, hours: val('psHours'), notes: val('psNotes') },
+      };
+      const btn = $('psSave');
+      if (!file) return this.runSave(btn, 'shop_save_paystub', { p_id: this.cur.id, p_owner: owner, p_doc: doc }, d => this.openPaystub(d), 'Pay stub saved.');
+      // Save the row first so the file is private from the moment it lands, then attach it.
+      this.busy = true; btn.disabled = true;
+      let row;
+      try { row = await ShApi.rpc('shop_save_paystub', { p_id: this.cur.id, p_owner: owner, p_doc: doc }); }
+      catch (e) { this.busy = false; btn.disabled = false; this.message(`Not saved: ${e.message}`, true); return; }
+      this.busy = false; btn.disabled = false;
+      this.cur = { ...this.cur, ...row, isNew: false };
+      const f = await this.uploadFor(this.cur.id, file, btn);
+      if (!f) { await this.refresh(); this.message('The pay stub details were saved, but the file did not upload. Attach it again and save.', true); return; }
+      await this.runSave(btn, 'shop_save_paystub', { p_id: this.cur.id, p_owner: owner, p_doc: { ...doc, ...f, expected_updated_at: row.updated_at } }, d => this.openPaystub(d), 'Pay stub saved.');
+    },
+
+    // ---------- consignment ----------
+    openConsign(d) {
+      this.cur = d ? { ...d } : { id: genId(), doc_type: 'consignment', isNew: true };
+      const data = d?.data || {};
+      const c = d ? this.customer(d.customer_id) : null; const b = d ? this.bike(d.bike_id) : null;
+      document.querySelector(`input[name=cnKind][value=${data.kind === 'item' ? 'item' : 'bike'}]`).checked = true;
+      this.fillCustomerSelect($('cnCustomerPick'), c?.id, '+ New customer');
+      this.fillBikeSelect($('cnBikePick'), c?.id, b?.id, '+ New bike');
+      $('cnName').value = c?.name || ''; $('cnPhone').value = c?.phone || ''; $('cnEmail').value = c?.email || ''; $('cnAddress').value = c?.address || '';
+      this.setConsignBike(b);
+      $('cnDate').value = d?.doc_date || today(); $('cnTitle').value = data.title_status || '';
+      $('cnItem').value = data.item || ''; $('cnQty').value = data.quantity ?? 1;
+      $('cnAsk').value = data.asking_price || ''; $('cnMin').value = data.minimum_price || ''; $('cnCommission').value = data.commission_pct || '';
+      $('cnTerm').value = data.term_days || ''; $('cnPayout').value = data.payout_method || '';
+      $('cnCondition').value = data.condition || ''; $('cnTerms').value = d ? (data.terms || '') : CONSIGN_TERMS;
+      $('cnStamp').textContent = this.stamp(d);
+      $('cnArchive').hidden = !d; $('cnArchive').textContent = d?.archived ? 'Bring back' : 'Archive';
+      this.showConsignKind(); this.dirty = false; this.message(''); this.show('dcConsign');
+    },
+    consignKind() { return document.querySelector('input[name=cnKind]:checked')?.value || 'bike'; },
+    showConsignKind() { const bike = this.consignKind() === 'bike'; $('cnBikeBox').hidden = !bike; $('cnItemBox').hidden = bike; },
+    setConsignBike(b) {
+      $('cnYear').value = b?.year ?? ''; $('cnMake').value = b?.make || ''; $('cnModel').value = b?.model || '';
+      $('cnVin').value = b?.vin || ''; $('cnMiles').value = b?.mileage ?? '';
+    },
+    pickConsignCustomer() {
+      const c = this.customer($('cnCustomerPick').value);
+      $('cnName').value = c?.name || ''; $('cnPhone').value = c?.phone || ''; $('cnEmail').value = c?.email || ''; $('cnAddress').value = c?.address || '';
+      this.fillBikeSelect($('cnBikePick'), c?.id, '', '+ New bike'); this.setConsignBike(null); this.dirty = true;
+    },
+    async saveConsignment() {
+      if (this.busy) return;
+      const name = val('cnName'); const kind = this.consignKind();
+      if (!name) { this.message('Enter the owner\'s name.', true); $('cnName').focus(); return; }
+      const num = (id, label) => { const v = val(id).replace(/[$,%]/g, ''); if (v && !/^\d+(\.\d{1,2})?$/.test(v)) { this.message(`${label} should be a number.`, true); $(id).focus(); return null; } return v; };
+      const ask = num('cnAsk', 'Asking price'); if (ask === null) return;
+      const min = num('cnMin', 'Lowest price'); if (min === null) return;
+      const pct = num('cnCommission', 'Commission'); if (pct === null) return;
+      if (pct && Number(pct) > 100) { this.message('Commission can\'t be more than 100%.', true); return; }
+      if (ask && min && Number(min) > Number(ask)) { this.message('The lowest price is higher than the asking price.', true); return; }
+      if (val('cnTerm') && !/^\d+$/.test(val('cnTerm'))) { this.message('Term should be a whole number of days.', true); return; }
+      let bid = null, bike = null, what;
+      if (kind === 'bike') {
+        if (val('cnYear') && !/^\d{4}$/.test(val('cnYear'))) { this.message('Year should be 4 digits, like 2019.', true); $('cnYear').focus(); return; }
+        if (val('cnMiles') && !/^\d[\d,]*$/.test(val('cnMiles'))) { this.message('Miles should be a whole number.', true); $('cnMiles').focus(); return; }
+        bid = $('cnBikePick').value || genId();
+        bike = { year: val('cnYear'), make: val('cnMake'), model: val('cnModel'), vin: val('cnVin'), mileage: val('cnMiles').replace(/,/g, '') };
+        what = [val('cnYear'), val('cnMake'), val('cnModel')].filter(Boolean).join(' ') || 'Bike';
+      } else {
+        if (!val('cnItem')) { this.message('Say what the item is.', true); $('cnItem').focus(); return; }
+        if (val('cnQty') && !/^\d+$/.test(val('cnQty'))) { this.message('Quantity should be a whole number.', true); return; }
+        what = val('cnItem');
+      }
+      const args = {
+        p_doc_id: this.cur.id, p_customer_id: $('cnCustomerPick').value || genId(),
+        p_customer: { name, phone: val('cnPhone'), email: val('cnEmail'), address: val('cnAddress') },
+        p_bike_id: bid, p_bike: bike,
+        p_doc: {
+          title: `Consignment · ${what} · ${name}`.slice(0, 200), doc_date: $('cnDate').value || today(),
+          expected_updated_at: this.cur.isNew ? null : this.cur.updated_at,
+          data: { kind, item: kind === 'item' ? val('cnItem') : '', quantity: kind === 'item' ? (val('cnQty') || '1') : '', title_status: kind === 'bike' ? $('cnTitle').value : '',
+            asking_price: ask, minimum_price: min, commission_pct: pct, term_days: val('cnTerm'), payout_method: $('cnPayout').value,
+            condition: val('cnCondition'), terms: $('cnTerms').value },
+        },
+      };
+      await this.runSave($('cnSave'), 'shop_save_consignment', args, d => this.openConsign(d), 'Consignment agreement saved. The customer record is updated too.');
     },
 
     // ---------- save / archive ----------

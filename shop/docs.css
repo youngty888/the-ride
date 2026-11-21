@@ -13,6 +13,9 @@ main { max-width: 1000px; margin: 0 auto; padding: 1rem; }
 .dc-row[data-kind=meeting] { border-left-color: #7aa7ff; }
 .dc-row[data-kind=plan] { border-left-color: #e0b84c; }
 .dc-row[data-kind=legal] { border-left-color: #c38cff; }
+.dc-row[data-kind=receipt] { border-left-color: #ff7a7a; }
+.dc-row[data-kind=paystub] { border-left-color: #4cc3c3; }
+.dc-row[data-kind=consignment] { border-left-color: #e08a4c; }
 .dc-row.dc-archived { opacity: .6; }
 .dc-row-title { font-weight: 700; overflow-wrap: anywhere; }
 .dc-row-sub { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
@@ -27,6 +30,11 @@ main { max-width: 1000px; margin: 0 auto; padding: 1rem; }
 .dc-sigline { margin: 2.2rem 0 .4rem; border-top: 1px solid var(--muted); padding-top: .25rem; font-size: .85rem; color: var(--muted); }
 .dc-sigline:first-of-type { margin-top: 2.6rem; }
 .dc-empty { padding: 1.2rem; text-align: center; color: var(--muted); }
+.dc-upload { display: flex; flex-wrap: wrap; gap: .5rem; }
+.dc-filebtn { position: relative; overflow: hidden; }
+.dc-filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.dc-preview { display: block; max-width: 100%; max-height: 320px; margin-top: .5rem; border-radius: .5rem; border: 1px solid var(--border); }
+fieldset[disabled] { opacity: .85; }
 
 @media print {
   @page { margin: 12mm; }

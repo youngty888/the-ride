@@ -50,7 +50,7 @@ test('+ New menu lists every form and each item opens it', { skip }, async () =>
   assert.equal(await page.locator('#shNewList').isHidden(), true);
   await page.click('#shNewMenuBtn');
   const items = await page.locator('#shNewList [role=menuitem]').allInnerTexts();
-  assert.deepEqual(items, ['Estimate sheet', 'Customer intake form', 'Syndicate meeting form', 'Tech sign-off', 'Finance agreement / payment plan', 'Legal document']);
+  assert.deepEqual(items, ['Estimate sheet', 'Customer intake form', 'Syndicate meeting form', 'Tech sign-off', 'Finance agreement / payment plan', 'Legal document', 'Consignment agreement', 'Receipt', 'Appointment']);
   await shot(page, 'new-menu.png');
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#shNewList').isHidden(), true);

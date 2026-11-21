@@ -193,3 +193,22 @@ a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .sh-menu-list > a, .sh-menu-list > button { display: block; min-height: 44px; padding: .65rem .8rem; text-align: left; font: inherit; color: var(--text); background: none; border: 0; border-radius: .4rem; text-decoration: none; cursor: pointer; }
 .sh-menu-list > a:hover, .sh-menu-list > button:hover, .sh-menu-list > a:focus-visible, .sh-menu-list > button:focus-visible { background: var(--surface-2); outline: none; }
 @media (max-width: 559px) { .sh-menu-list { left: 0; right: auto; } }
+
+/* Home strip above the job board */
+.sh-home-hi { margin: .2rem 0 .8rem; font-size: 1.35rem; }
+.sh-home-grid { display: grid; gap: 0 1rem; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .sh-home-grid { grid-template-columns: 3fr 2fr; } }
+.sh-home-card h2 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 .6rem; font-size: 1.05rem; }
+.sh-home-more { font-size: .9rem; font-weight: 600; }
+.sh-home-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.sh-home-list li { display: grid; grid-template-columns: 5.5rem 1fr; gap: .5rem; align-items: baseline; }
+.sh-home-list li.sh-muted { display: block; }
+.sh-home-when { color: var(--muted); font-size: .85rem; }
+.sh-home-tag { margin-left: .35rem; padding: .05rem .4rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .75rem; }
+.sh-home-hours { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; text-align: center; }
+.sh-home-hours b { display: block; font-size: 1.6rem; color: var(--orange); }
+.sh-home-hours span { font-size: .85rem; color: var(--muted); }
+.sh-home-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.2rem; }
+.sh-home-buttons .sh-btn { flex: 1 1 10rem; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.sh-home-board { margin: .4rem 0 .6rem; font-size: 1.1rem; }
+@media print { .sh-home { display: none !important; } }

@@ -14,6 +14,14 @@
 -- shop_int). Does not need shop-008 or shop-009. NOT yet run on the live
 -- database: Tyler runs it.
 
+-- shop-011 changes some of what this file sets up (pay stubs are private).
+-- Re-running this file after shop-011 would undo that, so it stops instead.
+do $$ begin
+  if to_regclass('public.shop_appointments') is not null then
+    raise exception 'shop-011 is already installed. Re-running shop-010 would undo its pay stub privacy. Re-run shop-011 instead.';
+  end if;
+end $$;
+
 -- Private bucket for attached files. Staff only; never public.
 insert into storage.buckets (id, name, public)
 values ('shop-documents', 'shop-documents', false)
@@ -67,7 +75,7 @@ declare
   v_title text; v_data jsonb; v_job text; v_date date; v_file text; v_fname text; v_ftype text;
 begin
   if p_id is null or p_id !~ '^[A-Za-z0-9_-]{6,64}$' then raise exception 'invalid document id'; end if;
-  if p_type not in ('meeting', 'intake', 'legal', 'other') then raise exception 'Unknown document type'; end if;
+  if p_type is null or p_type !~ '^[a-z]{3,20}$' then raise exception 'Unknown document type'; end if;  -- the table's check lists the kinds
   if p_doc is null or jsonb_typeof(p_doc) <> 'object' then raise exception 'document must be an object'; end if;
   v_title := left(shop_clean(p_doc->>'title'), 200);
   if v_title is null then raise exception 'Give the document a title'; end if;
@@ -129,6 +137,7 @@ declare v_row public.shop_documents;
 begin
   if not shop_has_staff_access() then raise exception 'not authorized'; end if;
   if p_type = 'intake' then raise exception 'Save intake forms with the intake form'; end if;
+  if p_type not in ('meeting', 'legal', 'other') then raise exception 'Unknown document type'; end if;
   v_row := shop_put_document(p_id, p_type, p_doc, shop_clean(p_doc->>'customer_id'), shop_clean(p_doc->>'bike_id'));
   return to_jsonb(v_row);
 end $$;
