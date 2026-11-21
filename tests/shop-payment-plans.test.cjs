@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const PpCalc = require('../shop/pp-calc.js');
+const PpContract = require('../shop/pp-contract.js');
 
 let hasPg = false;
 try { require.resolve('@electric-sql/pglite'); hasPg = true; } catch { /* skipped below */ }
@@ -43,8 +44,8 @@ const rpc = async (user, fn, args) => {
 
 const PLAN = {
   customer_id: 'cust-test-01', bike_id: 'bike-test-01', item: '2023 Harley-Davidson Low Rider S',
-  sale_date: '2026-11-15', sale_price: '11000', down_payment: '0', monthly_payment: '500',
-  due_day: '18', first_due_date: '2026-12-18',
+  sale_date: '2026-11-15', sale_price: '11000', down_payment: '0', schedule: 'monthly', payment_amount: '500',
+  due_day: '18', first_due_date: '2026-12-18', apr: '0',
 };
 
 before(async () => {
@@ -105,8 +106,31 @@ test('a bike on another customer cannot be put on this plan', { skip }, async ()
   await assert.rejects(rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-02', p_plan: { ...PLAN, customer_id: 'cust-test-02' } }), /different customer/);
 });
 
+test('an interest plan every two weeks: the finance charge is owed, overpaying is checked against it', { skip }, async () => {
+  const r = PpCalc.amortize({ financedCents: 700000, apr: 20, payments: 52, schedule: 'biweekly' });
+  await rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-03', p_plan: { ...PLAN, schedule: 'biweekly', due_day: null,
+    sale_price: '8000', down_payment: '1000', first_due_date: '2026-12-04', apr: '20', term_payments: '52',
+    payment_amount: (r.paymentCents / 100).toFixed(2), finance_charge: (r.financeChargeCents / 100).toFixed(2),
+    late_fee_per_day: '50', late_fee_grace_days: '2', missed_limit: '3', pay_link_url: 'https://www.paypal.com/ncp/payment/TEST123', autopay: 'pending' } });
+  const [s] = await as('tyler', `select * from public.shop_payment_plan_summary where id = 'plan-test-03'`);
+  assert.equal(Number(s.balance), 8519.61); assert.equal(Number(s.total_owed), 8519.61);
+  assert.equal(s.schedule, 'biweekly'); assert.equal(s.due_day, null); assert.equal(s.autopay, 'pending');
+  await assert.rejects(rpc('tyler', 'shop_record_plan_payment', { p_payment_id: 'pay-test-31', p_payment: { plan_id: 'plan-test-03', amount: '8519.62', received_date: '2026-12-04' } }), /more than the balance/);
+  const ok = await rpc('tyler', 'shop_record_plan_payment', { p_payment_id: 'pay-test-32', p_payment: { plan_id: 'plan-test-03', amount: '7500', received_date: '2026-12-04' } });
+  assert.equal(Number(ok.balance), 1019.61); // more than the old price-minus-down would allow
+});
+
+test('bad plans are refused: unsafe pay link, interest with no term, monthly with no due day', { skip }, async () => {
+  for (const link of ['javascript:alert(1)', 'http://pay.example.com/x', 'https://pay.example.com/x"onmouseover=1', 'https://a b.com']) {
+    await assert.rejects(rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-04', p_plan: { ...PLAN, pay_link_url: link } }), /https/);
+  }
+  await assert.rejects(rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-04', p_plan: { ...PLAN, apr: '20' } }), /number of payments/);
+  await assert.rejects(rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-04', p_plan: { ...PLAN, due_day: null } }), /due day/);
+  assert.deepEqual(await as('tyler', `select id from public.shop_payment_plans where id = 'plan-test-04'`), []);
+});
+
 // ---------- plan math (matches the tracker sheet) ----------
-const plan = { sale_price: 11000, down_payment: 0, monthly_payment: 500, due_day: 18, first_due_date: '2026-12-18' };
+const plan = { sale_price: 11000, down_payment: 0, payment_amount: 500, schedule: 'monthly', due_day: 18, first_due_date: '2026-12-18' };
 
 test('nothing paid yet: 22 payments, next due Dec 18 2026, payoff Sep 18 2028 (same as the sheet)', () => {
   const s = PpCalc.summary(plan, [], '2026-11-21');
@@ -132,4 +156,79 @@ test('a missed payment shows late with the amount past due', () => {
 test('down payment and paid off', () => {
   const s = PpCalc.summary({ ...plan, down_payment: 1000 }, [{ amount: 10000, received_date: '2027-01-01' }], '2027-01-02');
   assert.equal(s.paidOff, true); assert.equal(s.totalPaidCents, 1100000); assert.equal(s.nextDue, null);
+});
+
+// ---------- interest, every two weeks, late fees, default ----------
+test('amortize: 20% APR matches the standard loan payment; 0% is a flat split', () => {
+  const m = PpCalc.amortize({ financedCents: 1000000, apr: 20, payments: 36, schedule: 'monthly' });
+  assert.equal(m.paymentCents, 37164); // $10,000 at 20% for 36 months = $371.64 (standard table)
+  assert.equal(m.paymentCents * 35 + m.lastPaymentCents, m.totalCents);
+  assert.equal(m.financeChargeCents, m.totalCents - 1000000);
+  const z = PpCalc.amortize({ financedCents: 1100000, apr: 0, payments: 22, schedule: 'monthly' });
+  assert.deepEqual([z.paymentCents, z.lastPaymentCents, z.financeChargeCents], [50000, 50000, 0]);
+  const odd = PpCalc.amortize({ financedCents: 100001, apr: 0, payments: 3, schedule: 'monthly' });
+  assert.equal(odd.paymentCents * 2 + odd.lastPaymentCents, 100001);
+});
+
+test('every two weeks: due dates are 14 days apart and payoff follows them', () => {
+  const b = { sale_price: 8000, down_payment: 1000, schedule: 'biweekly', first_due_date: '2026-12-04' };
+  const r = PpCalc.amortize({ financedCents: 700000, apr: 20, payments: 52, schedule: 'biweekly' });
+  Object.assign(b, { payment_amount: r.paymentCents / 100, finance_charge: r.financeChargeCents / 100 });
+  assert.equal(PpCalc.dueDate(b, 2), '2026-12-18'); assert.equal(PpCalc.dueDate(b, 3), '2027-01-01');
+  const s = PpCalc.summary(b, [], '2026-11-21');
+  assert.equal(s.balanceCents, 851961); assert.equal(s.paymentsLeft, 52); assert.equal(s.payoff, PpCalc.dueDate(b, 52));
+  const paid = PpCalc.summary(b, [{ amount: r.paymentCents / 100, received_date: '2026-12-04' }], '2026-12-05');
+  assert.equal(paid.nextDue, '2026-12-18'); assert.equal(paid.late, false);
+});
+
+const late = { ...plan, late_fee_per_day: 50, late_fee_grace_days: 2, missed_limit: 3 };
+test('late fee: $50 a day once more than 2 days late; nothing in the grace days; waived means none', () => {
+  assert.equal(PpCalc.summary(late, [], '2026-12-20').lateFeeCents, 0);       // 2 days late
+  const s = PpCalc.summary(late, [], '2026-12-25');                           // 7 days late
+  assert.equal(s.lateDays, 7); assert.equal(s.lateFeeCents, 25000); assert.equal(s.lateFeeStarts, '2026-12-21');
+  assert.equal(PpCalc.summary({ ...late, late_fee_waived: true }, [], '2026-12-25').lateFeeCents, 0);
+  assert.equal(PpCalc.summary({ ...late, late_fee_per_day: 0 }, [], '2026-12-25').lateFeeCents, 0);
+});
+
+test('missed payments: 3 in a row is the last chance, the 4th is a default; paying catches up', () => {
+  assert.equal(PpCalc.summary(late, [], '2027-01-19').standing, 'late');
+  const three = PpCalc.summary(late, [], '2027-02-19');
+  assert.deepEqual([three.missed, three.standing], [3, 'last_chance']);
+  const four = PpCalc.summary(late, [], '2027-03-19');
+  assert.deepEqual([four.missed, four.standing], [4, 'default']);
+  const caught = PpCalc.summary(late, [{ amount: 2000, received_date: '2027-03-19' }], '2027-03-19');
+  assert.deepEqual([caught.late, caught.missed, caught.standing], [false, 0, 'ok']);
+});
+
+// ---------- contract fill-in ----------
+const SAMPLE = { seller: { name: 'SIC Cycles' }, sample: true,
+  buyer: { name: 'Sample Buyer', address: '123 Example St, Tucson, AZ 85700', phone: '555-0100', email: 'buyer@example.com' },
+  vehicle: { year: 2021, make: 'Harley-Davidson', model: 'Street Bob', vin: 'SAMPLEVIN00000000', mileage: 12000 } };
+const text = d => JSON.stringify(d);
+test('contract fills in the plan: TILA box, schedule, insurance, registration, default terms', () => {
+  const r = PpCalc.amortize({ financedCents: 700000, apr: 20, payments: 52, schedule: 'biweekly' });
+  const d = PpContract.build({ ...SAMPLE, plan: { sale_date: '2026-11-21', sale_price: 8000, down_payment: 1000, schedule: 'biweekly',
+    first_due_date: '2026-12-04', apr: 20, term_payments: 52, payment_amount: r.paymentCents / 100, finance_charge: r.financeChargeCents / 100,
+    late_fee_per_day: 50, late_fee_grace_days: 2, missed_limit: 3, title_held: true } });
+  const t = text(d);
+  assert.match(d.status, /DRAFT FOR ATTORNEY REVIEW/); assert.match(d.status, /SAMPLE/);
+  for (const want of ['20.00%', '$1,519.61', '$7,000.00', '$8,519.61', '$9,519.61', '51 payments of $163.84 and a final payment of $163.77',
+    'every 14 days', 'Sample Buyer', 'SAMPLEVIN00000000', '12,000 miles', 'loss payee', 'Motor Vehicle Division', '$50.00 per day',
+    'more than 3 consecutive', 'before your 4th consecutive payment', 'ANY HOLDER OF THIS CONSUMER CREDIT CONTRACT']) assert.ok(t.includes(want), want);
+  assert.equal(d.numbers.lastPaymentCents, r.lastPaymentCents);
+  assert.doesNotMatch(t, /undefined|NaN|null/);
+});
+
+test('contract for a 0% monthly plan with no late fee (like the first test plan)', () => {
+  const d = PpContract.build({ ...SAMPLE, plan: { ...plan, sale_date: '2026-11-15', apr: 0, finance_charge: 0, missed_limit: 3 } });
+  const t = text(d);
+  assert.ok(t.includes('0.00%')); assert.ok(t.includes('21 payments of $500.00 and a final payment of $500.00'));
+  assert.ok(t.includes('on the 18th day of each month')); assert.ok(t.includes('No late charge applies'));
+  assert.ok(t.includes('Final payment due September 18, 2028'));
+  assert.doesNotMatch(t, /undefined|NaN|null/);
+});
+
+test('attorney list covers licence, rate, late fee, repossession and TILA', () => {
+  const topics = PpContract.ATTORNEY_QUESTIONS.map(q => q[0]).join(' ');
+  for (const t of ['Licensing', 'Interest rate', 'Late fee', 'Repossession', 'Truth in Lending']) assert.ok(topics.includes(t), t);
 });

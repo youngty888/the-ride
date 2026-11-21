@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
 <link rel="stylesheet" href="sh.css?v=20261119b">
-<link rel="stylesheet" href="pp.css?v=20261121a">
+<link rel="stylesheet" href="pp.css?v=20261121b">
 </head>
 <body>
 <header class="sh-header pp-noprint">
@@ -41,8 +41,10 @@
     <div class="sh-print-tools pp-noprint">
       <button type="button" class="sh-btn" id="ppBack">‹ All plans</button>
       <button type="button" class="sh-btn" id="ppEdit">Edit terms</button>
+      <button type="button" class="sh-btn" id="ppContractBtn">Contract</button>
       <button type="button" class="sh-btn sh-btn-primary" id="ppPrint">Print</button>
     </div>
+    <div id="ppAlert" class="pp-alert" role="status" hidden></div>
     <article class="pp-doc">
       <div class="pp-doc-head">
         <div><div class="pp-title" id="ppTitle"></div><div class="sh-muted" id="ppSub"></div></div>
@@ -54,6 +56,13 @@
         <div><b id="ppNext"></b><span id="ppNextLabel">Next due</span></div>
         <div><b id="ppLeft"></b><span id="ppLeftLabel">Payments left</span></div>
         <div><b id="ppPayoff"></b><span>Projected payoff</span></div>
+      </div>
+      <div id="ppPayBox" class="pp-paybox pp-noprint" hidden>
+        <div><b>Pay by card</b> <span class="sh-muted" id="ppAutopayText"></span></div>
+        <div class="pp-paybox-actions">
+          <a class="sh-btn pp-a" id="ppPayLinkOpen" target="_blank" rel="noopener noreferrer">Open pay link</a>
+          <button type="button" class="sh-btn" id="ppPayLinkCopy">Copy pay link</button>
+        </div>
       </div>
       <h2>Sale terms</h2>
       <dl class="pp-terms" id="ppTerms"></dl>
@@ -71,7 +80,7 @@
         <label>Date received <input id="ppPayDate" type="date" required></label>
         <label>Amount <input id="ppPayAmount" inputmode="decimal" required></label>
         <label>Method
-          <select id="ppPayMethod"><option>Cash</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Card</option><option>Other</option></select>
+          <select id="ppPayMethod"><option>Cash</option><option>Card (pay link)</option><option>Autopay</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Card</option><option>Other</option></select>
         </label>
         <label>Notes <input id="ppPayNotes" autocomplete="off"></label>
       </div>
@@ -113,12 +122,38 @@
           <label>Sale price * <input id="ppPrice" inputmode="decimal"></label>
           <label>Down payment <input id="ppDown" inputmode="decimal" placeholder="0"></label>
           <label>Down payment date <input id="ppDownDate" type="date"></label>
-          <label>Monthly payment * <input id="ppMonthly" inputmode="decimal"></label>
-          <label>Due on day of month * <input id="ppDueDay" inputmode="numeric" placeholder="1 to 28"></label>
+          <label>Payments due
+            <select id="ppSchedule"><option value="biweekly">Every two weeks</option><option value="monthly">Monthly</option></select></label>
           <label>First payment due * <input id="ppFirstDue" type="date"></label>
-          <label>Interest <input id="ppInterest" placeholder="None, flat price"></label>
+          <label id="ppDueDayWrap">Due on day of month * <input id="ppDueDay" inputmode="numeric" placeholder="1 to 28"></label>
+          <label>Interest rate (APR %) <input id="ppApr" inputmode="decimal" placeholder="0 for none"></label>
+          <label>Number of payments <input id="ppTerm" inputmode="numeric"></label>
+          <label>Payment amount * <input id="ppAmount" inputmode="decimal"></label>
         </div>
+        <div class="pp-calcrow"><button type="button" class="sh-btn" id="ppCalcBtn">Work out payment</button> <span class="sh-muted" id="ppCalcOut"></span></div>
+        <label>Interest note <input id="ppInterest" placeholder="e.g. None, flat price"></label>
         <label class="pp-check"><input type="checkbox" id="ppTitleHeld" checked> We keep the title until it is paid in full</label>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Late payments</legend>
+        <div class="sh-grid3">
+          <label>Late fee per day <input id="ppLateFee" inputmode="decimal" placeholder="0 for none"></label>
+          <label>Starts after (days late) <input id="ppGrace" inputmode="numeric"></label>
+          <label>Default after missing more than <input id="ppMissedLimit" inputmode="numeric"></label>
+        </div>
+        <label class="pp-check"><input type="checkbox" id="ppLateWaived"> Arrangement made: no late fees on this plan</label>
+        <p class="sh-muted pp-small">Late fees are only shown here and on the contract. Nothing is charged automatically. Arizona law may cap late fees; see the lawyer list.</p>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Card pay link and autopay</legend>
+        <label>Card pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (PayPal or other card link)"></label>
+        <div class="sh-grid2">
+          <label>Autopay <select id="ppAutopay"><option value="off">Off</option><option value="pending">Sent, waiting on buyer</option><option value="on">On</option></select></label>
+          <label>Autopay note <input id="ppAutopayNote" placeholder="e.g. PayPal subscription, every 2 weeks"></label>
+        </div>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Plan</legend>
         <label>Status <select id="ppStatus"><option value="active">Active</option><option value="paid_off">Paid off</option><option value="cancelled">Cancelled</option></select></label>
         <label>Notes <textarea id="ppNotes" rows="2"></textarea></label>
       </fieldset>
@@ -129,12 +164,22 @@
       </div>
     </form>
   </section>
+
+  <!-- Contract filled in from the plan -->
+  <section id="ppContract" class="pp-view" hidden>
+    <div class="sh-print-tools pp-noprint">
+      <button type="button" class="sh-btn" id="ppContractBack">‹ Back to plan</button>
+      <button type="button" class="sh-btn sh-btn-primary" id="ppContractPrint">Print</button>
+    </div>
+    <article class="pp-doc pp-contract" id="ppContractDoc"></article>
+  </section>
 </main>
 
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="pp-calc.js?v=20261121a"></script>
-<script src="pp-app.js?v=20261121a"></script>
+<script src="pp-calc.js?v=20261121b"></script>
+<script src="pp-contract.js?v=20261121a"></script>
+<script src="pp-app.js?v=20261121b"></script>
 </body>
 </html>

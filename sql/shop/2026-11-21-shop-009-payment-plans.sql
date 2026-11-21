@@ -1,12 +1,17 @@
 -- shop-009: payment plans. Tracks a bike (or anything) sold to a customer on
--- monthly payments: sale terms, every payment received, and the balance left.
+-- payments (monthly or every two weeks): sale terms, interest, late-fee terms,
+-- the card pay link, every payment received, and the balance left.
 -- Replaces the per-customer Google Sheet payment trackers.
 -- Additive and safe to re-run. Run AFTER shop-004. Does not touch any other table.
 -- (008 is held for tech sign-off work on another branch.)
 -- NOT yet run on the live database: Tyler runs it.
 --
--- Rules carried over from the Low Rider S tracker sheet:
---   * flat price, no interest; a set monthly payment due on one day of the month
+-- Rules (Low Rider S tracker sheet, plus Tyler's financing terms of Nov 21):
+--   * a set payment due monthly (one day of the month) or every 14 days
+--   * interest is optional (apr 0 = flat price). With interest the finance
+--     charge is worked out once when the plan is saved (pp-calc.js amortize)
+--     and stored, so the balance is price - down + finance charge - paid
+--   * late fees and missed-payment counts are SHOWN, never charged by the database
 --   * extra money comes off the balance and moves the payoff date earlier
 --   * only payments staff marked as received count (the sheet's "TY" initials);
 --     the database records who marked it, from the sign-in, never from the client
@@ -23,10 +28,21 @@ create table if not exists public.shop_payment_plans (
   sale_price numeric(10,2) not null check (sale_price > 0),
   down_payment numeric(10,2) not null default 0 check (down_payment >= 0),
   down_payment_date date,
-  monthly_payment numeric(10,2) not null check (monthly_payment > 0),
-  due_day integer not null check (due_day between 1 and 28),
+  schedule text not null default 'monthly' check (schedule in ('monthly','biweekly')),
+  payment_amount numeric(10,2) not null check (payment_amount > 0),
+  due_day integer check (due_day between 1 and 28),   -- monthly plans only
   first_due_date date not null,
+  apr numeric(6,3) not null default 0 check (apr >= 0 and apr <= 100),
+  term_payments integer check (term_payments between 1 and 520),
+  finance_charge numeric(10,2) not null default 0 check (finance_charge >= 0),
   interest_note text not null default 'None, flat price',
+  late_fee_per_day numeric(8,2) not null default 0 check (late_fee_per_day >= 0),
+  late_fee_grace_days integer not null default 2 check (late_fee_grace_days between 0 and 60),
+  late_fee_waived boolean not null default false,     -- an arrangement was made: no late fees
+  missed_limit integer not null default 3 check (missed_limit between 1 and 24),
+  pay_link_url text check (pay_link_url ~ '^https://[A-Za-z0-9.-]+(/[^[:space:]"''<>]*)?$'),
+  autopay text not null default 'off' check (autopay in ('off','pending','on')),
+  autopay_note text,
   title_held boolean not null default true,  -- seller holds title until paid off
   status text not null default 'active' check (status in ('active','paid_off','cancelled')),
   notes text,
@@ -34,7 +50,9 @@ create table if not exists public.shop_payment_plans (
   created_by uuid not null,
   updated_at timestamptz not null default now(),
   updated_by uuid not null,
-  check (down_payment < sale_price)
+  check (down_payment < sale_price),
+  check ((schedule = 'monthly') = (due_day is not null)),
+  check (apr = 0 or (term_payments is not null and finance_charge > 0))
 );
 create index if not exists shop_payment_plans_customer_idx on public.shop_payment_plans (customer_id);
 
@@ -68,7 +86,8 @@ with (security_invoker = true) as
 select p.*,
   coalesce(r.paid, 0) as payments_received,
   p.down_payment + coalesce(r.paid, 0) as total_paid,
-  greatest(p.sale_price - p.down_payment - coalesce(r.paid, 0), 0) as balance,
+  p.sale_price - p.down_payment + p.finance_charge as total_owed,
+  greatest(p.sale_price - p.down_payment + p.finance_charge - coalesce(r.paid, 0), 0) as balance,
   coalesce(r.count, 0) as payment_count,
   r.last_date as last_payment_date
 from public.shop_payment_plans p
@@ -118,8 +137,10 @@ end $$;
 
 -- Create or update a plan. The customer and bike must already exist (made on an
 -- estimate, with shop_save_customer, or by a seed file). p_plan: {customer_id, bike_id, item, sale_date,
--- sale_price, down_payment, down_payment_date, monthly_payment, due_day,
--- first_due_date, interest_note, title_held, status, notes}
+-- sale_price, down_payment, down_payment_date, schedule, payment_amount, due_day,
+-- first_due_date, apr, term_payments, finance_charge, interest_note,
+-- late_fee_per_day, late_fee_grace_days, late_fee_waived, missed_limit,
+-- pay_link_url, autopay, autopay_note, title_held, status, notes}
 create or replace function public.shop_save_payment_plan(p_plan_id text, p_plan jsonb)
 returns jsonb
 language plpgsql security definer set search_path = public, pg_temp
@@ -127,10 +148,19 @@ as $$
 declare
   v_uid uuid := auth.uid(); v_row public.shop_payment_plans%rowtype; v_exists boolean;
   v_cust text := shop_clean(p_plan->>'customer_id'); v_bike text := shop_clean(p_plan->>'bike_id');
-  v_owner text;
+  v_owner text; v_sched text := coalesce(shop_clean(p_plan->>'schedule'), 'monthly');
+  v_link text := shop_clean(p_plan->>'pay_link_url');
 begin
   if not shop_has_staff_access() then raise exception 'not authorized'; end if;
   if p_plan_id is null or p_plan_id !~ '^[A-Za-z0-9_-]{6,64}$' then raise exception 'invalid plan id'; end if;
+  if v_sched not in ('monthly','biweekly') then raise exception 'Schedule must be monthly or every two weeks'; end if;
+  if v_sched = 'monthly' and shop_clean(p_plan->>'due_day') is null then raise exception 'Monthly plans need a due day'; end if;
+  if v_link is not null and v_link !~ '^https://[A-Za-z0-9.-]+(/[^[:space:]"''<>]*)?$' then
+    raise exception 'Pay link must be a full https:// link';
+  end if;
+  if coalesce(shop_num(p_plan->>'apr', 'APR', 0), 0) > 0 and shop_clean(p_plan->>'term_payments') is null then
+    raise exception 'Plans with interest need the number of payments';
+  end if;
   if v_cust is null or not exists (select 1 from shop_customers where id = v_cust) then raise exception 'Pick a customer'; end if;
   if v_bike is not null then
     select customer_id into v_owner from shop_bikes where id = v_bike;
@@ -143,27 +173,39 @@ begin
   select exists (select 1 from shop_payment_plans where id = p_plan_id) into v_exists;
 
   insert into shop_payment_plans (id, customer_id, bike_id, item, sale_date, sale_price, down_payment,
-    down_payment_date, monthly_payment, due_day, first_due_date, interest_note, title_held, status, notes,
-    created_by, updated_by)
+    down_payment_date, schedule, payment_amount, due_day, first_due_date, apr, term_payments, finance_charge,
+    interest_note, late_fee_per_day, late_fee_grace_days, late_fee_waived, missed_limit,
+    pay_link_url, autopay, autopay_note, title_held, status, notes, created_by, updated_by)
   values (p_plan_id, v_cust, v_bike, shop_clean(p_plan->>'item'), (p_plan->>'sale_date')::date,
     shop_num(p_plan->>'sale_price', 'Sale price', null), shop_num(p_plan->>'down_payment', 'Down payment', 0),
-    nullif(shop_clean(p_plan->>'down_payment_date'), '')::date,
-    shop_num(p_plan->>'monthly_payment', 'Monthly payment', null), shop_int(p_plan->>'due_day', 'Due day'),
-    (p_plan->>'first_due_date')::date, coalesce(shop_clean(p_plan->>'interest_note'), 'None, flat price'),
+    nullif(shop_clean(p_plan->>'down_payment_date'), '')::date, v_sched,
+    shop_num(p_plan->>'payment_amount', 'Payment amount', null),
+    case when v_sched = 'monthly' then shop_int(p_plan->>'due_day', 'Due day') end,
+    (p_plan->>'first_due_date')::date, shop_num(p_plan->>'apr', 'APR', 0),
+    shop_int(p_plan->>'term_payments', 'Number of payments'), shop_num(p_plan->>'finance_charge', 'Finance charge', 0),
+    coalesce(shop_clean(p_plan->>'interest_note'), case when coalesce(shop_num(p_plan->>'apr', 'APR', 0), 0) = 0 then 'None, flat price' else 'Simple interest' end),
+    shop_num(p_plan->>'late_fee_per_day', 'Late fee', 0), coalesce(shop_int(p_plan->>'late_fee_grace_days', 'Grace days'), 2),
+    coalesce((p_plan->>'late_fee_waived')::boolean, false), coalesce(shop_int(p_plan->>'missed_limit', 'Missed payments'), 3),
+    v_link, coalesce(shop_clean(p_plan->>'autopay'), 'off'), shop_clean(p_plan->>'autopay_note'),
     coalesce((p_plan->>'title_held')::boolean, true), coalesce(shop_clean(p_plan->>'status'), 'active'),
     shop_clean(p_plan->>'notes'), v_uid, v_uid)
   on conflict (id) do update set
     customer_id = excluded.customer_id, bike_id = excluded.bike_id, item = excluded.item,
     sale_date = excluded.sale_date, sale_price = excluded.sale_price, down_payment = excluded.down_payment,
-    down_payment_date = excluded.down_payment_date, monthly_payment = excluded.monthly_payment,
-    due_day = excluded.due_day, first_due_date = excluded.first_due_date,
-    interest_note = excluded.interest_note, title_held = excluded.title_held, status = excluded.status,
+    down_payment_date = excluded.down_payment_date, schedule = excluded.schedule, payment_amount = excluded.payment_amount,
+    due_day = excluded.due_day, first_due_date = excluded.first_due_date, apr = excluded.apr,
+    term_payments = excluded.term_payments, finance_charge = excluded.finance_charge,
+    interest_note = excluded.interest_note, late_fee_per_day = excluded.late_fee_per_day,
+    late_fee_grace_days = excluded.late_fee_grace_days, late_fee_waived = excluded.late_fee_waived,
+    missed_limit = excluded.missed_limit, pay_link_url = excluded.pay_link_url, autopay = excluded.autopay,
+    autopay_note = excluded.autopay_note, title_held = excluded.title_held, status = excluded.status,
     notes = excluded.notes, updated_at = now(), updated_by = v_uid
   returning * into v_row;
 
   insert into shop_audit_log (table_name, row_id, action, actor, detail)
   values ('shop_payment_plans', p_plan_id, case when v_exists then 'update' else 'insert' end, v_uid,
-          jsonb_build_object('sale_price', v_row.sale_price, 'monthly_payment', v_row.monthly_payment, 'status', v_row.status));
+          jsonb_build_object('sale_price', v_row.sale_price, 'payment_amount', v_row.payment_amount, 'apr', v_row.apr,
+            'schedule', v_row.schedule, 'status', v_row.status));
   return jsonb_build_object('plan_id', v_row.id, 'updated_at', v_row.updated_at);
 end $$;
 
@@ -192,7 +234,7 @@ begin
   if v_amount <> round(v_amount, 2) then raise exception 'Amount: use at most 2 decimal places'; end if;
   if shop_clean(p_payment->>'received_date') is null then raise exception 'Date received is required'; end if;
   select coalesce(sum(amount), 0) into v_paid from shop_plan_payments where plan_id = v_plan_id;
-  v_balance := v_plan.sale_price - v_plan.down_payment - v_paid;
+  v_balance := v_plan.sale_price - v_plan.down_payment + v_plan.finance_charge - v_paid;
   if v_amount > v_balance then
     raise exception 'That is more than the balance left (%)', to_char(v_balance, 'FM$999,999,990.00');
   end if;
