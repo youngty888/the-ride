@@ -1,0 +1,29 @@
+/* Rewards and Dollars for Dads page. Builds on sh.css. */
+.rw-a { text-decoration: none; display: inline-flex; align-items: center; }
+h2 { font-size: 1.05rem; margin: 1rem 0 .4rem; color: var(--orange); }
+.rw-tabs { margin-bottom: 1rem; }
+.rw-tabs button[aria-selected="true"] { background: var(--orange); border-color: var(--orange); color: #fff; }
+.rw-row { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+.rw-row.rw-has { border-left-color: var(--green); }
+.rw-doc { background: var(--surface); border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; margin-bottom: 1rem; }
+.rw-title { font-size: 1.3rem; font-weight: 800; }
+.rw-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin: 1rem 0; }
+.rw-stats div { background: var(--surface-2); border-radius: .5rem; padding: .6rem; }
+.rw-stats b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.rw-stats span { font-size: .8rem; color: var(--muted); }
+.rw-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.rw-table th, .rw-table td { padding: .4rem .35rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.rw-num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.rw-table input[type=checkbox] { width: 22px; height: 22px; margin: 0; }
+.rw-x { min-height: 32px; padding: .2rem .5rem; font-size: .8rem; }
+.rw-check { display: flex; gap: .5rem; align-items: center; color: var(--text); }
+.rw-check input { width: auto; margin: 0; }
+.rw-settings summary { cursor: pointer; font-weight: 700; }
+.rw-settings hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
+.rw-bottom { display: flex; align-items: flex-end; padding-bottom: .45rem; }
+.rw-prizes { display: flex; flex-wrap: wrap; gap: .35rem; }
+.rw-prize { min-height: 34px; padding: .2rem .6rem; font-size: .85rem; border-radius: 999px; }
+.rw-prize.rw-given { background: var(--green); border-color: var(--green); color: #fff; }
+.rw-refunded td { color: var(--muted); text-decoration: line-through; }
+#rwSearch { margin-bottom: .75rem; }
+@media (max-width: 620px) { .rw-hist th:nth-child(5), .rw-hist td:nth-child(5) { display: none; } }

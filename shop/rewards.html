@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>SIC Cycles — Rewards and Dollars for Dads</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="sic-icon-180.png">
+<link rel="stylesheet" href="sh.css?v=20261119b">
+<link rel="stylesheet" href="rw.css?v=20261121a">
+</head>
+<body>
+<header class="sh-header">
+  <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Rewards · D4D</small></div>
+  <nav class="sh-nav">
+    <a class="sh-btn sh-btn-quiet rw-a" href="./">Back to shop</a>
+  </nav>
+</header>
+
+<div id="rwMsg" class="sh-msg" role="alert" hidden></div>
+
+<main>
+  <section id="rwLoading" class="rw-view"><p class="sh-muted">Loading…</p></section>
+
+  <section id="rwSignedOut" class="rw-view sh-card sh-narrow" hidden>
+    <h1>Sign in first</h1>
+    <p id="rwSignedOutText">Sign in on the shop page with a staff account, then come back here.</p>
+    <a class="sh-btn sh-btn-primary rw-a" href="./">Go to shop sign in</a>
+  </section>
+
+  <div id="rwTabs" class="sh-chips rw-tabs" role="tablist" hidden>
+    <button type="button" role="tab" data-tab="rewards" id="rwTabRewards">Rewards points</button>
+    <button type="button" role="tab" data-tab="d4d" id="rwTabD4d">Dollars for Dads</button>
+  </div>
+
+  <!-- ======================= REWARDS ======================= -->
+  <section id="rwRewards" class="rw-view" hidden>
+    <p class="sh-muted" id="rwRule"></p>
+    <input type="search" id="rwSearch" placeholder="Search customers" aria-label="Search customers">
+    <div id="rwCustomers" class="sh-jobs"></div>
+
+    <details class="sh-card rw-settings">
+      <summary>Rewards settings</summary>
+      <form id="rwSetForm" novalidate>
+        <label class="rw-check"><input type="checkbox" id="rwSetOn"> Rewards are on</label>
+        <div class="sh-grid2">
+          <label>Points per $1 spent (before tax) <input id="rwSetRate" inputmode="decimal"></label>
+          <label>Each point is worth (cents) <input id="rwSetValue" inputmode="decimal"></label>
+          <label>Jobs dated on or after this earn <input id="rwSetStart" type="date"></label>
+        </div>
+        <button type="submit" class="sh-btn sh-btn-primary" id="rwSetSave">Save rewards settings</button>
+      </form>
+      <hr>
+      <p class="sh-muted">Give points for jobs that were already marked Paid, from a date you pick. Safe to run twice.</p>
+      <div class="sh-grid2">
+        <label>From <input id="rwBackfillFrom" type="date"></label>
+        <div class="rw-bottom"><button type="button" class="sh-btn" id="rwBackfill">Give points for earlier paid jobs</button></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="rwCustomer" class="rw-view" hidden>
+    <div class="sh-print-tools"><button type="button" class="sh-btn" id="rwBack">‹ All customers</button></div>
+    <article class="rw-doc">
+      <div class="rw-title" id="rwCName"></div>
+      <div class="sh-muted" id="rwCSub"></div>
+      <div class="rw-stats">
+        <div><b id="rwCBal"></b><span>Points now</span></div>
+        <div><b id="rwCVal"></b><span>Worth</span></div>
+        <div><b id="rwCEarned"></b><span>Earned</span></div>
+        <div><b id="rwCUsed"></b><span>Used</span></div>
+      </div>
+      <h2>History</h2>
+      <table class="rw-table rw-hist"><thead><tr><th>Date</th><th>What</th><th class="rw-num">Points</th><th>Note</th><th>By</th></tr></thead><tbody id="rwCRows"></tbody></table>
+    </article>
+    <form id="rwRedeemForm" class="sh-card" novalidate>
+      <h2>Use points</h2>
+      <div class="sh-grid2">
+        <label>Points to use <input id="rwRedeemPts" inputmode="numeric"></label>
+        <label>On job (optional) <select id="rwRedeemJob"></select></label>
+      </div>
+      <p class="sh-muted" id="rwRedeemWorth"></p>
+      <label>Note <input id="rwRedeemNote" autocomplete="off" placeholder="e.g. took $5 off IV#1004"></label>
+      <button type="submit" class="sh-btn sh-btn-primary" id="rwRedeemSave">Use points</button>
+      <p class="sh-muted">Take the same dollar amount off the invoice (add a "Rewards credit" line).</p>
+    </form>
+    <form id="rwAdjustForm" class="sh-card" novalidate>
+      <h2>Add or remove points by hand</h2>
+      <div class="sh-grid2">
+        <label>Points (use - to remove) <input id="rwAdjPts" inputmode="numeric"></label>
+        <label>Reason * <input id="rwAdjNote" autocomplete="off" placeholder="e.g. sign-up bonus"></label>
+      </div>
+      <button type="submit" class="sh-btn" id="rwAdjSave">Save change</button>
+    </form>
+  </section>
+
+  <!-- ======================= DOLLARS FOR DADS ======================= -->
+  <section id="rwD4d" class="rw-view" hidden>
+    <label>Campaign <select id="rwCampaign"></select></label>
+    <div class="rw-stats" id="rwSummary">
+      <div><b id="rwSRaised"></b><span>Raised</span></div>
+      <div><b id="rwSSent"></b><span>Sent to ManUp</span></div>
+      <div><b id="rwSOwed"></b><span>Not sent yet</span></div>
+      <div><b id="rwSDonors"></b><span>Donors</span></div>
+    </div>
+    <p class="sh-warn" id="rwRefundWarn" hidden></p>
+
+    <form id="rwDonForm" class="sh-card" novalidate>
+      <h2>Add a donation</h2>
+      <label>Shop customer (optional) <select id="rwDonCust"></select></label>
+      <div class="sh-grid2">
+        <label>Donor name * <input id="rwDonName" autocomplete="off"></label>
+        <label>Email <input id="rwDonEmail" type="email" autocomplete="off"></label>
+        <label>Phone <input id="rwDonPhone" type="tel" autocomplete="off"></label>
+        <label>Amount * <input id="rwDonAmount" inputmode="decimal"></label>
+        <label>Date * <input id="rwDonDate" type="date"></label>
+        <label>Where <select id="rwDonSource"><option value="shop">Shop counter</option><option value="event">Event</option><option value="shopify">Online store order</option><option value="online">Other online</option><option value="other">Other</option></select></label>
+        <label>Paid by <select id="rwDonMethod"><option>Cash</option><option>Card</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Shopify</option><option>Other</option></select></label>
+        <label>Online order number <input id="rwDonOrder" autocomplete="off" placeholder="#1234"></label>
+      </div>
+      <label>Note <input id="rwDonNote" autocomplete="off"></label>
+      <div id="rwDonErrors" class="sh-errors" role="alert" hidden></div>
+      <button type="submit" class="sh-btn sh-btn-primary" id="rwDonSave">Save donation</button>
+    </form>
+
+    <h2>Donors</h2>
+    <p class="sh-muted">1 raffle entry per $1. $20+ neck gaiter, $50+ t-shirt, $100+ AZ Edition vest drawing. ⚠ = a single gift over $75 (disclosure note).</p>
+    <div id="rwDonors" class="sh-jobs"></div>
+
+    <h2>Donations</h2>
+    <div class="rw-fwd sh-card">
+      <p class="sh-muted">Tick donations you've sent to ManUp, then save.</p>
+      <div class="sh-grid2">
+        <label>Sent on <input id="rwFwdDate" type="date"></label>
+        <label>Reference * <input id="rwFwdRef" autocomplete="off" placeholder="check no. or transfer id"></label>
+      </div>
+      <button type="button" class="sh-btn sh-btn-primary" id="rwFwdSave">Mark ticked as sent to ManUp</button>
+    </div>
+    <table class="rw-table"><thead><tr><th></th><th>Date</th><th>Donor</th><th class="rw-num">Amount</th><th>Status</th><th></th></tr></thead><tbody id="rwDonRows"></tbody></table>
+  </section>
+</main>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="rw-app.js?v=20261121a"></script>
+</body>
+</html>
