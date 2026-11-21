@@ -179,3 +179,4 @@ input[readonly] { color: var(--muted); }
   .sh-doc-auth { margin: .5rem 0 0; font-size: 8.5pt; }
   .sh-doc-sign { margin-top: 1.4rem; gap: 1.2rem; }
 }
+a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
