@@ -116,17 +116,22 @@
       return;
     }
     try {
-      const [jobs, customers, bikes, parts] = await Promise.all([
+      const [jobs, customers, bikes, parts, audit, staff] = await Promise.all([
         ShApi.select('shop_jobs', 'select=id,invoice_number,estimate_number,customer_id,bike_id,status,payment_status,job_date,total_amount,work_description,notes,customer_notes&order=job_date.asc'),
         ShApi.select('shop_customers', 'select=id,name,phone'),
         ShApi.select('shop_bikes', 'select=id,vin,make,model,year,mileage'),
         ShApi.select('shop_part_orders', 'select=*&received=eq.false&order=date_ordered.asc').catch(() => null),
+        ShApi.select('shop_audit_log', 'select=row_id,actor,changed_at,detail&table_name=eq.shop_jobs&action=eq.status&order=changed_at.asc').catch(() => []),
+        ShApi.select('shop_staff', 'select=user_id,display_name').catch(() => []),
       ]);
+      const staffName = Object.fromEntries((staff || []).map(s => [s.user_id, s.display_name]));
+      const signedBy = {};
+      for (const a of audit || []) if (a.detail && a.detail.to === 'complete') signedBy[a.row_id] = staffName[a.actor] || 'staff';
       const cById = Object.fromEntries(customers.map(c => [c.id, c]));
       const bById = Object.fromEntries(bikes.map(b => [b.id, b]));
       const jById = Object.fromEntries(jobs.map(j => [j.id, j]));
       const open = jobs.filter(j => !(j.status === 'complete' && j.payment_status === 'paid'));
-      renderBoard(open, cById, bById);
+      renderBoard(open, cById, bById, signedBy);
       renderParts(parts || [], jById, cById);
       renderStats(jobs, parts);
       $('syAsOf').textContent = `Filled from the shop ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` + (parts ? '' : ' Parts orders could not be read.');
@@ -144,7 +149,7 @@
   }
   function jobNo(j) { return j.invoice_number ? `IV#${j.invoice_number}` : (j.estimate_number ? `EST#${j.estimate_number}` : ''); }
 
-  function renderBoard(jobs, cById, bById) {
+  function renderBoard(jobs, cById, bById, signedBy = {}) {
     const tb = $('syBoard').tBodies[0]; tb.replaceChildren();
     const rank = j => (j.status === 'complete' ? 0 : j.status === 'in_progress' ? 1 : 2);
     jobs.sort((a, b) => rank(a) - rank(b) || String(a.job_date).localeCompare(String(b.job_date)));
@@ -155,7 +160,7 @@
         el('td', {}, [el('b', { text: c.name || '' }), el('br'), c.phone || '']),
         td(bikeText(bById[j.bike_id])),
         el('td', {}, [jobNo(j), j.work_description ? el('div', { cls: 'sy-small', text: j.work_description }) : null]),
-        td(STATUS[j.status] || j.status),
+        el('td', {}, [STATUS[j.status] || j.status, signedBy[j.id] ? el('div', { cls: 'sy-small', text: `signed off: ${signedBy[j.id]}` }) : null]),
         td(money(j.total_amount), 'num'),
         td((unpaidDone ? 'NOT PAID' : PAID[j.payment_status]) || ''),
         td(String(daysSince(j.job_date)), 'num'),
