@@ -113,7 +113,7 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   assert.match(await page.locator('#ppCalcOut').innerText(), /Finance charge \$1,519\.61/);
   await page.fill('#ppPayLink', 'javascript:alert(1)'); await page.click('#ppPlanSave');
   assert.match(await page.locator('#ppErrors').innerText(), /https/);
-  await page.selectOption('#ppPayProvider', 'chase');
+  assert.equal(await page.inputValue('#ppPayProvider'), 'stripe'); // Stripe is the default for a new plan
   await page.fill('#ppPayLink', 'https://pay.example.com/link/SAMPLE123'); await page.selectOption('#ppAutopay', 'pending');
   await page.click('#ppPlanSave');
   await page.waitForSelector('#ppDetail:not([hidden])');
@@ -123,7 +123,7 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   assert.match(alert, /3 payments missed in a row/); assert.match(alert, /One more missed payment is a default/);
   assert.match(alert, /Late fees so far: \$1,400\.00/);
   assert.equal(await page.getAttribute('#ppPayLinkOpen', 'href'), 'https://pay.example.com/link/SAMPLE123');
-  assert.match(await page.locator('#ppAutopayText').innerText(), /Chase[\s\S]*Autopay sent, waiting on buyer/);
+  assert.match(await page.locator('#ppAutopayText').innerText(), /Stripe[\s\S]*Autopay sent, waiting on buyer/);
   await page.screenshot({ path: path.join(OUT, 'plan-biweekly-late.png'), fullPage: true });
 
   await page.click('#ppContractBtn');

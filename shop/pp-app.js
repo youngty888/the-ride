@@ -17,12 +17,12 @@
   const STATUS = { active: 'Active', paid_off: 'Paid off', cancelled: 'Cancelled' };
   const SCHED = { monthly: 'month', biweekly: 'two weeks' };
   const AUTOPAY = { off: 'Autopay off', pending: 'Autopay sent, waiting on buyer', on: 'Autopay on' };
-  const PROVIDER = { chase: 'Chase', stripe: 'Stripe', square: 'Square', shopify: 'Shopify', bank: 'Direct bank transfer', other: 'Other processor' };
+  const PROVIDER = { stripe: 'Stripe', chase: 'Chase', square: 'Square', shopify: 'Shopify', bank: 'Direct bank transfer', other: 'Other processor' };
   const SAFE_LINK = /^https:\/\/[A-Za-z0-9.-]+(\/[^\s"'<>]*)?$/;
   const ord = n => n + ['th', 'st', 'nd', 'rd'][(n % 10 > 3 || [11, 12, 13].includes(n % 100)) ? 0 : n % 10];
   // Defaults for new plans (Tyler, Nov 21): 20% APR, due every two weeks,
   // $50 a day late after 2 days, default after missing more than 3 in a row.
-  const NEW_PLAN = { schedule: 'biweekly', apr: '20', late_fee_per_day: '50', late_fee_grace_days: '2', missed_limit: '3' };
+  const NEW_PLAN = { schedule: 'biweekly', apr: '20', late_fee_per_day: '50', late_fee_grace_days: '2', missed_limit: '3', pay_provider: 'stripe' };
   const SELLER = { name: 'SIC Cycles', address: '', phone: '', email: '' };
 
   function el(tag, props = {}, ...kids) {
@@ -258,7 +258,7 @@
       set('ppDownDate', p?.down_payment_date); set('ppAmount', p?.payment_amount); set('ppDueDay', p?.due_day); set('ppFirstDue', p?.first_due_date);
       set('ppSchedule', d.schedule || 'monthly'); set('ppApr', d.apr != null ? String(Number(d.apr)) : ''); set('ppTerm', p?.term_payments);
       set('ppLateFee', d.late_fee_per_day != null ? String(Number(d.late_fee_per_day)) : ''); set('ppGrace', d.late_fee_grace_days); set('ppMissedLimit', d.missed_limit);
-      set('ppPayLink', p?.pay_link_url); set('ppPayProvider', p?.pay_provider || ''); set('ppAutopay', p?.autopay || 'off'); set('ppAutopayNote', p?.autopay_note);
+      set('ppPayLink', p?.pay_link_url); set('ppPayProvider', (p ? p.pay_provider : NEW_PLAN.pay_provider) || ''); set('ppAutopay', p?.autopay || 'off'); set('ppAutopayNote', p?.autopay_note);
       $('ppLateWaived').checked = !!p?.late_fee_waived; $('ppCalcOut').textContent = '';
       set('ppInterest', p?.interest_note); set('ppNotes', p?.notes); set('ppStatus', p?.status || 'active');
       $('ppTitleHeld').checked = p ? !!p.title_held : true;

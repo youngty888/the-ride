@@ -13,7 +13,7 @@
 --     and stored, so the balance is price - down + finance charge - paid
 --   * late fees and missed-payment counts are SHOWN, never charged by the database
 --   * the pay link belongs to a processor that deposits straight to the shop's
---     bank account (Tyler's plan: a Chase payment link). The provider is a
+--     bank account (Tyler's pick: Stripe, card or bank autopay, paying out to the shop's bank). The provider is a
 --     field, so it can be swapped (Stripe, Square...) without other changes.
 --     No bank account or routing numbers are ever stored here.
 --     Payments made through the link are still marked received by staff.

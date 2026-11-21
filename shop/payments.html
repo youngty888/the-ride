@@ -146,14 +146,14 @@
       </fieldset>
       <fieldset class="sh-card">
         <legend>Pay link (card or bank) and autopay</legend>
-        <p class="sh-muted pp-small">Paste the payment link from the shop's bank (for example a Chase payment link) so the money goes straight to the bank account. Never type bank account or routing numbers here.</p>
+        <p class="sh-muted pp-small">Paste the plan's Stripe payment link. The buyer pays by card or bank (ACH) and can set up autopay; Stripe pays out to the shop's bank account, set in Stripe's own settings. Never type bank account or routing numbers here.</p>
         <div class="sh-grid2">
-          <label>Processor <select id="ppPayProvider"><option value="">None yet</option><option value="chase">Chase</option><option value="stripe">Stripe</option><option value="square">Square</option><option value="shopify">Shopify</option><option value="bank">Direct bank transfer</option><option value="other">Other</option></select></label>
+          <label>Processor <select id="ppPayProvider"><option value="">None yet</option><option value="stripe">Stripe</option><option value="chase">Chase</option><option value="square">Square</option><option value="shopify">Shopify</option><option value="bank">Direct bank transfer</option><option value="other">Other</option></select></label>
           <label>Pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (paste the payment link)"></label>
         </div>
         <div class="sh-grid2">
           <label>Autopay <select id="ppAutopay"><option value="off">Off</option><option value="pending">Sent, waiting on buyer</option><option value="on">On</option></select></label>
-          <label>Autopay note <input id="ppAutopayNote" placeholder="e.g. Chase, every 2 weeks"></label>
+          <label>Autopay note <input id="ppAutopayNote" placeholder="e.g. Stripe, bank autopay every 2 weeks"></label>
         </div>
       </fieldset>
       <fieldset class="sh-card">

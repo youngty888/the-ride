@@ -111,10 +111,10 @@ test('an interest plan every two weeks: the finance charge is owed, overpaying i
   await rpc('tyler', 'shop_save_payment_plan', { p_plan_id: 'plan-test-03', p_plan: { ...PLAN, schedule: 'biweekly', due_day: null,
     sale_price: '8000', down_payment: '1000', first_due_date: '2026-12-04', apr: '20', term_payments: '52',
     payment_amount: (r.paymentCents / 100).toFixed(2), finance_charge: (r.financeChargeCents / 100).toFixed(2),
-    late_fee_per_day: '50', late_fee_grace_days: '2', missed_limit: '3', pay_provider: 'chase', pay_link_url: 'https://pay.example.com/link/SAMPLE123', autopay: 'pending' } });
+    late_fee_per_day: '50', late_fee_grace_days: '2', missed_limit: '3', pay_provider: 'stripe', pay_link_url: 'https://pay.example.com/link/SAMPLE123', autopay: 'pending' } });
   const [s] = await as('tyler', `select * from public.shop_payment_plan_summary where id = 'plan-test-03'`);
   assert.equal(Number(s.balance), 8519.61); assert.equal(Number(s.total_owed), 8519.61);
-  assert.equal(s.schedule, 'biweekly'); assert.equal(s.due_day, null); assert.equal(s.autopay, 'pending'); assert.equal(s.pay_provider, 'chase');
+  assert.equal(s.schedule, 'biweekly'); assert.equal(s.due_day, null); assert.equal(s.autopay, 'pending'); assert.equal(s.pay_provider, 'stripe');
   await assert.rejects(rpc('tyler', 'shop_record_plan_payment', { p_payment_id: 'pay-test-31', p_payment: { plan_id: 'plan-test-03', amount: '8519.62', received_date: '2026-12-04' } }), /more than the balance/);
   const ok = await rpc('tyler', 'shop_record_plan_payment', { p_payment_id: 'pay-test-32', p_payment: { plan_id: 'plan-test-03', amount: '7500', received_date: '2026-12-04' } });
   assert.equal(Number(ok.balance), 1019.61); // more than the old price-minus-down would allow
