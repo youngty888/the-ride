@@ -113,7 +113,8 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   assert.match(await page.locator('#ppCalcOut').innerText(), /Finance charge \$1,519\.61/);
   await page.fill('#ppPayLink', 'javascript:alert(1)'); await page.click('#ppPlanSave');
   assert.match(await page.locator('#ppErrors').innerText(), /https/);
-  await page.fill('#ppPayLink', 'https://www.paypal.com/ncp/payment/SAMPLE123'); await page.selectOption('#ppAutopay', 'pending');
+  await page.selectOption('#ppPayProvider', 'chase');
+  await page.fill('#ppPayLink', 'https://pay.example.com/link/SAMPLE123'); await page.selectOption('#ppAutopay', 'pending');
   await page.click('#ppPlanSave');
   await page.waitForSelector('#ppDetail:not([hidden])');
   assert.equal(await page.locator('#ppBalance').innerText(), '$8,519.61');
@@ -121,8 +122,8 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   const alert = await page.locator('#ppAlert').innerText();
   assert.match(alert, /3 payments missed in a row/); assert.match(alert, /One more missed payment is a default/);
   assert.match(alert, /Late fees so far: \$1,400\.00/);
-  assert.equal(await page.getAttribute('#ppPayLinkOpen', 'href'), 'https://www.paypal.com/ncp/payment/SAMPLE123');
-  assert.match(await page.locator('#ppAutopayText').innerText(), /Autopay sent, waiting on buyer/);
+  assert.equal(await page.getAttribute('#ppPayLinkOpen', 'href'), 'https://pay.example.com/link/SAMPLE123');
+  assert.match(await page.locator('#ppAutopayText').innerText(), /Chase[\s\S]*Autopay sent, waiting on buyer/);
   await page.screenshot({ path: path.join(OUT, 'plan-biweekly-late.png'), fullPage: true });
 
   await page.click('#ppContractBtn');
@@ -137,7 +138,7 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   await page.click('#ppContractBack');
   await page.waitForSelector('#ppDetail:not([hidden])');
   // three payments catch it up: the alert goes away
-  await page.fill('#ppPayAmount', ((r.paymentCents * 3) / 100).toFixed(2)); await page.selectOption('#ppPayMethod', 'Card (pay link)');
+  await page.fill('#ppPayAmount', ((r.paymentCents * 3) / 100).toFixed(2)); await page.selectOption('#ppPayMethod', 'Bank (ACH)');
   await page.click('#ppPaySave');
   await page.waitForFunction(() => document.getElementById('ppAlert').hidden);
   assert.equal(await page.locator('#ppBadge').innerText(), 'Up to date');

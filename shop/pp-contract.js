@@ -67,7 +67,7 @@
       ] },
       { h: '5. Your promise to pay', p: [
         `You promise to pay us the Total of Payments under the payment schedule above, plus any late charges and other amounts due under this contract. ${biweekly ? 'Payments are due every two weeks.' : 'Payments are due monthly.'} Any amount paid over the scheduled payment is applied to the unpaid balance and shortens the term; it does not excuse the next scheduled payment.`,
-        'Payments may be made in person, by the card payment link we provide, or by automatic payment if you sign a separate automatic payment authorization. Automatic payment is optional and is not a condition of this contract. You may cancel an automatic payment authorization by notifying us at least 3 business days before the next payment date.',
+        'Payments may be made in person, through the payment link we provide (card or bank transfer to our bank account), or by automatic payment if you sign a separate automatic payment authorization. Automatic payment is optional and is not a condition of this contract. You may cancel an automatic payment authorization by notifying us at least 3 business days before the next payment date.',
         'Each payment is applied first to late charges then due, then to Finance Charge earned, then to the Amount Financed.'] },
       { h: '6. Insurance (required)', p: [
         'You must keep the motorcycle insured until this contract is paid in full, with at least the liability coverage required by Arizona law and comprehensive and collision coverage for the motorcycle’s actual cash value with a deductible no higher than $' + BLANK + '.',

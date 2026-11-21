@@ -12,6 +12,11 @@
 --     charge is worked out once when the plan is saved (pp-calc.js amortize)
 --     and stored, so the balance is price - down + finance charge - paid
 --   * late fees and missed-payment counts are SHOWN, never charged by the database
+--   * the pay link belongs to a processor that deposits straight to the shop's
+--     bank account (Tyler's plan: a Chase payment link). The provider is a
+--     field, so it can be swapped (Stripe, Square...) without other changes.
+--     No bank account or routing numbers are ever stored here.
+--     Payments made through the link are still marked received by staff.
 --   * extra money comes off the balance and moves the payoff date earlier
 --   * only payments staff marked as received count (the sheet's "TY" initials);
 --     the database records who marked it, from the sign-in, never from the client
@@ -40,6 +45,7 @@ create table if not exists public.shop_payment_plans (
   late_fee_grace_days integer not null default 2 check (late_fee_grace_days between 0 and 60),
   late_fee_waived boolean not null default false,     -- an arrangement was made: no late fees
   missed_limit integer not null default 3 check (missed_limit between 1 and 24),
+  pay_provider text check (pay_provider in ('chase','stripe','square','shopify','bank','other')), -- who deposits the money to the bank
   pay_link_url text check (pay_link_url ~ '^https://[A-Za-z0-9.-]+(/[^[:space:]"''<>]*)?$'),
   autopay text not null default 'off' check (autopay in ('off','pending','on')),
   autopay_note text,
@@ -140,7 +146,7 @@ end $$;
 -- sale_price, down_payment, down_payment_date, schedule, payment_amount, due_day,
 -- first_due_date, apr, term_payments, finance_charge, interest_note,
 -- late_fee_per_day, late_fee_grace_days, late_fee_waived, missed_limit,
--- pay_link_url, autopay, autopay_note, title_held, status, notes}
+-- pay_provider, pay_link_url, autopay, autopay_note, title_held, status, notes}
 create or replace function public.shop_save_payment_plan(p_plan_id text, p_plan jsonb)
 returns jsonb
 language plpgsql security definer set search_path = public, pg_temp
@@ -175,7 +181,7 @@ begin
   insert into shop_payment_plans (id, customer_id, bike_id, item, sale_date, sale_price, down_payment,
     down_payment_date, schedule, payment_amount, due_day, first_due_date, apr, term_payments, finance_charge,
     interest_note, late_fee_per_day, late_fee_grace_days, late_fee_waived, missed_limit,
-    pay_link_url, autopay, autopay_note, title_held, status, notes, created_by, updated_by)
+    pay_provider, pay_link_url, autopay, autopay_note, title_held, status, notes, created_by, updated_by)
   values (p_plan_id, v_cust, v_bike, shop_clean(p_plan->>'item'), (p_plan->>'sale_date')::date,
     shop_num(p_plan->>'sale_price', 'Sale price', null), shop_num(p_plan->>'down_payment', 'Down payment', 0),
     nullif(shop_clean(p_plan->>'down_payment_date'), '')::date, v_sched,
@@ -186,7 +192,7 @@ begin
     coalesce(shop_clean(p_plan->>'interest_note'), case when coalesce(shop_num(p_plan->>'apr', 'APR', 0), 0) = 0 then 'None, flat price' else 'Simple interest' end),
     shop_num(p_plan->>'late_fee_per_day', 'Late fee', 0), coalesce(shop_int(p_plan->>'late_fee_grace_days', 'Grace days'), 2),
     coalesce((p_plan->>'late_fee_waived')::boolean, false), coalesce(shop_int(p_plan->>'missed_limit', 'Missed payments'), 3),
-    v_link, coalesce(shop_clean(p_plan->>'autopay'), 'off'), shop_clean(p_plan->>'autopay_note'),
+    shop_clean(p_plan->>'pay_provider'), v_link, coalesce(shop_clean(p_plan->>'autopay'), 'off'), shop_clean(p_plan->>'autopay_note'),
     coalesce((p_plan->>'title_held')::boolean, true), coalesce(shop_clean(p_plan->>'status'), 'active'),
     shop_clean(p_plan->>'notes'), v_uid, v_uid)
   on conflict (id) do update set
@@ -197,7 +203,7 @@ begin
     term_payments = excluded.term_payments, finance_charge = excluded.finance_charge,
     interest_note = excluded.interest_note, late_fee_per_day = excluded.late_fee_per_day,
     late_fee_grace_days = excluded.late_fee_grace_days, late_fee_waived = excluded.late_fee_waived,
-    missed_limit = excluded.missed_limit, pay_link_url = excluded.pay_link_url, autopay = excluded.autopay,
+    missed_limit = excluded.missed_limit, pay_provider = excluded.pay_provider, pay_link_url = excluded.pay_link_url, autopay = excluded.autopay,
     autopay_note = excluded.autopay_note, title_held = excluded.title_held, status = excluded.status,
     notes = excluded.notes, updated_at = now(), updated_by = v_uid
   returning * into v_row;

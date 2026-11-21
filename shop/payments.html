@@ -58,7 +58,7 @@
         <div><b id="ppPayoff"></b><span>Projected payoff</span></div>
       </div>
       <div id="ppPayBox" class="pp-paybox pp-noprint" hidden>
-        <div><b>Pay by card</b> <span class="sh-muted" id="ppAutopayText"></span></div>
+        <div><b>Pay by card or bank</b> <span class="sh-muted" id="ppAutopayText"></span></div>
         <div class="pp-paybox-actions">
           <a class="sh-btn pp-a" id="ppPayLinkOpen" target="_blank" rel="noopener noreferrer">Open pay link</a>
           <button type="button" class="sh-btn" id="ppPayLinkCopy">Copy pay link</button>
@@ -80,7 +80,7 @@
         <label>Date received <input id="ppPayDate" type="date" required></label>
         <label>Amount <input id="ppPayAmount" inputmode="decimal" required></label>
         <label>Method
-          <select id="ppPayMethod"><option>Cash</option><option>Card (pay link)</option><option>Autopay</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Card</option><option>Other</option></select>
+          <select id="ppPayMethod"><option>Cash</option><option>Card (pay link)</option><option>Bank (ACH)</option><option>Autopay</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Card</option><option>Other</option></select>
         </label>
         <label>Notes <input id="ppPayNotes" autocomplete="off"></label>
       </div>
@@ -145,11 +145,15 @@
         <p class="sh-muted pp-small">Late fees are only shown here and on the contract. Nothing is charged automatically. Arizona law may cap late fees; see the lawyer list.</p>
       </fieldset>
       <fieldset class="sh-card">
-        <legend>Card pay link and autopay</legend>
-        <label>Card pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (PayPal or other card link)"></label>
+        <legend>Pay link (card or bank) and autopay</legend>
+        <p class="sh-muted pp-small">Paste the payment link from the shop's bank (for example a Chase payment link) so the money goes straight to the bank account. Never type bank account or routing numbers here.</p>
+        <div class="sh-grid2">
+          <label>Processor <select id="ppPayProvider"><option value="">None yet</option><option value="chase">Chase</option><option value="stripe">Stripe</option><option value="square">Square</option><option value="shopify">Shopify</option><option value="bank">Direct bank transfer</option><option value="other">Other</option></select></label>
+          <label>Pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (paste the payment link)"></label>
+        </div>
         <div class="sh-grid2">
           <label>Autopay <select id="ppAutopay"><option value="off">Off</option><option value="pending">Sent, waiting on buyer</option><option value="on">On</option></select></label>
-          <label>Autopay note <input id="ppAutopayNote" placeholder="e.g. PayPal subscription, every 2 weeks"></label>
+          <label>Autopay note <input id="ppAutopayNote" placeholder="e.g. Chase, every 2 weeks"></label>
         </div>
       </fieldset>
       <fieldset class="sh-card">

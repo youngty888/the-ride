@@ -17,6 +17,7 @@
   const STATUS = { active: 'Active', paid_off: 'Paid off', cancelled: 'Cancelled' };
   const SCHED = { monthly: 'month', biweekly: 'two weeks' };
   const AUTOPAY = { off: 'Autopay off', pending: 'Autopay sent, waiting on buyer', on: 'Autopay on' };
+  const PROVIDER = { chase: 'Chase', stripe: 'Stripe', square: 'Square', shopify: 'Shopify', bank: 'Direct bank transfer', other: 'Other processor' };
   const SAFE_LINK = /^https:\/\/[A-Za-z0-9.-]+(\/[^\s"'<>]*)?$/;
   const ord = n => n + ['th', 'st', 'nd', 'rd'][(n % 10 > 3 || [11, 12, 13].includes(n % 100)) ? 0 : n % 10];
   // Defaults for new plans (Tyler, Nov 21): 20% APR, due every two weeks,
@@ -187,11 +188,11 @@
 
     renderPayBox(p) {
       const link = p.pay_link_url && SAFE_LINK.test(p.pay_link_url) ? p.pay_link_url : '';
-      const box = $('ppPayBox'); box.hidden = !link && (p.autopay || 'off') === 'off';
+      const box = $('ppPayBox'); box.hidden = !link && !p.pay_provider && (p.autopay || 'off') === 'off';
       const open = $('ppPayLinkOpen');
       if (link) open.href = link; else open.removeAttribute('href');
       open.hidden = !link; $('ppPayLinkCopy').hidden = !link;
-      $('ppAutopayText').textContent = [link ? '' : 'No pay link yet.', AUTOPAY[p.autopay || 'off'], p.autopay_note].filter(Boolean).join(' · ');
+      $('ppAutopayText').textContent = [PROVIDER[p.pay_provider], link ? '' : 'No pay link yet.', AUTOPAY[p.autopay || 'off'], p.autopay_note].filter(Boolean).join(' · ');
     },
 
     async copyLink() {
@@ -257,7 +258,7 @@
       set('ppDownDate', p?.down_payment_date); set('ppAmount', p?.payment_amount); set('ppDueDay', p?.due_day); set('ppFirstDue', p?.first_due_date);
       set('ppSchedule', d.schedule || 'monthly'); set('ppApr', d.apr != null ? String(Number(d.apr)) : ''); set('ppTerm', p?.term_payments);
       set('ppLateFee', d.late_fee_per_day != null ? String(Number(d.late_fee_per_day)) : ''); set('ppGrace', d.late_fee_grace_days); set('ppMissedLimit', d.missed_limit);
-      set('ppPayLink', p?.pay_link_url); set('ppAutopay', p?.autopay || 'off'); set('ppAutopayNote', p?.autopay_note);
+      set('ppPayLink', p?.pay_link_url); set('ppPayProvider', p?.pay_provider || ''); set('ppAutopay', p?.autopay || 'off'); set('ppAutopayNote', p?.autopay_note);
       $('ppLateWaived').checked = !!p?.late_fee_waived; $('ppCalcOut').textContent = '';
       set('ppInterest', p?.interest_note); set('ppNotes', p?.notes); set('ppStatus', p?.status || 'active');
       $('ppTitleHeld').checked = p ? !!p.title_held : true;
@@ -349,7 +350,7 @@
           apr: String(apr), term_payments: term != null ? String(term) : null,
           finance_charge: calc ? (calc.financeChargeCents / 100).toFixed(2) : '0',
           late_fee_per_day: money2(v('ppLateFee')) || '0', late_fee_grace_days: v('ppGrace') || '2', late_fee_waived: $('ppLateWaived').checked,
-          missed_limit: v('ppMissedLimit') || '3', pay_link_url: v('ppPayLink'), autopay: $('ppAutopay').value, autopay_note: v('ppAutopayNote'),
+          missed_limit: v('ppMissedLimit') || '3', pay_provider: $('ppPayProvider').value || null, pay_link_url: v('ppPayLink'), autopay: $('ppAutopay').value, autopay_note: v('ppAutopayNote'),
           interest_note: v('ppInterest'), title_held: $('ppTitleHeld').checked,
           status: $('ppStatus').value, notes: v('ppNotes') } });
         if (await this.refresh()) { this.openPlan(this.editing.planId); this.message('Plan saved.'); }
