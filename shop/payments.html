@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>SIC Cycles — Payment plans</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="sic-icon-180.png">
+<link rel="stylesheet" href="sh.css?v=20261119b">
+<link rel="stylesheet" href="pp.css?v=20261121a">
+</head>
+<body>
+<header class="sh-header pp-noprint">
+  <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Payment plans</small></div>
+  <nav class="sh-nav">
+    <button type="button" class="sh-btn sh-btn-primary" id="ppNewBtn" hidden>+ New plan</button>
+    <a class="sh-btn sh-btn-quiet pp-a" href="./">Back to shop</a>
+  </nav>
+</header>
+
+<div id="ppMsg" class="sh-msg pp-noprint" role="alert" hidden></div>
+
+<main>
+  <section id="ppLoading" class="pp-view"><p class="sh-muted">Loading…</p></section>
+
+  <section id="ppSignedOut" class="pp-view sh-card sh-narrow" hidden>
+    <h1>Sign in first</h1>
+    <p id="ppSignedOutText">Sign in on the shop page with a staff account, then come back here.</p>
+    <a class="sh-btn sh-btn-primary pp-a" href="./">Go to shop sign in</a>
+  </section>
+
+  <!-- All plans -->
+  <section id="ppList" class="pp-view" hidden>
+    <div id="ppPlans" class="sh-jobs"></div>
+  </section>
+
+  <!-- One plan -->
+  <section id="ppDetail" class="pp-view" hidden>
+    <div class="sh-print-tools pp-noprint">
+      <button type="button" class="sh-btn" id="ppBack">‹ All plans</button>
+      <button type="button" class="sh-btn" id="ppEdit">Edit terms</button>
+      <button type="button" class="sh-btn sh-btn-primary" id="ppPrint">Print</button>
+    </div>
+    <article class="pp-doc">
+      <div class="pp-doc-head">
+        <div><div class="pp-title" id="ppTitle"></div><div class="sh-muted" id="ppSub"></div></div>
+        <div class="pp-badge" id="ppBadge"></div>
+      </div>
+      <div class="pp-stats">
+        <div><b id="ppBalance"></b><span>Balance left</span></div>
+        <div><b id="ppPaid"></b><span>Total paid</span></div>
+        <div><b id="ppNext"></b><span id="ppNextLabel">Next due</span></div>
+        <div><b id="ppLeft"></b><span id="ppLeftLabel">Payments left</span></div>
+        <div><b id="ppPayoff"></b><span>Projected payoff</span></div>
+      </div>
+      <h2>Sale terms</h2>
+      <dl class="pp-terms" id="ppTerms"></dl>
+      <h2>Payments received</h2>
+      <table class="pp-table">
+        <thead><tr><th>Date received</th><th>Amount</th><th>Method</th><th>Notes</th><th>Marked by</th><th>Balance after</th><th class="pp-noprint"></th></tr></thead>
+        <tbody id="ppRows"></tbody>
+      </table>
+    </article>
+
+    <form id="ppPayForm" class="sh-card pp-noprint" novalidate>
+      <h2>Record a payment</h2>
+      <p class="sh-muted">Only mark money you actually have. Your sign-in is saved as who marked it.</p>
+      <div class="sh-grid2">
+        <label>Date received <input id="ppPayDate" type="date" required></label>
+        <label>Amount <input id="ppPayAmount" inputmode="decimal" required></label>
+        <label>Method
+          <select id="ppPayMethod"><option>Cash</option><option>Zelle</option><option>Cash App</option><option>Venmo</option><option>PayPal</option><option>Check</option><option>Card</option><option>Other</option></select>
+        </label>
+        <label>Notes <input id="ppPayNotes" autocomplete="off"></label>
+      </div>
+      <div class="pp-pay-actions"><button type="submit" class="sh-btn sh-btn-primary sh-wide" id="ppPaySave">Save payment</button></div>
+    </form>
+  </section>
+
+  <!-- New / edit plan -->
+  <section id="ppEditor" class="pp-view" hidden>
+    <form id="ppPlanForm" novalidate>
+      <h1 id="ppEditorTitle">New payment plan</h1>
+      <fieldset class="sh-card">
+        <legend>Customer and bike</legend>
+        <label>Customer <select id="ppCustomer"></select></label>
+        <div id="ppNewCustomer" class="sh-grid2" hidden>
+          <label>Name * <input id="ppCName" autocomplete="off"></label>
+          <label>Phone <input id="ppCPhone" type="tel" autocomplete="off"></label>
+          <label>Email <input id="ppCEmail" type="email" autocomplete="off"></label>
+          <label>Address <input id="ppCAddress" autocomplete="off"></label>
+        </div>
+        <label>Bike <select id="ppBike"></select></label>
+        <div id="ppNewBike" hidden>
+          <div class="sh-grid3">
+            <label>Year <input id="ppBYear" inputmode="numeric"></label>
+            <label>Make <input id="ppBMake"></label>
+            <label>Model <input id="ppBModel"></label>
+          </div>
+          <div class="sh-grid2">
+            <label>VIN <input id="ppBVin" autocapitalize="characters"></label>
+            <label>Mileage <input id="ppBMileage" inputmode="numeric"></label>
+          </div>
+        </div>
+        <label>What was sold * <input id="ppItem" placeholder="e.g. 2023 Harley-Davidson Low Rider S"></label>
+      </fieldset>
+      <fieldset class="sh-card">
+        <legend>Terms</legend>
+        <div class="sh-grid2">
+          <label>Sale date * <input id="ppSaleDate" type="date"></label>
+          <label>Sale price * <input id="ppPrice" inputmode="decimal"></label>
+          <label>Down payment <input id="ppDown" inputmode="decimal" placeholder="0"></label>
+          <label>Down payment date <input id="ppDownDate" type="date"></label>
+          <label>Monthly payment * <input id="ppMonthly" inputmode="decimal"></label>
+          <label>Due on day of month * <input id="ppDueDay" inputmode="numeric" placeholder="1 to 28"></label>
+          <label>First payment due * <input id="ppFirstDue" type="date"></label>
+          <label>Interest <input id="ppInterest" placeholder="None, flat price"></label>
+        </div>
+        <label class="pp-check"><input type="checkbox" id="ppTitleHeld" checked> We keep the title until it is paid in full</label>
+        <label>Status <select id="ppStatus"><option value="active">Active</option><option value="paid_off">Paid off</option><option value="cancelled">Cancelled</option></select></label>
+        <label>Notes <textarea id="ppNotes" rows="2"></textarea></label>
+      </fieldset>
+      <div id="ppErrors" class="sh-errors" role="alert" hidden></div>
+      <div class="sh-actions">
+        <button type="submit" class="sh-btn sh-btn-primary" id="ppPlanSave">Save plan</button>
+        <button type="button" class="sh-btn" id="ppPlanCancel">Cancel</button>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="pp-calc.js?v=20261121a"></script>
+<script src="pp-app.js?v=20261121a"></script>
+</body>
+</html>
