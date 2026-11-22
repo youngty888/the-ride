@@ -67,6 +67,7 @@ const App = {
     // Set up profile
     this.setupProfile();
     this.setupShop();
+    this.showStaffLinkIfStaff();
 
     // Render initial screens
     this.renderGarage();
@@ -1388,6 +1389,24 @@ const App = {
     document.getElementById('lbNational').addEventListener('click', () => {
       this.setLeaderboardTab('national');
     });
+  },
+
+  // The "SIC Cycles Shop (staff)" link stays hidden for riders and buyers. It shows only
+  // when the shop database says this login is on the shop staff list. (The shop pages
+  // check this again themselves; hiding the link just keeps riders out of a dead end.)
+  async showStaffLinkIfStaff() {
+    const link = document.getElementById('shopStaffLink');
+    if (!link) return;
+    try {
+      const session = await RideAuth.session();
+      const config = window.SICC_RIDE_SUPABASE;
+      const response = await fetch(`${config.url}/rest/v1/rpc/shop_has_staff_access`, {
+        method: 'POST', signal: AbortSignal.timeout(15000),
+        headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      link.hidden = !(response.ok && (await response.json()) === true);
+    } catch { link.hidden = true; }
   },
 
   setupShop() {

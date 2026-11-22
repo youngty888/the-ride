@@ -54,3 +54,15 @@ test('index.html links a web app manifest that exists and has icons', () => {
   assert.ok(mf.icons.length >= 2);
   for (const i of mf.icons) assert.ok(fs.existsSync(path.join(root, i.src)), `missing icon ${i.src}`);
 });
+
+test('index.html: the staff shop link starts hidden and only staff logins reveal it', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const link = html.match(/<a[^>]*class="shop-switch-link"[^>]*>/);
+  assert.ok(link, 'staff link present');
+  assert.match(link[0], /\bid="shopStaffLink"/);
+  assert.match(link[0], /\shidden\b/);
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  assert.match(app, /showStaffLinkIfStaff\(\)/);
+  assert.match(app, /rpc\/shop_has_staff_access/);
+  assert.match(fs.readFileSync(path.join(root, 'styles.css'), 'utf8'), /#shopStaffLink\[hidden\]\s*\{\s*display:\s*none/);
+});
