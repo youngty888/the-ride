@@ -1,0 +1,60 @@
+/* SICC Syndicate meeting form. Dark on screen like the shop; black on white
+   when printed, with inputs printed as write-on lines. */
+.sy-main { max-width: 1000px; }
+.sy-doc { display: block; }
+.sy-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding-bottom: .8rem; border-bottom: 3px solid var(--orange); margin-bottom: 1rem; }
+.sy-brand { font-size: 1.7rem; font-weight: 800; font-style: italic; letter-spacing: -.02em; color: var(--orange); }
+.sy-sub { color: var(--muted); font-size: .9rem; }
+.sy-meta { display: flex; gap: .6rem; flex-wrap: wrap; }
+.sy-meta label { margin: 0; min-width: 140px; }
+.sy-sec { background: var(--surface); border: 1px solid var(--border); border-radius: .75rem; padding: .8rem 1rem; margin: 0 0 1rem; break-inside: avoid; }
+.sy-sec h2 { margin: 0 0 .35rem; font-size: 1.05rem; color: var(--orange); }
+.sy-auto { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-left: .4rem; }
+.sy-note { margin: 0 0 .5rem; color: var(--muted); font-size: .85rem; }
+.sy-small { font-size: .82rem; color: var(--muted); }
+.sy-checks { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: center; }
+.sy-checks label { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--text); }
+.sy-checks input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+.sy-other { flex: 1 1 200px; }
+.sy-other input { display: inline-block; width: auto; flex: 1; }
+.sy-inline { display: grid; grid-template-columns: 1fr; gap: 0 .75rem; }
+@media (min-width: 640px) { .sy-inline { grid-template-columns: 1fr 1fr 160px; } }
+.sy-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; }
+.sy-stats div { background: var(--surface-2); border-radius: .5rem; padding: .5rem .6rem; }
+.sy-stats b { display: block; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.sy-stats span { font-size: .78rem; color: var(--muted); }
+.sy-scroll { overflow-x: auto; }
+.sy-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.sy-table th, .sy-table td { padding: .35rem .35rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.sy-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.sy-table td input { margin: 0; padding: .35rem .4rem; min-width: 70px; }
+.sy-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sy-table .sy-c { text-align: center; }
+.sy-table .sy-c input { width: 20px; height: 20px; min-width: 0; margin: .3rem auto; }
+.sy-flag td { background: rgba(229,62,62,.14); }
+.sy-flag td:nth-child(6) { color: var(--red); font-weight: 800; }
+.sy-foot { color: var(--muted); font-size: .8rem; text-align: center; }
+
+@media print {
+  @page { size: letter; margin: .45in; }
+  :root { color-scheme: light; }
+  body { background: #fff !important; color: #000 !important; font-size: 11px; }
+  .sy-noprint, .sh-msg { display: none !important; }
+  main, .sy-main { padding: 0; max-width: none; }
+  .sy-sec { background: #fff; border: 1px solid #999; border-radius: 4px; padding: 6px 8px; margin: 0 0 8px; }
+  .sy-sec h2, .sy-brand { color: #000; }
+  .sy-head { border-bottom-color: #ff6b1a; }
+  .sy-note, .sy-small, .sy-sub, .sy-auto, .sy-stats span, .sy-table th, .sy-foot, label { color: #333 !important; }
+  .sy-stats div { background: #f2f2f2; }
+  .sy-table th, .sy-table td { border-bottom: 1px solid #bbb; padding: 3px 4px; }
+  .sy-table { font-size: 10px; }
+  .sy-flag td { background: #fde2e2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sy-flag td:nth-child(6) { color: #b00000; }
+  input, textarea, select { background: #fff !important; color: #000 !important; border: 0 !important; border-bottom: 1px solid #555 !important; border-radius: 0 !important; padding: 2px 2px !important; min-height: 18px; }
+  textarea { border: 1px solid #888 !important; min-height: 60px; resize: none; }
+  input[type=checkbox] { border: 1px solid #000 !important; -webkit-appearance: none; appearance: none; width: 12px !important; height: 12px !important; }
+  input[type=checkbox]:checked { background: #000 !important; }
+  .sy-scroll { overflow: visible; }
+  .sy-topic { break-inside: avoid; }
+  input::-webkit-calendar-picker-indicator { display: none; }
+}

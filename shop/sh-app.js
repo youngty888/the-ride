@@ -54,7 +54,12 @@
       $('shSignInForm').addEventListener('submit', e => { e.preventDefault(); this.signIn(); });
       $('shSignOutBtn').addEventListener('click', () => this.signOut());
       $('shNoAccessSignOut').addEventListener('click', () => this.signOut());
-      $('shNewJobBtn').addEventListener('click', () => this.openEditor(null));
+      $('shNewJobBtn').addEventListener('click', () => { this.closeMenu(); this.openEditor(null); });
+      $('shNewMenuBtn').addEventListener('click', () => this.toggleMenu());
+      $('shNewSignoff').addEventListener('click', () => { this.closeMenu(); this.pickJobForSignoff(); });
+      $('shNewList').addEventListener('click', e => { if (e.target.closest('a')) this.closeMenu(); });
+      document.addEventListener('click', e => { if (!e.target.closest('#shNewMenu')) this.closeMenu(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('shNewList').hidden) { this.closeMenu(); $('shNewMenuBtn').focus(); } });
       $('shSettingsBtn').addEventListener('click', () => this.openSettings());
       document.querySelectorAll('[data-go-settings]').forEach(b => b.addEventListener('click', () => this.openSettings()));
       $('shSearch').addEventListener('input', e => { this.search = e.target.value; this.renderJobs(); });
@@ -77,6 +82,7 @@
       $('shPrintEdit').addEventListener('click', () => this.openEditor(this.printJobId));
       $('shSettingsForm').addEventListener('submit', e => { e.preventDefault(); this.saveSettings(); });
       $('shSetCancel').addEventListener('click', () => this.show('shList'));
+      $('shSoBack').addEventListener('click', () => this.show('shList'));
       root.addEventListener('beforeunload', e => { if (this.form?.dirty && !$('shEditor').hidden) { e.preventDefault(); e.returnValue = ''; } });
     },
 
@@ -94,7 +100,35 @@
       catch (e) { this.message(`Could not check shop access: ${e.message}`, true); this.show('shSignIn'); return; }
       if (ok !== true) { $('shNoAccessEmail').textContent = this.user?.email || 'this account'; this.show('shNoAccess'); return; }
       $('shNav').hidden = false;
-      if (await this.refresh()) this.show('shList');
+      ShApi.rpc('shop_log_login', {}).catch(() => { /* shop-008 not installed yet */ });
+      if (await this.refresh()) { this.openFromUrl(); document.dispatchEvent(new CustomEvent('shop:ready', { detail: { user: this.user } })); }
+    },
+
+    // Links from the document library and the New menu: ?job=<id> opens the
+    // customer copy, ?new=estimate opens a blank estimate, ?signoff=1 picks a job.
+    openFromUrl() {
+      const q = new URLSearchParams(root.location.search);
+      const job = q.get('job');
+      if (job && this.jobs.some(j => j.id === job)) return this.openPrint(job);
+      if (q.get('new') === 'estimate') return this.openEditor(null);
+      if (q.get('signoff')) return this.pickJobForSignoff();
+      this.show('shList');
+    },
+
+    toggleMenu() {
+      const list = $('shNewList'); const open = list.hidden;
+      list.hidden = !open; $('shNewMenuBtn').setAttribute('aria-expanded', String(open));
+      if (open) list.querySelector('[role=menuitem]')?.focus();
+    },
+    closeMenu() { $('shNewList').hidden = true; $('shNewMenuBtn').setAttribute('aria-expanded', 'false'); },
+
+    // Tech sign-off belongs to a job, so show the jobs in work and say what to press.
+    pickJobForSignoff() {
+      if (!this.confirmLeave()) return;
+      this.filter = 'in_progress'; this.search = ''; $('shSearch').value = '';
+      $('shFilter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.filter === 'in_progress'));
+      this.renderJobs(); this.show('shList');
+      this.message('Pick the job, then press Tech sign-off on it.');
     },
 
     async signIn() {
@@ -115,7 +149,7 @@
       if (!this.confirmLeave()) return;
       await ShApi.signOut();
       this.jobs = []; this.customers = []; this.bikes = []; this.form = null;
-      $('shNav').hidden = true; $('shJobsList').replaceChildren();
+      $('shNav').hidden = true; $('shJobsList').replaceChildren(); document.dispatchEvent(new CustomEvent('shop:signedout'));
       this.show('shSignIn');
     },
 
@@ -206,6 +240,7 @@
           el('div', { class: 'sh-job-actions' },
             el('button', { type: 'button', class: 'sh-btn', text: 'View / Print', onclick: () => this.openPrint(j.id) }),
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
+            j.status === 'estimate' ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Tech sign-off', onclick: () => this.openSignoff(j.id) }),
             j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for ${wo(j.estimate_number)}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
               ...Object.entries(PAY_LABEL).map(([v, t]) => el('option', { value: v, text: t, selected: (j.payment_status || 'unpaid') === v }))),
             next ? el('button', { type: 'button', class: 'sh-btn sh-btn-step', text: next[1], onclick: ev => this.setStatus(j.id, next[0], ev.currentTarget) }) : null));
@@ -235,6 +270,98 @@
       } catch (e) {
         if (!this.handleAuthError(e)) this.message(`Payment not changed: ${e.message}${/Could not find the function/i.test(e.message) ? ' (ask Tyler to run the shop-006 SQL file)' : ''}`, true);
       } finally { this.busy = false; await this.refresh(); }
+    },
+
+    // ---------- tech sign-off (shop-008) ----------
+    async openSignoff(jobId) {
+      if (this.busy) return;
+      this.message('');
+      const j = this.jobs.find(x => x.id === jobId);
+      if (!j) return;
+      let items, signs, staff, pm = false;
+      try {
+        [items, signs, staff] = await Promise.all([
+          ShApi.select('shop_job_line_items', `select=kind,description,quantity&job_id=eq.${encodeURIComponent(jobId)}&kind=eq.labor&order=sort_order.asc`),
+          ShApi.select('shop_labor_signoffs', `select=*&job_id=eq.${encodeURIComponent(jobId)}`),
+          ShApi.select('shop_staff', 'select=user_id,display_name,active'),
+        ]);
+        pm = (await ShApi.rpc('shop_is_payroll_manager', {})) === true;
+      } catch (e) {
+        if (this.handleAuthError(e)) return;
+        this.message(/shop_labor_signoffs|shop_is_payroll_manager|Could not find/i.test(e.message) ? 'Tech sign-off is not set up on the server yet (ask Tyler to run the shop-008 SQL file).' : `Could not open sign-off: ${e.message}`, true);
+        return;
+      }
+      const c = this.customer(j.customer_id) || {};
+      $('shSoTitle').textContent = `Tech sign-off · ${wo(j.estimate_number)}`;
+      $('shSoSub').textContent = [c.name, bikeLabel(this.bike(j.bike_id))].filter(Boolean).join(' · ');
+      const name = Object.fromEntries(staff.map(s => [s.user_id, s.display_name]));
+      const me = this.user?.id;
+      const steps = new Map();
+      for (const it of items) {
+        const key = String(it.description || '').trim().toLowerCase(); if (!key) continue;
+        if (!steps.has(key)) steps.set(key, { name: String(it.description).trim(), bid: 0, signs: [] });
+        steps.get(key).bid += Number(it.quantity) || 0;
+      }
+      for (const sg of signs) {
+        if (!steps.has(sg.step_key)) steps.set(sg.step_key, { name: sg.step_name, bid: 0, signs: [], gone: true });
+        steps.get(sg.step_key).signs.push(sg);
+      }
+      const box = $('shSoSteps'); box.replaceChildren();
+      if (!steps.size) box.append(el('p', { class: 'sh-card', text: 'This estimate has no labor lines to sign.' }));
+      for (const st of steps.values()) {
+        const used = st.signs.reduce((t, x) => t + Number(x.hours), 0);
+        const mine = st.signs.find(x => x.tech_id === me);
+        const disputed = st.signs.some(x => x.disputed);
+        const settled = st.signs.length && st.signs.every(x => x.resolved_at);
+        const hoursIn = el('input', { type: 'number', min: '0', step: '0.25', inputmode: 'decimal', value: mine ? numText(mine.hours) : '', 'aria-label': `My hours on ${st.name}` });
+        const card = el('div', { class: 'sh-card sh-so-step' },
+          el('div', { class: 'sh-job-top' }, el('strong', { text: st.name }),
+            el('span', { text: `${numText(+used.toFixed(2))} of ${numText(+st.bid.toFixed(2))} bid hrs signed` })),
+          st.gone ? el('div', { class: 'sh-warn', text: 'This step is no longer on the estimate. The payroll manager should settle it.' }) : null,
+          used > st.bid ? el('div', { class: 'sh-warn', text: 'Signed hours are over the bid (the estimate changed). The payroll manager should settle it.' }) : null,
+          disputed ? el('div', { class: 'sh-warn', text: `Disputed${st.signs.find(x => x.dispute_note)?.dispute_note ? ': ' + st.signs.find(x => x.dispute_note).dispute_note : ''}. Waiting on the payroll manager.` }) : null,
+          settled ? el('div', { class: 'sh-muted', text: 'Settled by the payroll manager.' }) : null,
+          el('ul', { class: 'sh-so-list' }, ...st.signs.map(x => el('li', { text: `${name[x.tech_id] || 'Staff'}: ${numText(+Number(x.hours).toFixed(2))} hrs` }))),
+          el('div', { class: 'sh-so-row' },
+            el('label', {}, 'My hours', hoursIn),
+            el('button', { type: 'button', class: 'sh-btn sh-btn-primary', text: mine ? 'Update' : 'Sign off', onclick: ev => this.signStep(jobId, st.name, hoursIn.value, ev.currentTarget) }),
+            mine ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Take back', onclick: ev => this.signStep(jobId, st.name, '0', ev.currentTarget) }) : null,
+            st.signs.length ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Flag dispute', onclick: () => this.disputeStep(jobId, st.name) }) : null));
+        if (pm && (st.signs.length || st.bid)) card.append(this.settleForm(jobId, st, staff));
+        box.append(card);
+      }
+      this.show('shSignoff');
+    },
+
+    settleForm(jobId, st, staff) {
+      const rows = staff.filter(s => s.active || st.signs.some(x => x.tech_id === s.user_id)).map(s => {
+        const cur = st.signs.find(x => x.tech_id === s.user_id);
+        return { id: s.user_id, input: el('input', { type: 'number', min: '0', step: '0.25', inputmode: 'decimal', value: cur ? numText(cur.hours) : '', 'aria-label': `Final hours for ${s.display_name}` }), label: s.display_name };
+      });
+      return el('details', { class: 'sh-so-settle' }, el('summary', { text: 'Payroll manager: set final hours' }),
+        el('div', { class: 'sh-grid2' }, ...rows.map(r => el('label', {}, r.label, r.input))),
+        el('button', { type: 'button', class: 'sh-btn', text: 'Save final hours', onclick: async ev => {
+          const splits = rows.filter(r => Number(r.input.value) > 0).map(r => ({ tech_id: r.id, hours: r.input.value }));
+          await this.runSignoff(jobId, ev.currentTarget, () => ShApi.rpc('shop_settle_step', { p_job_id: jobId, p_step: st.name, p_splits: splits }), `Final hours saved for ${st.name}.`);
+        } }));
+    },
+
+    async runSignoff(jobId, btn, call, okText) {
+      if (this.busy) return;
+      this.busy = true; if (btn) { btn.disabled = true; }
+      try { await call(); this.message(okText); }
+      catch (e) { if (!this.handleAuthError(e)) this.message(e.message, true); }
+      finally { this.busy = false; if (btn) btn.disabled = false; }
+      if (!$('shSignoff').hidden) await this.openSignoff(jobId);
+    },
+    signStep(jobId, step, hours, btn) {
+      return this.runSignoff(jobId, btn, () => ShApi.rpc('shop_sign_step', { p_job_id: jobId, p_step: step, p_hours: String(hours || '0') }),
+        Number(hours) > 0 ? `Signed ${hours} hrs on ${step}.` : `Took back your sign-off on ${step}.`);
+    },
+    disputeStep(jobId, step) {
+      const note = root.prompt(`What's wrong with the split on "${step}"? The payroll manager will settle it.`);
+      if (note === null) return;
+      return this.runSignoff(jobId, null, () => ShApi.rpc('shop_dispute_step', { p_job_id: jobId, p_step: step, p_note: note }), `Flagged ${step} for the payroll manager.`);
     },
 
     // ---------- editor ----------

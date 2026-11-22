@@ -1,0 +1,30 @@
+/* Shop calendar: month grid, day list and appointment form. */
+.ca-main { max-width: 1000px; margin: 0 auto; padding: 1rem; }
+.ca-bar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.ca-bar h1 { margin: 0; font-size: 1.35rem; min-width: 10rem; text-align: center; }
+.ca-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; font-size: .85rem; }
+.ca-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; }
+.ca-public { background: var(--orange); }
+.ca-personal { background: #7aa7ff; }
+.ca-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin: .5rem 0 1rem; }
+.ca-dow { padding: .3rem; text-align: center; font-size: .8rem; color: var(--muted); }
+.ca-cell { min-height: 4.6rem; padding: .25rem; text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: .35rem; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.ca-cell:hover { border-color: var(--muted); }
+.ca-cell.ca-out { opacity: .45; }
+.ca-cell.ca-today .ca-num { background: var(--orange); color: #fff; border-radius: 999px; padding: 0 .35rem; }
+.ca-cell.ca-sel { outline: 2px solid var(--orange); outline-offset: -2px; }
+.ca-num { align-self: flex-start; font-size: .85rem; font-weight: 700; }
+.ca-chip { display: block; font-size: .72rem; line-height: 1.25; padding: 1px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(255,107,26,.22); }
+.ca-chip.ca-p { background: rgba(122,167,255,.25); }
+.ca-more { font-size: .72rem; color: var(--muted); }
+@media (max-width: 559px) { .ca-cell { min-height: 3.2rem; } .ca-chip { font-size: 0; height: 6px; padding: 0; } .ca-more { display: none; } }
+.ca-day h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
+.ca-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; }
+.ca-item { display: grid; grid-template-columns: 6rem 1fr; gap: .5rem; align-items: start; width: 100%; padding: .55rem .6rem; text-align: left; font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--orange); border-radius: .45rem; cursor: pointer; }
+.ca-item.ca-p { border-left-color: #7aa7ff; }
+.ca-item.ca-x { opacity: .55; text-decoration: line-through; }
+.ca-item small { display: block; color: var(--muted); }
+.ca-when { color: var(--muted); font-size: .9rem; }
+.ca-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+.ca-check input { width: auto; margin: 0; }
+.ca-vis { display: grid; gap: .1rem; margin-top: .3rem; }

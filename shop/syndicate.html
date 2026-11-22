@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>SICC Syndicate Meeting</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="sic-icon-180.png">
+<link rel="stylesheet" href="sh.css?v=20261121c">
+<link rel="stylesheet" href="sy.css?v=20261121a">
+</head>
+<body>
+<header class="sh-header sy-noprint">
+  <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Syndicate</small></div>
+  <nav class="sh-nav">
+    <button type="button" class="sh-btn sh-btn-primary" id="syPrint">Print</button>
+    <button type="button" class="sh-btn" id="sySave">Save to library</button>
+    <button type="button" class="sh-btn" id="syRefresh">Refresh data</button>
+    <button type="button" class="sh-btn" id="syClear">Clear notes</button>
+    <a class="sh-btn" href="docs.html?type=meeting">Saved meetings</a>
+    <a class="sh-btn sh-btn-quiet" href="./">Back to shop</a>
+  </nav>
+</header>
+
+<div id="syMsg" class="sh-msg sy-noprint" role="status" hidden></div>
+
+<main class="sy-main">
+<form id="syForm" class="sy-doc" autocomplete="off" onsubmit="return false">
+
+  <div class="sy-head">
+    <div>
+      <div class="sy-brand">SICC SYNDICATE</div>
+      <div class="sy-sub">Weekly meeting · formerly the Sunday Shakedown</div>
+    </div>
+    <div class="sy-meta">
+      <label>Date <input type="date" name="meeting_date" id="syDate"></label>
+      <label>Start <input type="time" name="start_time" value="18:00"></label>
+      <label>Next meeting <input type="date" name="next_date" id="syNext"></label>
+    </div>
+  </div>
+
+  <section class="sy-sec">
+    <h2>Attendance</h2>
+    <div class="sy-checks">
+      <label><input type="checkbox" name="att_tyler"> Tyler</label>
+      <label><input type="checkbox" name="att_garrett"> Garrett</label>
+      <label><input type="checkbox" name="att_chappie"> Chappie</label>
+      <label><input type="checkbox" name="att_colt"> Colt</label>
+      <label><input type="checkbox" name="att_john"> John</label>
+      <label><input type="checkbox" name="att_fang"> Fang</label>
+      <label class="sy-other">Other <input name="att_other"></label>
+    </div>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Shop numbers <span class="sy-auto">auto from the shop</span></h2>
+    <div class="sy-stats" id="syStats">
+      <div><b id="stInWork">—</b><span>Jobs in work</span></div>
+      <div><b id="stEstimates">—</b><span>Open estimates</span></div>
+      <div><b id="stUnpaidCount">—</b><span>Done, not paid</span></div>
+      <div><b id="stUnpaid">—</b><span>Owed to the shop</span></div>
+      <div><b id="stWeek">—</b><span>Invoiced last 7 days</span></div>
+      <div><b id="stMonth">—</b><span>Invoiced this month</span></div>
+      <div><b id="stParts">—</b><span>Parts on order</span></div>
+    </div>
+    <p class="sy-note" id="syAsOf">Sign in to the shop to fill these in. Blank lines print for hand entry.</p>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Job call board <span class="sy-auto">auto from the shop</span></h2>
+    <p class="sy-note">Every open job: in work, estimates, and finished bikes that are not fully paid. Red rows are finished and not paid.</p>
+    <div class="sy-scroll">
+    <table class="sy-table" id="syBoard">
+      <thead><tr><th>Customer / phone</th><th>Bike</th><th>Job</th><th>Status</th><th class="num">Amount</th><th>Paid</th><th class="num">Days</th><th>Mechanic notes / constraints</th><th>Call / next step</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Parts on order <span class="sy-auto">auto from the shop</span></h2>
+    <p class="sy-note">Parts not yet received. The shop doesn't track ETA dates yet, so fill those in here.</p>
+    <div class="sy-scroll">
+    <table class="sy-table" id="syParts">
+      <thead><tr><th>Part</th><th>Supplier / order #</th><th>For (job / customer)</th><th>Ordered</th><th class="num">Days</th><th>ETA</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Tech hours this week</h2>
+    <p class="sy-note">Hours each tech earned. Fills in from tech sign-off once that is set up on the server; until then fill in by hand.</p>
+    <table class="sy-table sy-fill" id="syTech" data-rows="5" data-name="techhours">
+      <thead><tr><th>Tech</th><th>Jobs worked</th><th>Hours earned</th><th>Notes</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Deadlines this week and month</h2>
+    <table class="sy-table sy-fill" data-rows="5" data-name="deadline">
+      <thead><tr><th>Deadline</th><th>What</th><th>Owner</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <div id="syTopics"></div>
+
+  <section class="sy-sec">
+    <h2>Action items</h2>
+    <table class="sy-table sy-fill" data-rows="10" data-name="action">
+      <thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Done</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="sy-sec">
+    <h2>Decisions made</h2>
+    <textarea name="decisions" rows="4"></textarea>
+  </section>
+
+  <p class="sy-foot">SICC Syndicate · SIC Cycles · printed <span id="syPrinted"></span></p>
+</form>
+</main>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="sy-app.js?v=20261121c"></script>
+</body>
+</html>
