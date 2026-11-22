@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>SIC Cycles — My bike payments</title>
+<link rel="icon" type="image/png" href="../shop/favicon.png">
+<link rel="apple-touch-icon" href="../shop/sic-icon-180.png">
+<link rel="stylesheet" href="../shop/sh.css?v=20261119b">
+<link rel="stylesheet" href="../shop/pp.css?v=20261121b">
+<link rel="stylesheet" href="pay.css?v=20261122a">
+</head>
+<body>
+<header class="sh-header">
+  <div class="sh-brand"><a class="sh-logo-badge" href="../" aria-label="Back to RIDE"><img class="sh-logo" src="../shop/sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>My bike payments</small></div>
+  <nav class="sh-nav">
+    <a class="sh-btn sh-btn-quiet pp-a" href="../">RIDE app</a>
+    <button type="button" class="sh-btn sh-btn-quiet" id="myOut" hidden>Sign out</button>
+  </nav>
+</header>
+
+<div id="myMsg" class="sh-msg" role="alert" hidden></div>
+
+<main>
+  <section id="myLoading" class="my-view"><p class="sh-muted">Loading…</p></section>
+
+  <section id="mySignIn" class="my-view sh-card sh-narrow" hidden>
+    <h1>Sign in</h1>
+    <p class="sh-muted">Use the RIDE login SIC Cycles set up for you.</p>
+    <form id="mySignInForm">
+      <label>Email <input id="myEmail" type="email" autocomplete="email" required></label>
+      <label>Password <input id="myPassword" type="password" autocomplete="current-password" required></label>
+      <button type="submit" class="sh-btn sh-btn-primary sh-wide">Sign in</button>
+    </form>
+  </section>
+
+  <section id="myNone" class="my-view sh-card sh-narrow" hidden>
+    <h1>No payment plan found</h1>
+    <p>You're signed in as <strong id="myNoneEmail"></strong>, but no bike payment plan is on file for this email.</p>
+    <p class="sh-muted">Call SIC Cycles if you think this is wrong.</p>
+    <a class="sh-btn sh-btn-primary pp-a" href="tel:+15204204214">Call SIC Cycles</a>
+  </section>
+
+  <section id="myPlans" class="my-view" hidden></section>
+</main>
+
+<template id="myPlanTpl">
+  <article class="pp-doc my-plan">
+    <div class="pp-doc-head">
+      <div><div class="pp-title" data-k="item"></div><div class="sh-muted" data-k="sub"></div></div>
+      <div class="pp-badge" data-k="badge"></div>
+    </div>
+    <div class="pp-alert" data-k="alert" role="status" hidden></div>
+    <div class="pp-stats">
+      <div><b data-k="balance"></b><span>Balance left</span></div>
+      <div><b data-k="next"></b><span data-k="nextLabel">Next payment due</span></div>
+      <div><b data-k="amount"></b><span>Payment</span></div>
+      <div><b data-k="paid"></b><span>Paid so far</span></div>
+      <div><b data-k="payoff"></b><span>Paid off by</span></div>
+    </div>
+    <div class="my-pay">
+      <a class="sh-btn sh-btn-primary my-paybtn" data-k="payBtn" target="_blank" rel="noopener noreferrer" hidden>Make a payment</a>
+      <p class="sh-muted pp-small" data-k="payNote"></p>
+    </div>
+    <h2>Payments received</h2>
+    <table class="pp-table">
+      <thead><tr><th>Date</th><th class="pp-num">Amount</th><th>How</th></tr></thead>
+      <tbody data-k="rows"></tbody>
+    </table>
+    <p class="sh-muted pp-small">A payment shows here once SIC Cycles marks it received, which can take a day or two after you pay.</p>
+  </article>
+</template>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="../shop/sh-api.js?v=20261030a"></script>
+<script src="../shop/pp-calc.js?v=20261121b"></script>
+<script src="../show-password.js?v=20261119a"></script>
+<script src="pay.js?v=20261122a"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+/* Buyer's payment page. Builds on ../shop/sh.css and ../shop/pp.css. */
+.my-view { max-width: 860px; margin: 0 auto; }
+.my-pay { margin: .25rem 0 1rem; }
+.my-paybtn { display: flex; justify-content: center; align-items: center; width: 100%; min-height: 52px; font-size: 1.1rem; text-decoration: none; }

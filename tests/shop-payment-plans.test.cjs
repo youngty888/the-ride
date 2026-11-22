@@ -11,13 +11,14 @@ let hasPg = false;
 try { require.resolve('@electric-sql/pglite'); hasPg = true; } catch { /* skipped below */ }
 const skip = hasPg ? false : 'PGlite not installed (npm i --no-save @electric-sql/pglite)';
 const sql = f => fs.readFileSync(path.join(__dirname, '..', 'sql', 'shop', f), 'utf8');
-const U = { tyler: '00000000-0000-4000-9000-000000000001', rider: '00000000-0000-4000-9000-000000000003' };
+const U = { tyler: '00000000-0000-4000-9000-000000000001', rider: '00000000-0000-4000-9000-000000000003',
+  buyer: '00000000-0000-4000-9000-000000000004', unconfirmed: '00000000-0000-4000-9000-000000000005' };
 let db;
 
 const STUB = `
 create role anon nologin; create role authenticated nologin;
 create schema auth;
-create table auth.users (id uuid primary key, email text unique);
+create table auth.users (id uuid primary key, email text unique, email_confirmed_at timestamptz default now());
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(coalesce(current_setting('request.jwt.claim.sub', true),
     (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')), '')::uuid $$;
@@ -55,7 +56,9 @@ before(async () => {
   await db.exec(STUB);
   for (const [name, id] of Object.entries(U)) await db.query('insert into auth.users values ($1, $2)', [id, `${name}@test.local`]);
   for (const f of ['2026-10-04-shop-001-core.sql', '2026-10-04-shop-002-writes.sql', '2026-10-04-shop-003-storage.sql',
-    '2026-10-30-shop-004-estimates.sql', '2026-11-21-shop-009-payment-plans.sql', '2026-11-21-shop-009-payment-plans.sql']) await db.exec(sql(f));
+    '2026-10-30-shop-004-estimates.sql', '2026-11-21-shop-009-payment-plans.sql', '2026-11-21-shop-009-payment-plans.sql',
+    '2026-11-22-shop-012-my-payments.sql', '2026-11-22-shop-012-my-payments.sql']) await db.exec(sql(f));
+  await db.query('update auth.users set email_confirmed_at = null where id = $1', [U.unconfirmed]);
   await db.query(`insert into public.shop_staff (user_id, display_name) values ($1, 'Tyler')`, [U.tyler]);
 });
 
@@ -132,6 +135,29 @@ test('bad plans are refused: unsafe pay link, interest with no term, monthly wit
 
 // ---------- plan math (matches the tracker sheet) ----------
 const plan = { sale_price: 11000, down_payment: 0, payment_amount: 500, schedule: 'monthly', due_day: 18, first_due_date: '2026-12-18' };
+
+test('a buyer sees only their own plan, by confirmed email, and never the shop notes', { skip }, async () => {
+  await rpc('tyler', 'shop_save_customer', { p_customer_id: 'cust-buyer-01', p_customer: { name: 'Test Buyer', email: ' Buyer@Test.local ' },
+    p_bike_id: 'bike-buyer-01', p_bike: { vin: 'TESTVIN0000000009', make: 'Harley-Davidson', model: 'Street Bob', year: '2021' } });
+  await rpc('tyler', 'shop_save_customer', { p_customer_id: 'cust-unconf-01', p_customer: { name: 'Not Yet', email: 'unconfirmed@test.local' }, p_bike_id: null, p_bike: null });
+  for (const [id, c] of [['plan-buyer-01', 'cust-buyer-01'], ['plan-unconf-01', 'cust-unconf-01']]) {
+    await rpc('tyler', 'shop_save_payment_plan', { p_plan_id: id, p_plan: { ...PLAN, customer_id: c, bike_id: c === 'cust-buyer-01' ? 'bike-buyer-01' : null,
+      late_fee_per_day: '0', pay_provider: 'stripe', pay_link_url: 'https://buy.stripe.com/test_SAMPLE', notes: 'SHOP PRIVATE NOTE' } });
+  }
+  await rpc('tyler', 'shop_record_plan_payment', { p_payment_id: 'pay-buyer-01', p_payment: { plan_id: 'plan-buyer-01', amount: '500', received_date: '2026-12-18', method: 'Card (pay link)', notes: 'SHOP PRIVATE NOTE' } });
+  const mine = await rpc('buyer', 'shop_my_payment_plans', {});
+  assert.equal(mine.length, 1);
+  const p = mine[0];
+  assert.equal(p.id, 'plan-buyer-01'); assert.equal(Number(p.balance), 10500); assert.equal(p.pay_link_url, 'https://buy.stripe.com/test_SAMPLE');
+  assert.equal(p.bike.vin_last6, '000009'); assert.deepEqual(p.payments.map(x => Number(x.amount)), [500]);
+  assert.equal(JSON.stringify(mine).includes('SHOP PRIVATE NOTE'), false); // shop notes never reach the buyer
+  assert.equal(JSON.stringify(mine).includes(U.tyler), false);             // nor who marked the payment
+  assert.deepEqual(await rpc('rider', 'shop_my_payment_plans', {}), []);   // a login with no plan sees nothing
+  assert.deepEqual(await rpc('unconfirmed', 'shop_my_payment_plans', {}), []); // an unconfirmed email sees nothing
+  await assert.rejects(as(null, 'select public.shop_my_payment_plans()'), /permission denied/);
+  await assert.rejects(rpc('buyer', 'shop_record_plan_payment', { p_payment_id: 'pay-buyer-99', p_payment: { plan_id: 'plan-buyer-01', amount: '500', received_date: '2026-12-19' } }), /not authorized|permission denied/);
+  assert.deepEqual(await as('buyer', 'select * from public.shop_payment_plans'), []); // still no direct table access
+});
 
 test('nothing paid yet: 22 payments, next due Dec 18 2026, payoff Sep 18 2028 (same as the sheet)', () => {
   const s = PpCalc.summary(plan, [], '2026-11-21');
