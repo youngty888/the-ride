@@ -283,6 +283,22 @@ test('"Not paid" filter lists started jobs that are not fully paid, with a total
   await page.context().close();
 });
 
+test('search finds a customer by phone however the number was typed', { skip }, async () => {
+  const [c] = await backend.sql(`select name, phone from public.shop_customers where phone is not null and regexp_replace(phone, '\\D', '', 'g') ~ '^\\d{7,}$' limit 1`);
+  const page = await newPage();
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  const digits = c.phone.replace(/\D/g, '');
+  const spaced = `${digits.slice(-7, -4)} ${digits.slice(-4)}`;
+  for (const q of [digits, spaced, `(${digits.slice(-7, -4)}) ${digits.slice(-4)}`]) {
+    await page.fill('#shSearch', q);
+    assert.ok((await page.locator('#shJobsList').innerText()).includes(c.name), `finds by "${q}"`);
+  }
+  await page.fill('#shSearch', digits + '99');
+  assert.ok(!(await page.locator('#shJobsList').innerText()).includes(c.name));
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
 test('direct API calls by a non-staff account are refused', { skip }, async () => {
   const s = backend.sessionFor('rider@test.local');
   const call = (p, opts = {}) => fetch(backend.origin + p, { ...opts, headers: { apikey: 'k', Authorization: `Bearer ${s.access_token}`, 'Content-Type': 'application/json' } });

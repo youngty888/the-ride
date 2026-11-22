@@ -215,8 +215,11 @@
         else if (this.filter && j.status !== this.filter) return false;
         if (!q) return true;
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id) || {};
-        return [c.name, c.phone, c.email, b.vin, bikeLabel(b), j.estimate_number, wo(j.estimate_number), j.invoice_number, j.work_description]
+        const hit = [c.name, c.phone, c.email, b.vin, bikeLabel(b), j.estimate_number, wo(j.estimate_number), j.invoice_number, j.work_description]
           .some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q));
+        // A phone number matches however it was typed: 555-123-4567, (555) 123 4567, 5551234567.
+        const qd = q.replace(/\D/g, '');
+        return hit || (qd.length >= 3 && /^[\d\s().+-]+$/.test(q) && String(c.phone || '').replace(/\D/g, '').includes(qd));
       });
       const sum = $('shUnpaidSummary');
       if (this.filter === 'unpaid' && rows.length) {

@@ -230,7 +230,7 @@
       for (const p of this.plans || []) {
         out.push({ kind: 'plan', label: KIND.plan, archived: p.status === 'cancelled', title: p.item, date: p.sale_date,
           customer_id: p.customer_id, bike_id: p.bike_id, extra: [money(p.sale_price), p.status === 'paid_off' ? 'Paid off' : p.status === 'cancelled' ? 'Cancelled' : 'Active'],
-          href: `payments.html?plan=${encodeURIComponent(p.id)}`, search: p.item });
+          href: '', search: p.item });
       }
       for (const d of this.docs) {
         const kind = KIND[d.doc_type] ? d.doc_type : 'other';
@@ -267,7 +267,7 @@
       const box = $('dcRows');
       box.replaceChildren(...list.map(r => {
         const c = this.customer(r.customer_id); const b = this.bike(r.bike_id);
-        return el('a', { class: 'dc-row' + (r.archived ? ' dc-archived' : ''), href: r.href, dataset: { kind: r.kind } },
+        return el(r.href ? 'a' : 'div', { class: 'dc-row' + (r.archived ? ' dc-archived' : ''), ...(r.href ? { href: r.href } : {}), dataset: { kind: r.kind } },
           el('div', {}, el('span', { class: 'dc-kind', text: r.label + (r.archived ? ' · archived' : '') }), el('div', { class: 'dc-row-title', text: r.title })),
           el('div', { class: 'dc-row-sub', text: [c?.name, bikeLabel(b)].filter(Boolean).join(' · ') || (r.kind === 'meeting' ? 'Shop meeting' : r.kind === 'paystub' || r.kind === 'receipt' ? r.who : 'No customer linked') }),
           el('div', { class: 'dc-row-meta' }, fmtDate(r.date), ...r.extra.filter(Boolean).map(x => [el('br'), x])));
