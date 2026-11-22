@@ -95,5 +95,18 @@ const MyLoans = {
       ${link}
       <h3 class="section-title" style="margin-top:var(--space-4);">Payments received</h3>
       ${rows || '<p class="empty-state">None yet. Payments appear here once SIC Cycles marks them received.</p>'}`;
+  },
+
+  /* The Garage entry for a loan's bike: the bike details SIC Cycles has on file move to the
+     rider's own Garage (make, model, year, miles). Service records start empty. */
+  garageBikeFor(plan, id) {
+    const b = plan.bike || {};
+    return { id, make: b.make || '', model: b.model || '', year: Number(b.year) || null, mileage: Number(b.mileage) || 0,
+      tankRange: 100, color: '', nickname: '', engineSize: '', tankSize: null, mpg: null, horsepower: null, weight: null, mods: '', serviceRecords: [] };
+  },
+  /* "Add this bike to my Garage" button, only while the bike is not in the Garage yet. */
+  addButtonHtml(plan, bikes) {
+    if (!plan.bike || (bikes || []).some(b => this.match(b) === plan)) return '';
+    return `<button class="btn-secondary btn-large" data-add-loan-bike="${this.esc(plan.id)}" style="width:100%;margin-top:var(--space-4);">Add this bike to my Garage</button>`;
   }
 };

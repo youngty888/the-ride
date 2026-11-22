@@ -651,19 +651,25 @@ const App = {
     const loans = typeof MyLoans !== 'undefined' ? MyLoans.unmatched(bikes) : [];
     const loanCards = loans.map((plan) => MyLoans.cardHtml(plan)).join('');
     const openLoan = (el) => this.showLoanDetail(el.dataset.loanId);
+    const loansBtn = typeof MyLoans !== 'undefined' && MyLoans.plans.length
+      ? `<button class="btn-secondary btn-large" id="btnGarageLoans" style="width:100%;margin-bottom:var(--space-4);">My Loans (${MyLoans.plans.length})</button>` : '';
+    const bindLoans = () => {
+      document.getElementById('btnGarageLoans')?.addEventListener('click', () => this.showLoans());
+      listEl.querySelectorAll('.loan-card').forEach((card) => card.addEventListener('click', () => openLoan(card)));
+    };
 
     if (bikes.length === 0) {
-      listEl.innerHTML = loanCards || `
+      listEl.innerHTML = loansBtn + loanCards || `
         <div class="empty-state-container">
           <p class="empty-state">No bikes in your garage yet. Tap + to add your first bike.</p>
         </div>
       `;
-      listEl.querySelectorAll('.loan-card').forEach((card) => card.addEventListener('click', () => openLoan(card)));
+      bindLoans();
       this.renderRideHistory();
       return;
     }
 
-    listEl.innerHTML = loanCards + bikes
+    listEl.innerHTML = loansBtn + loanCards + bikes
       .map((bike) => `
         <div class="bike-card" data-bike-id="${bike.id}">
           <div class="bike-card-header">
@@ -701,7 +707,7 @@ const App = {
         this.showBikeDetail(card.dataset.bikeId);
       });
     });
-    listEl.querySelectorAll('.loan-card').forEach((card) => card.addEventListener('click', () => openLoan(card)));
+    bindLoans();
 
     this.renderRideHistory();
   },
@@ -832,8 +838,32 @@ const App = {
     const plan = MyLoans.plans.find((p) => p.id === planId);
     if (!plan) return;
     document.getElementById('bikeDetailTitle').textContent = MyLoans.bikeName(plan);
-    document.getElementById('bikeDetailContent').innerHTML = MyLoans.blockHtml(plan);
+    document.getElementById('bikeDetailContent').innerHTML = MyLoans.blockHtml(plan) + MyLoans.addButtonHtml(plan, Storage.getBikes());
+    this.bindAddLoanBike();
     this.showOverlay('overlay-bike-detail');
+  },
+
+  /* Every loan in one place (button in Garage and Profile). */
+  showLoans() {
+    document.getElementById('bikeDetailTitle').textContent = 'My Loans';
+    const bikes = Storage.getBikes();
+    document.getElementById('bikeDetailContent').innerHTML = MyLoans.plans.map((plan) =>
+      `<h3 class="section-title">${MyLoans.esc(MyLoans.bikeName(plan))}</h3>${MyLoans.blockHtml(plan)}${MyLoans.addButtonHtml(plan, bikes)}`
+    ).join('<hr class="divider">') || '<p class="empty-state">No loans.</p>';
+    this.bindAddLoanBike();
+    this.showOverlay('overlay-bike-detail');
+  },
+
+  bindAddLoanBike() {
+    document.querySelectorAll('#bikeDetailContent [data-add-loan-bike]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const plan = MyLoans.plans.find((p) => p.id === btn.dataset.addLoanBike);
+        if (!plan || MyLoans.match(MyLoans.garageBikeFor(plan))) return;
+        Storage.saveBike(MyLoans.garageBikeFor(plan, Storage.genId()));
+        this.hideOverlay('overlay-bike-detail');
+        this.renderGarage();
+      });
+    });
   },
 
   addServiceRecord(bikeId) {
@@ -1361,6 +1391,7 @@ const App = {
       ${profile.bio ? `<p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;margin-bottom:var(--space-4);">${this.escapeHtml(profile.bio)}</p>` : ''}
 
       <button class="btn-primary btn-large" id="btnEditProfile">Edit Profile</button>
+      ${typeof MyLoans !== 'undefined' && MyLoans.plans.length ? `<button class="btn-secondary btn-large" id="btnProfileLoans" style="margin-top:var(--space-2);">My Loans (${MyLoans.plans.length})</button>` : ''}
       <button class="btn-secondary btn-large" id="btnManageContacts" style="margin-top:var(--space-2);">Emergency Contacts</button>
       <button class="btn-secondary btn-large btn-sign-out" id="btnSignOut" style="margin-top:var(--space-2);">Sign Out</button>
 
@@ -1384,6 +1415,9 @@ const App = {
       document.getElementById('profileBio').value = profile.bio || '';
       this.showOverlay('overlay-profile-form');
     });
+
+    // Loans
+    document.getElementById('btnProfileLoans')?.addEventListener('click', () => this.showLoans());
 
     // Emergency contacts
     document.getElementById('btnManageContacts').addEventListener('click', () => {
@@ -1958,5 +1992,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   App.init();
   document.documentElement.classList.remove('auth-pending');
   // Loans come after the screen is up so a slow connection never delays the app.
-  if (typeof MyLoans !== 'undefined') { await MyLoans.load(); if (MyLoans.plans.length) App.renderGarage(); }
+  if (typeof MyLoans !== 'undefined') { await MyLoans.load(); if (MyLoans.plans.length) { App.renderGarage(); App.renderProfile(); } }
 });

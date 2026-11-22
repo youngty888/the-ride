@@ -36,3 +36,12 @@ test('the loan shows balance, next payment, payments and title note; text from t
   assert.doesNotMatch(html, /javascript:/);    // only https pay links become a button
   assert.equal(MyLoans.blockHtml(null), '');
 });
+
+test('"Add to Garage" carries the bike details over and disappears once the bike is in the Garage', () => {
+  MyLoans.plans = [plan()];
+  assert.match(MyLoans.addButtonHtml(MyLoans.plans[0], []), /Add this bike to my Garage/);
+  const bike = MyLoans.garageBikeFor(MyLoans.plans[0], 'b1');
+  assert.deepEqual([bike.make, bike.model, bike.year, bike.mileage, bike.serviceRecords.length], ['Harley-Davidson', 'Low Rider S', 2023, 28000, 0]);
+  assert.equal(MyLoans.match(bike), MyLoans.plans[0]);
+  assert.equal(MyLoans.addButtonHtml(MyLoans.plans[0], [bike]), '');
+});
