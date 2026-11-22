@@ -211,12 +211,18 @@
       $('shTaxWarning').hidden = this.settings?.default_tax_rate !== null && this.settings?.default_tax_rate !== undefined;
       const q = this.search.trim().toLowerCase();
       const rows = this.jobs.filter(j => {
-        if (this.filter && j.status !== this.filter) return false;
+        if (this.filter === 'unpaid') { if (j.status === 'estimate' || (j.payment_status || 'unpaid') === 'paid') return false; }
+        else if (this.filter && j.status !== this.filter) return false;
         if (!q) return true;
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id) || {};
         return [c.name, c.phone, c.email, b.vin, bikeLabel(b), j.estimate_number, wo(j.estimate_number), j.invoice_number, j.work_description]
           .some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q));
       });
+      const sum = $('shUnpaidSummary');
+      if (this.filter === 'unpaid' && rows.length) {
+        const cents = rows.reduce((n, j) => n + ShCalc.centsOf(j.total_amount ?? 0), 0n);
+        sum.textContent = `${rows.length} job${rows.length === 1 ? '' : 's'} not fully paid · ${ShCalc.money(cents)} total on those jobs`; sum.hidden = false;
+      } else sum.hidden = true;
       const box = $('shJobsList');
       if (!rows.length) {
         box.replaceChildren(el('p', { class: 'sh-muted sh-empty', text: this.jobs.length ? 'No jobs match.' : 'No estimates yet. Tap “+ New estimate” to write the first one.' }));
