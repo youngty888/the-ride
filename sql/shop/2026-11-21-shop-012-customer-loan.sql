@@ -1,4 +1,4 @@
--- shop-012: customer sign-in for payment plans ("My loan").
+-- shop-012: riders see their own payment plan (loan) in the RIDE Garage, attached to the bike.
 -- A rider signs in to RIDE with the same email the shop has on their customer
 -- record and can see ONLY their own plan and the payments staff marked received.
 -- Read-only: no customer can change anything. Staff access is unchanged.
@@ -33,6 +33,8 @@ begin
       'payment_count', s.payment_count, 'last_payment_date', s.last_payment_date,
       'title_held', s.title_held, 'pay_link_url', s.pay_link_url,
       'customer_name', c.name,
+      'bike', case when b.id is null then null else jsonb_build_object(
+        'make', b.make, 'model', b.model, 'year', b.year, 'mileage', b.mileage) end,
       'payments', coalesce((
         select jsonb_agg(jsonb_build_object('received_date', p.received_date, 'amount', p.amount, 'method', p.method)
                          order by p.received_date desc, p.created_at desc)
@@ -40,6 +42,7 @@ begin
     ) order by s.sale_date desc)
     from public.shop_payment_plan_summary s
     join public.shop_customers c on c.id = s.customer_id
+    left join public.shop_bikes b on b.id = s.bike_id
     where lower(btrim(c.email)) = v_email
   ), '[]'::jsonb);
 end $$;

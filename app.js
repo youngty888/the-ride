@@ -648,17 +648,22 @@ const App = {
     const bikes = Storage.getBikes();
     const listEl = document.getElementById('garageList');
 
+    const loans = typeof MyLoans !== 'undefined' ? MyLoans.unmatched(bikes) : [];
+    const loanCards = loans.map((plan) => MyLoans.cardHtml(plan)).join('');
+    const openLoan = (el) => this.showLoanDetail(el.dataset.loanId);
+
     if (bikes.length === 0) {
-      listEl.innerHTML = `
+      listEl.innerHTML = loanCards || `
         <div class="empty-state-container">
           <p class="empty-state">No bikes in your garage yet. Tap + to add your first bike.</p>
         </div>
       `;
+      listEl.querySelectorAll('.loan-card').forEach((card) => card.addEventListener('click', () => openLoan(card)));
       this.renderRideHistory();
       return;
     }
 
-    listEl.innerHTML = bikes
+    listEl.innerHTML = loanCards + bikes
       .map((bike) => `
         <div class="bike-card" data-bike-id="${bike.id}">
           <div class="bike-card-header">
@@ -673,7 +678,7 @@ const App = {
             </div>
             <div class="bike-card-info">
               <div class="bike-card-title">${this.escapeHtml(bike.nickname || `${bike.make} ${bike.model}`)}</div>
-              <div class="bike-card-subtitle">${bike.year || ''} ${this.escapeHtml(bike.make)} ${this.escapeHtml(bike.model)}</div>
+              <div class="bike-card-subtitle">${bike.year || ''} ${this.escapeHtml(bike.make)} ${this.escapeHtml(bike.model)} ${typeof MyLoans !== 'undefined' && MyLoans.match(bike) ? MyLoans.badgeHtml(MyLoans.match(bike)) : ''}</div>
             </div>
           </div>
           <div class="bike-card-stats">
@@ -691,11 +696,12 @@ const App = {
       .join('');
 
     // Click to view detail
-    listEl.querySelectorAll('.bike-card').forEach((card) => {
+    listEl.querySelectorAll('.bike-card:not(.loan-card)').forEach((card) => {
       card.addEventListener('click', () => {
         this.showBikeDetail(card.dataset.bikeId);
       });
     });
+    listEl.querySelectorAll('.loan-card').forEach((card) => card.addEventListener('click', () => openLoan(card)));
 
     this.renderRideHistory();
   },
@@ -735,6 +741,8 @@ const App = {
           </div>
         </div>
       </div>
+
+      ${typeof MyLoans !== 'undefined' ? MyLoans.blockHtml(MyLoans.match(bike)) : ''}
 
       ${this.getServiceRemindersHTML(bike)}
 
@@ -817,6 +825,15 @@ const App = {
         this.renderGarage();
       }
     });
+  },
+
+  /* A loan whose bike is not in the Garage list yet: read-only loan detail. */
+  showLoanDetail(planId) {
+    const plan = MyLoans.plans.find((p) => p.id === planId);
+    if (!plan) return;
+    document.getElementById('bikeDetailTitle').textContent = MyLoans.bikeName(plan);
+    document.getElementById('bikeDetailContent').innerHTML = MyLoans.blockHtml(plan);
+    this.showOverlay('overlay-bike-detail');
   },
 
   addServiceRecord(bikeId) {
@@ -1940,4 +1957,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   App.init();
   document.documentElement.classList.remove('auth-pending');
+  // Loans come after the screen is up so a slow connection never delays the app.
+  if (typeof MyLoans !== 'undefined') { await MyLoans.load(); if (MyLoans.plans.length) App.renderGarage(); }
 });

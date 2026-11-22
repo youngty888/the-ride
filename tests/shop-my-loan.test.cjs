@@ -77,6 +77,7 @@ test('a confirmed sign-in with the customer email sees only their own loan', { s
   assert.equal(plans[0].payments.length, 1);
   assert.equal(Number(plans[0].payments[0].amount), 600);
   assert.equal(plans[0].title_held, true);
+  assert.deepEqual(plans[0].bike, { make: 'Harley-Davidson', model: 'Low Rider S', year: 2023, mileage: 28000 }); // VIN is not sent
   assert.equal('notes' in plans[0], false); // staff notes are never sent
   assert.equal('created_by' in plans[0], false);
 });
