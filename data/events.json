@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-19",
+  "updated": "2026-11-23",
   "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
   "events": [
     {
@@ -9,6 +9,38 @@
       "start": "2026-11-18",
       "end": "2026-11-21",
       "source": "https://www.kold.com/2026/10/14/el-tour-de-tucson-road-closures-delays/"
+    },
+    {
+      "id": "troll-teddy-bear-run-2026",
+      "title": "Troll's Teddy Bear Run - Sat Dec 5, sign-in 9-10:30am",
+      "detail": "Poker run starting at Superstition Harley-Davidson, Apache Junction. Expect lots of motorcycle traffic.",
+      "start": "2026-12-01",
+      "end": "2026-12-05",
+      "source": "https://superstitionhd.com/events"
+    },
+    {
+      "id": "xcel-trackday-2026-12",
+      "title": "XCEL Motorcycle Trackday - Sun Dec 6, 9am-5pm",
+      "detail": "Track day at Firebird Motorsports Park, Chandler.",
+      "start": "2026-12-02",
+      "end": "2026-12-06",
+      "source": "https://racefirebird.com/events/"
+    },
+    {
+      "id": "cycle-gear-bike-night-2026-12",
+      "title": "Cycle Gear Bike Night - Tue Dec 8, 5pm",
+      "detail": "Tucson riders meet-up at Cycle Gear, 5385 E Broadway.",
+      "start": "2026-12-04",
+      "end": "2026-12-08",
+      "source": "https://www.meetup.com/sportbike-riders-of-tucson/"
+    },
+    {
+      "id": "soldado-toy-drive-2026",
+      "title": "Soldado Christmas Toy Drive - Sat Dec 12, 12-6pm",
+      "detail": "Free. Bring a new toy. Superstition Harley-Davidson, Apache Junction.",
+      "start": "2026-12-08",
+      "end": "2026-12-12",
+      "source": "https://superstitionhd.com/events"
     },
     {
       "id": "az-bike-week-2027",
