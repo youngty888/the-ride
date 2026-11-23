@@ -265,6 +265,24 @@ test('saved jobs: names are offered, hours are remembered and refill next time',
   await page.context().close();
 });
 
+test('"Not paid" filter lists started jobs that are not fully paid, with a total', { skip }, async () => {
+  const rows = await backend.sql(`select total_amount from public.shop_jobs where status <> 'estimate' and payment_status <> 'paid'`);
+  const page = await newPage();
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  await page.click('#shFilter [data-filter=unpaid]');
+  assert.equal(await page.locator('#shJobsList .sh-job').count(), rows.length);
+  if (rows.length) {
+    const total = rows.reduce((n, r) => n + Math.round(Number(r.total_amount) * 100), 0);
+    const money = `$${(total / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    assert.match(await text(page, '#shUnpaidSummary'), new RegExp(`^${rows.length} jobs? not fully paid · \\${money} total`));
+  }
+  assert.equal(await page.locator('#shJobsList .sh-pay-paid').count(), 0, 'no paid jobs in this view');
+  await page.click('#shFilter [data-filter=""]');
+  assert.equal(await page.locator('#shUnpaidSummary').isHidden(), true);
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
 test('search finds a customer by phone however the number was typed', { skip }, async () => {
   const [c] = await backend.sql(`select name, phone from public.shop_customers where phone is not null and regexp_replace(phone, '\\D', '', 'g') ~ '^\\d{7,}$' limit 1`);
   const page = await newPage();
