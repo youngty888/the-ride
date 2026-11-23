@@ -230,7 +230,7 @@
       for (const p of this.plans || []) {
         out.push({ kind: 'plan', label: KIND.plan, archived: p.status === 'cancelled', title: p.item, date: p.sale_date,
           customer_id: p.customer_id, bike_id: p.bike_id, extra: [money(p.sale_price), p.status === 'paid_off' ? 'Paid off' : p.status === 'cancelled' ? 'Cancelled' : 'Active'],
-          href: '', search: p.item });
+          href: `payments.html?plan=${encodeURIComponent(p.id)}`, search: p.item });
       }
       for (const d of this.docs) {
         const kind = KIND[d.doc_type] ? d.doc_type : 'other';

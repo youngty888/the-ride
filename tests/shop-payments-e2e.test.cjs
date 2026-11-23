@@ -20,7 +20,7 @@ before(async () => {
   if (skip) return;
   const { startFakeBackend } = require('./support/shop-fake-backend.cjs');
   backend = await startFakeBackend({ users: [{ email: 'tyler@test.local', password: PW }, { email: 'rider@test.local', password: PW }],
-    staff: [{ email: 'tyler@test.local', name: 'Tyler' }] });
+    staff: [{ email: 'tyler@test.local', name: 'Tyler' }], extraSql: ['2026-11-21-shop-010-documents.sql'] });
   browser = await chromium.launch();
 });
 after(async () => { await browser?.close(); await backend?.close(); });
@@ -142,6 +142,26 @@ test('20% every two weeks: work out the payment, card pay link, late alert, and 
   await page.click('#ppPaySave');
   await page.waitForFunction(() => document.getElementById('ppAlert').hidden);
   assert.equal(await page.locator('#ppBadge').innerText(), 'Up to date');
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
+test('staff can reach a plan from the New menu and from Documents', { skip }, async () => {
+  const page = await signedInPage('tyler@test.local');
+  await page.waitForSelector('#shList:not([hidden])');
+  // the home page shows Payment plans as a button, and + New offers a finance agreement
+  assert.equal(await page.locator('.sh-home-buttons a.sh-btn[href="payments.html"]').innerText(), 'Payment plans');
+  await page.click('#shNewMenuBtn');
+  assert.ok(await page.locator('#shNewPlan').isVisible());
+  await page.click('#shNewPlan');
+  await page.waitForSelector('#ppEditor:not([hidden])');
+  // a plan made earlier shows in Documents and opens its plan page
+  await page.goto(`${backend.origin}/shop/docs.html`);
+  const row = page.locator('#dcRows .dc-row[data-kind="plan"]').first();
+  await row.waitFor();
+  assert.match(await row.getAttribute('href'), /^payments\.html\?plan=/);
+  await row.click();
+  await page.waitForSelector('#ppDetail:not([hidden])');
   assert.deepEqual(page.errors, []);
   await page.context().close();
 });

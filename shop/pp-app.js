@@ -93,9 +93,12 @@
     },
 
     route() {
-      const id = new URLSearchParams(location.search).get('plan');
+      const q = new URLSearchParams(location.search);
+      const id = q.get('plan');
       const p = id && this.plans.find(x => x.id === id);
-      if (p) this.openPlan(p.id); else this.renderList();
+      if (p) this.openPlan(p.id);
+      else if (q.get('new') === '1') { this.renderList(); this.openEditor(null); }
+      else this.renderList();
     },
 
     calc(plan) { return C.summary(plan, this.payments.filter(x => x.plan_id === plan.id), today()); },
