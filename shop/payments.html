@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
 <link rel="stylesheet" href="sh.css?v=20261119b">
-<link rel="stylesheet" href="pp.css?v=20261121b">
+<link rel="stylesheet" href="pp.css?v=20261123b">
 </head>
 <body>
 <header class="sh-header pp-noprint">
@@ -33,6 +33,11 @@
 
   <!-- All plans -->
   <section id="ppList" class="pp-view" hidden>
+    <div id="ppHeld" class="pp-alert pp-alert-amber pp-held" role="status" hidden>
+      <b>Shopify payments to check</b>
+      <p class="pp-small">These were paid in Shopify but not added to a plan. Refund them in Shopify, or record them on the right plan by hand, then mark them handled.</p>
+      <ul id="ppHeldRows"></ul>
+    </div>
     <div id="ppPlans" class="sh-jobs"></div>
   </section>
 
@@ -149,7 +154,7 @@
         <p class="sh-muted pp-small">Paste the plan's Stripe payment link. The buyer pays by card or bank (ACH) and can set up autopay; Stripe pays out to the shop's bank account, set in Stripe's own settings. Never type bank account or routing numbers here.</p>
         <div class="sh-grid2">
           <label>Processor <select id="ppPayProvider"><option value="">None yet</option><option value="stripe">Stripe</option><option value="chase">Chase</option><option value="square">Square</option><option value="shopify">Shopify</option><option value="bank">Direct bank transfer</option><option value="other">Other</option></select></label>
-          <label>Pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (paste the payment link)"></label>
+          <label>Pay link <input id="ppPayLink" type="url" inputmode="url" placeholder="https://… (for Shopify: the siccycles.com/cart/… link)"></label>
         </div>
         <div class="sh-grid2">
           <label>Autopay <select id="ppAutopay"><option value="off">Off</option><option value="pending">Sent, waiting on buyer</option><option value="on">On</option></select></label>
@@ -182,8 +187,8 @@
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="pp-calc.js?v=20261121b"></script>
+<script src="pp-calc.js?v=20261123b"></script>
 <script src="pp-contract.js?v=20261121a"></script>
-<script src="pp-app.js?v=20261123a"></script>
+<script src="pp-app.js?v=20261123b"></script>
 </body>
 </html>

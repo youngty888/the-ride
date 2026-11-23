@@ -90,7 +90,23 @@
   }
 
   const money = c => (c < 0 ? '-' : '') + '$' + (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const PpCalc = { summary, amortize, dueDate, addMonths, addDays, daysBetween, cents, money, PERIODS };
+
+  // The link a buyer pays with. A Shopify cart link (siccycles.com/cart/<variant>:<qty>)
+  // gets the plan's loan number (and the bike's VIN, last 6) added as order notes, so
+  // the shop server can credit the paid order to this plan and no other. Any other
+  // processor's link is used as it was saved.
+  const SAFE_LINK = /^https:\/\/[A-Za-z0-9.-]+(\/[^\s"'<>]*)?$/;
+  const LOAN_REF = /^SIC-[A-Z0-9]{6,12}$/;
+  const isShopifyCart = plan => !!plan && plan.pay_provider === 'shopify' && LOAN_REF.test(plan.pay_ref || '')
+    && /^https:\/\/[A-Za-z0-9.-]+\/cart\/\d+:\d+$/.test(plan.pay_link_url || '');
+  function payHref(plan, vin6) {
+    const link = plan && plan.pay_link_url;
+    if (!link || !SAFE_LINK.test(link)) return '';
+    if (!isShopifyCart(plan)) return link;
+    const v = String(vin6 || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-6);
+    return `${link}?attributes[Loan]=${plan.pay_ref}` + (v.length === 6 ? `&attributes[VIN]=${v}` : '');
+  }
+  const PpCalc = { summary, amortize, dueDate, addMonths, addDays, daysBetween, cents, money, PERIODS, payHref, isShopifyCart, SAFE_LINK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PpCalc;
   root.PpCalc = PpCalc;
 })(typeof window !== 'undefined' ? window : globalThis);

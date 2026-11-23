@@ -6,7 +6,6 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const C = window.PpCalc;
-  const SAFE_LINK = /^https:\/\/[A-Za-z0-9.-]+(\/[^\s"'<>]*)?$/;
   const VIEWS = ['myLoading', 'mySignIn', 'myNone', 'myPlans'];
   const show = id => VIEWS.forEach(v => { $(v).hidden = v !== id; });
   const pad = n => String(n).padStart(2, '0');
@@ -27,7 +26,7 @@
     const amount = C.cents(p.payment_amount);
     k('item').textContent = p.item;
     const when = p.schedule === 'biweekly' ? 'every 2 weeks' : `on the ${ord(Number(p.due_day))} of each month`;
-    k('sub').textContent = `${C.money(amount)} due ${when}` + (p.title_held && !s.paidOff ? ' · SIC Cycles holds the title until it is paid off' : '');
+    k('sub').textContent = `${C.money(amount)} due ${when}` + (p.pay_ref ? ` · Loan number ${p.pay_ref}` : '') + (p.title_held && !s.paidOff ? ' · SIC Cycles holds the title until it is paid off' : '');
     k('balance').textContent = C.money(s.balanceCents);
     k('next').textContent = s.paidOff ? 'Paid off' : nice(s.nextDue);
     k('amount').textContent = C.money(amount);
@@ -42,11 +41,12 @@
       if (s.lateFeeCents > 0) t += ` Late fees so far: ${C.money(s.lateFeeCents)}.`;
       a.textContent = t + ' Pay below or call SIC Cycles.';
     }
-    const link = p.pay_link_url && SAFE_LINK.test(p.pay_link_url) ? p.pay_link_url : '';
+    const link = C.payHref(p, p.bike && p.bike.vin_last6);
     const btn = k('payBtn');
     if (link && !s.paidOff) { btn.href = link; btn.hidden = false; }
     k('payNote').textContent = s.paidOff ? 'Nothing left to pay. Thank you!'
       : !link ? 'Online payment is not set up yet. Call SIC Cycles to pay.'
+      : C.isShopifyCart(p) ? `Pays at the SIC Cycles checkout. Your loan number ${p.pay_ref} goes with the payment, and it shows here once the payment goes through. Use this same button every time.`
       : p.autopay === 'on' ? 'Autopay is on. You can still make an extra payment with the button.'
       : 'Pay by card or bank. You can turn on autopay on the payment page.';
     const rows = k('rows');
