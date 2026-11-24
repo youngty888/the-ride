@@ -19,6 +19,7 @@
   const AUTOPAY = { off: 'Autopay off', pending: 'Autopay sent, waiting on buyer', on: 'Autopay on' };
   const PROVIDER = { stripe: 'Stripe', chase: 'Chase', square: 'Square', shopify: 'Shopify', bank: 'Direct bank transfer', other: 'Other processor' };
   const SAFE_LINK = /^https:\/\/[A-Za-z0-9.-]+(\/[^\s"'<>]*)?$/;
+  const AUTO_ID = '00000000-0000-0000-0000-000000000000';  // payments the Shopify webhook recorded
   const ord = n => n + ['th', 'st', 'nd', 'rd'][(n % 10 > 3 || [11, 12, 13].includes(n % 100)) ? 0 : n % 10];
   // Defaults for new plans (Tyler, Nov 21): 20% APR, due every two weeks,
   // $50 a day late after 2 days, default after missing more than 3 in a row.
@@ -84,6 +85,16 @@
         ]);
         Object.assign(this, { plans, payments, customers, bikes });
         this.staff = Object.fromEntries(staff.map(s => [s.user_id, s.display_name]));
+        this.staff[AUTO_ID] = 'Shopify (automatic)';
+        // Loan numbers and Shopify orders come from shop-013. Before it is run the
+        // page works as before, with no loan numbers.
+        const [refs, held] = await Promise.all([
+          ShApi.select('shop_payment_plans', 'select=id,pay_ref').catch(() => []),
+          ShApi.select('shop_shopify_orders', 'select=*&status=eq.held&order=received_at.asc').catch(() => []),
+        ]);
+        const refById = Object.fromEntries(refs.map(r => [r.id, r.pay_ref]));
+        for (const p of this.plans) p.pay_ref = refById[p.id] || p.pay_ref || null;
+        this.held = held;
         return true;
       } catch (e) {
         const missing = e.status === 404 || /relation|does not exist|schema cache/i.test(e.message);
@@ -108,6 +119,7 @@
     renderList() {
       this.current = null;
       const box = $('ppPlans');
+      this.renderHeld();
       if (!this.plans.length) { box.replaceChildren(el('p', { class: 'sh-empty sh-muted', text: 'No payment plans yet. Tap + New plan.' })); this.show('ppList'); return; }
       box.replaceChildren(...this.plans.map(p => {
         const s = this.calc(p); const c = this.customer(p.customer_id);
@@ -120,6 +132,24 @@
           el('div', { class: 'sh-job-sub' }, el('span', { text: sub }), el('span', { text: `Paid ${C.money(s.totalPaidCents)} of ${money(p.sale_price)}` })));
       }));
       this.show('ppList');
+    },
+
+    // Shopify orders for the payment product that were NOT credited to a plan
+    // (no or wrong loan number, test order, more than the balance...). Check each
+    // one in Shopify: refund it, or record it by hand on the right plan.
+    renderHeld() {
+      const held = this.held || [];
+      const box = $('ppHeld'); box.hidden = !held.length;
+      $('ppHeldRows').replaceChildren(...held.map(o => el('li', {},
+        el('span', { text: `Shopify order ${o.order_name || o.order_id} · ${money(o.amount)}${o.pay_ref ? ' · loan ' + o.pay_ref : ''} · ${o.reason || 'held'}` }),
+        el('button', { type: 'button', class: 'sh-btn pp-x', text: 'Mark handled', onclick: () => this.handleHeld(o) }))));
+    },
+
+    async handleHeld(o) {
+      const note = root.prompt(`What did you do with Shopify order ${o.order_name || o.order_id}? (for example: refunded, recorded on a plan)`);
+      if (note === null) return;
+      await this.write(null, '', () => ShApi.rpc('shop_handle_shopify_order', { p_order_id: o.order_id, p_note: note }),
+        'Marked as handled.', () => this.renderList());
     },
 
     openPlan(id) {
@@ -142,7 +172,7 @@
       $('ppLeftLabel').textContent = `Payments left at ${money(p.payment_amount)}`;
       $('ppPayoff').textContent = s.paidOff ? 'Paid off' : fmtDate(s.payoff);
       const terms = [
-        ['Buyer', c?.name], ['Bike', bikeLabel(b) || p.item], ['VIN', b?.vin], ['Mileage at sale', b?.mileage != null ? Number(b.mileage).toLocaleString('en-US') : null],
+        ['Buyer', c?.name], ['Loan number', p.pay_ref], ['Bike', bikeLabel(b) || p.item], ['VIN', b?.vin], ['Mileage at sale', b?.mileage != null ? Number(b.mileage).toLocaleString('en-US') : null],
         ['Sale date', fmtDate(p.sale_date)], ['Sale price', money(p.sale_price)],
         ['Down payment', Number(p.down_payment) ? `${money(p.down_payment)}${p.down_payment_date ? ' on ' + fmtDate(p.down_payment_date) : ''}` : 'None'],
         ['Interest', Number(p.apr) > 0 ? `${Number(p.apr)}% APR. Finance charge ${money(p.finance_charge)}, total of payments ${C.money(s.owedCents)}` : (p.interest_note || 'None')],
@@ -189,18 +219,21 @@
       a.textContent = text; a.hidden = !text;
     },
 
+    payLink(p) { return C.payHref(p, this.bike(p.bike_id)?.vin); },
+
     renderPayBox(p) {
-      const link = p.pay_link_url && SAFE_LINK.test(p.pay_link_url) ? p.pay_link_url : '';
+      const link = this.payLink(p);
       const box = $('ppPayBox'); box.hidden = !link && !p.pay_provider && (p.autopay || 'off') === 'off';
       const open = $('ppPayLinkOpen');
       if (link) open.href = link; else open.removeAttribute('href');
       open.hidden = !link; $('ppPayLinkCopy').hidden = !link;
-      $('ppAutopayText').textContent = [PROVIDER[p.pay_provider], link ? '' : 'No pay link yet.', AUTOPAY[p.autopay || 'off'], p.autopay_note].filter(Boolean).join(' · ');
+      const shopify = C.isShopifyCart(p) ? `Checkout carries loan number ${p.pay_ref}; paid orders are added here automatically.` : '';
+      $('ppAutopayText').textContent = [PROVIDER[p.pay_provider], link ? '' : 'No pay link yet.', shopify, AUTOPAY[p.autopay || 'off'], p.autopay_note].filter(Boolean).join(' · ');
     },
 
     async copyLink() {
-      const p = this.plans.find(x => x.id === this.current); if (!p?.pay_link_url) return;
-      try { await root.navigator.clipboard.writeText(p.pay_link_url); this.message('Pay link copied. Send it to the buyer yourself.'); }
+      const p = this.plans.find(x => x.id === this.current); const link = p && this.payLink(p); if (!link) return;
+      try { await root.navigator.clipboard.writeText(link); this.message('Pay link copied. Send it to the buyer yourself.'); }
       catch { this.message('Could not copy. Long-press Open pay link to copy it.', true); }
     },
 

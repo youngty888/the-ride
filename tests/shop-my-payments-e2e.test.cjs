@@ -108,3 +108,59 @@ test('a login with no plan sees "No payment plan found"; a wrong password is ref
   await p.click('#myOut'); await p.waitForSelector('#mySignIn:not([hidden])');
   await p.context().close();
 });
+
+test('Shopify checkout: the button carries the loan number, a paid order shows up, an odd one is held for staff', { skip }, async () => {
+  const CART = 'https://www.example-shop.test/cart/111222333:1';
+  const st = await page();
+  await st.goto(`${backend.origin}/shop/`);
+  await st.waitForSelector('#shSignIn:not([hidden])');
+  await st.fill('#shSignInEmail', 'tyler@test.local'); await st.fill('#shSignInPassword', PW);
+  await st.click('#shSignInForm button[type=submit]');
+  await st.waitForSelector('#shList:not([hidden])');
+  await st.evaluate(async cart => {
+    await ShApi.rpc('shop_save_payment_plan', { p_plan_id: 'plan-buyer-01', p_plan: { customer_id: 'cust-buyer-01', item: '2023 Harley-Davidson Low Rider S',
+      sale_date: new Date(Date.now() - 40 * 86400000).toISOString().slice(0, 10), sale_price: '11000', down_payment: '0', schedule: 'monthly', payment_amount: '500',
+      due_day: '18', first_due_date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10), apr: '0', late_fee_per_day: '0', late_fee_waived: true,
+      pay_provider: 'shopify', pay_link_url: cart, autopay: 'off', notes: 'SHOP PRIVATE NOTE' } });
+  }, CART);
+  const [{ pay_ref: ref }] = await backend.sql(`select pay_ref from public.shop_payment_plans where id = 'plan-buyer-01'`);
+  assert.match(ref, /^SIC-[A-Z0-9]{6}$/);
+
+  const p = await page(375);
+  await signInAtPay(p, 'buyer@test.local');
+  await p.waitForSelector('#myPlans:not([hidden])');
+  assert.equal(await p.getAttribute('.my-paybtn', 'href'), `${CART}?attributes[Loan]=${ref}`);
+  const text = await p.locator('#myPlans').innerText();
+  assert.match(text, new RegExp(`Loan number ${ref}`));
+  assert.match(text, /Use this same button every time/);
+
+  // the server (webhook) reports one good order and one with no loan number
+  const rec = o => backend.sql('select public.shop_record_shopify_order($1::jsonb) as r', [JSON.stringify(o)]);
+  assert.equal((await rec({ order_id: '5550001', order_name: '#1042', pay_ref: ref, amount: '500.00', currency: 'USD' }))[0].r.status, 'credited');
+  assert.equal((await rec({ order_id: '5550002', order_name: '#1043', amount: '500.00', currency: 'USD' }))[0].r.status, 'held');
+  await p.reload(); await p.waitForSelector('#myPlans:not([hidden])');
+  const after = await p.locator('#myPlans').innerText();
+  assert.match(after, /Shopify order #1042/); assert.match(after, /\$10,000\.00/);
+  await p.screenshot({ path: path.join(OUT, 'pay-shopify-375.png'), fullPage: true });
+  assert.deepEqual(p.errors, []);
+  await p.context().close();
+
+  await st.goto(`${backend.origin}/shop/payments.html`);
+  await st.waitForSelector('#ppHeld:not([hidden])');
+  assert.match(await st.locator('#ppHeld').innerText(), /#1043.*\$500\.00.*No loan number/s);
+  await st.goto(`${backend.origin}/shop/payments.html?plan=plan-buyer-01`);
+  await st.waitForSelector('#ppDetail:not([hidden])');
+  const detail = await st.locator('#ppDetail').innerText();
+  assert.match(detail, new RegExp(`Loan number\\s+${ref}`));
+  assert.match(detail, /Shopify \(automatic\)/);
+  assert.equal(await st.getAttribute('#ppPayLinkOpen', 'href'), `${CART}?attributes[Loan]=${ref}`);
+  await st.screenshot({ path: path.join(OUT, 'staff-shopify-plan.png'), fullPage: true });
+  await st.click('#ppBack');
+  st.once('dialog', d => d.accept('Refunded in Shopify'));
+  await st.click('#ppHeldRows button');
+  await st.waitForSelector('#ppHeld', { state: 'hidden' });
+  const [h] = await backend.sql(`select status, handled_note from public.shop_shopify_orders where order_id = '5550002'`);
+  assert.deepEqual(h, { status: 'handled', handled_note: 'Refunded in Shopify' });
+  assert.deepEqual(st.errors, []);
+  await st.context().close();
+});
