@@ -169,20 +169,28 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   // payment status: new jobs show Unpaid; staff can mark Paid; amounts untouched
   await page.waitForSelector('#shList:not([hidden])');
   assert.match(await page.locator('.sh-job').first().innerText(), /Unpaid/);
+  assert.equal(await page.locator('.sh-job').first().getAttribute('data-board'), 'red', 'finished and unpaid is red');
+  // paid and finished: the job drops off the board; "Show paid" brings it back in green
   await page.locator('.sh-job').first().getByRole('combobox').selectOption('paid');
+  await page.waitForFunction(() => !document.querySelector('#shJobsList .sh-job'));
+  assert.match(await text(page, '#shShowPaid'), /^Show paid \(1\)$/);
+  await page.click('#shShowPaid');
   await page.waitForFunction(() => /Paid/.test(document.querySelector('.sh-job .sh-pay-paid')?.textContent || ''));
+  assert.equal(await page.locator('.sh-job').first().getAttribute('data-board'), 'green');
   const [paid] = await backend.sql('select payment_status, total_amount from public.shop_jobs');
   assert.equal(paid.payment_status, 'paid'); assert.equal(Number(paid.total_amount), 377.67);
   assert.deepEqual(page.errors, []);
 
   // Garrett (other staff) sees the same job and photo
   const g = await newPage(); await signIn(g, 'garrett@test.local'); await g.waitForSelector('#shList:not([hidden])');
+  await g.click('#shShowPaid');
   assert.match(await g.locator('.sh-job').first().innerText(), /TEST ESTIMATE[\s\S]*\$377\.67/);
   await g.context().close();
 
   // Phone layout (iPhone-sized)
   const phone = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await signIn(phone, 'fang@test.local'); await phone.waitForSelector('#shList:not([hidden])');
+  await phone.click('#shShowPaid');
   assert.ok(await noSideScroll(phone), 'list fits phone'); await shot(phone, '3-phone-list.png');
   await phone.locator('.sh-job').first().getByRole('button', { name: 'Edit' }).click(); await phone.waitForSelector('#shEditor:not([hidden])');
   await phone.waitForFunction(() => document.querySelector('#shPhotoPreview img')?.naturalWidth > 0);
@@ -295,6 +303,39 @@ test('search finds a customer by phone however the number was typed', { skip }, 
   }
   await page.fill('#shSearch', digits + '99');
   assert.ok(!(await page.locator('#shJobsList').innerText()).includes(c.name));
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
+test('board colors: grey estimate, yellow unpaid in work, orange part paid in work, red done unpaid, green paid and done (hidden)', { skip }, async () => {
+  const [job] = await backend.sql('select id, status, payment_status from public.shop_jobs order by created_at limit 1');
+  const page = await newPage();
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  const cases = [
+    ['estimate', 'unpaid', 'grey'], ['in_progress', 'unpaid', 'yellow'], ['in_progress', 'partial', 'orange'],
+    ['in_progress', 'paid', 'orange'], ['complete', 'unpaid', 'red'], ['complete', 'partial', 'red'], ['complete', 'paid', 'green'],
+  ];
+  for (const [status, pay, color] of cases) {
+    await backend.sql('update public.shop_jobs set status = $1, payment_status = $2 where id = $3', [status, pay, job.id]);
+    await page.reload(); await page.waitForSelector('#shList:not([hidden])');
+    const [{ n }] = await backend.sql(`select estimate_number as n from public.shop_jobs where id = $1`, [job.id]);
+    const mine = page.locator('#shJobsList .sh-job').filter({ hasText: `IV#${n}` });
+    if (color === 'green') {
+      assert.equal(await mine.count(), 0, 'paid and done is off the board');
+      await page.click('#shShowPaid');
+      assert.equal(await text(page, '#shShowPaid'), 'Hide paid');
+      assert.equal(await mine.getAttribute('data-board'), 'green');
+      await page.click('#shShowPaid');
+      assert.equal(await mine.count(), 0);
+      await page.fill('#shSearch', `IV#${n}`);
+      assert.equal(await mine.count(), 1, 'a search still finds a paid job');
+      await page.fill('#shSearch', '');
+    } else {
+      assert.equal(await mine.getAttribute('data-board'), color, `${status}/${pay}`);
+    }
+  }
+  assert.equal(await page.locator('.sh-legend li').count(), 5);
+  await backend.sql('update public.shop_jobs set status = $1, payment_status = $2 where id = $3', [job.status, job.payment_status, job.id]);
   assert.deepEqual(page.errors, []);
   await page.context().close();
 });

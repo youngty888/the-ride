@@ -14,6 +14,17 @@
   const PAY_LABEL = { unpaid: 'Unpaid', partial: 'Part paid', paid: 'Paid' };
   const NEXT = { estimate: ['in_progress', 'Start job'], in_progress: ['complete', 'Mark complete'] };
   const TAX_LABEL = { parts: 'on parts', parts_labor: 'on parts and labor', none: '' };
+  // Board colors (Tyler, Nov 23): grey = estimate never started; yellow = in work, unpaid;
+  // orange = parts/part paid and in work; red = finished but not fully paid;
+  // green = paid and finished (these drop off the board unless "Show paid" is on).
+  const BOARD_LABEL = { grey: 'Estimate', yellow: 'In work, unpaid', orange: 'Part paid, in work', red: 'Done, not paid', green: 'Paid and done' };
+  const payOf = j => j.payment_status || 'unpaid';
+  const boardColor = j => {
+    if (j.status === 'estimate') return 'grey';
+    if (j.status === 'complete') return payOf(j) === 'paid' ? 'green' : 'red';
+    return payOf(j) === 'unpaid' ? 'yellow' : 'orange';
+  };
+  const isPaidDone = j => boardColor(j) === 'green';
 
   const genId = () => (root.crypto?.randomUUID ? root.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)));
   const localToday = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
@@ -42,7 +53,7 @@
 
   const App = {
     user: null, jobs: [], customers: [], bikes: [], settings: null, savedJobs: [],
-    filter: '', search: '', form: null, busy: false, photoCache: new Map(),
+    filter: '', search: '', showPaid: false, form: null, busy: false, photoCache: new Map(),
 
     // ---------- startup / sign-in ----------
     async init() {
@@ -67,6 +78,10 @@
         const b = e.target.closest('[data-filter]'); if (!b) return;
         this.filter = b.dataset.filter;
         $('shFilter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        this.renderJobs();
+      });
+      $('shShowPaid').addEventListener('click', () => {
+        this.showPaid = !this.showPaid;
         this.renderJobs();
       });
       $('shEstimateForm').addEventListener('submit', e => { e.preventDefault(); this.save(); });
@@ -210,6 +225,7 @@
     renderJobs() {
       $('shTaxWarning').hidden = this.settings?.default_tax_rate !== null && this.settings?.default_tax_rate !== undefined;
       const q = this.search.trim().toLowerCase();
+      let paidHidden = 0;
       const rows = this.jobs.filter(j => {
         if (this.filter === 'unpaid') { if (j.status === 'estimate' || (j.payment_status || 'unpaid') === 'paid') return false; }
         else if (this.filter && j.status !== this.filter) return false;
@@ -220,7 +236,15 @@
         // A phone number matches however it was typed: 555-123-4567, (555) 123 4567, 5551234567.
         const qd = q.replace(/\D/g, '');
         return hit || (qd.length >= 3 && /^[\d\s().+-]+$/.test(q) && String(c.phone || '').replace(/\D/g, '').includes(qd));
+      }).filter(j => {
+        // Paid and finished jobs come off the board; "Show paid" brings them back.
+        // A search still finds them, so an old invoice can be pulled up by name or phone.
+        if (!this.showPaid && !q && isPaidDone(j)) { paidHidden++; return false; }
+        return true;
       });
+      const sp = $('shShowPaid');
+      sp.classList.toggle('on', this.showPaid); sp.setAttribute('aria-pressed', String(this.showPaid));
+      sp.textContent = this.showPaid ? 'Hide paid' : `Show paid${paidHidden ? ` (${paidHidden})` : ''}`;
       const sum = $('shUnpaidSummary');
       if (this.filter === 'unpaid' && rows.length) {
         const cents = rows.reduce((n, j) => n + ShCalc.centsOf(j.total_amount ?? 0), 0n);
@@ -228,13 +252,14 @@
       } else sum.hidden = true;
       const box = $('shJobsList');
       if (!rows.length) {
-        box.replaceChildren(el('p', { class: 'sh-muted sh-empty', text: this.jobs.length ? 'No jobs match.' : 'No estimates yet. Tap “+ New estimate” to write the first one.' }));
+        box.replaceChildren(el('p', { class: 'sh-muted sh-empty', text: this.jobs.length ? (paidHidden ? 'Nothing open here. Paid jobs are hidden.' : 'No jobs match.') : 'No estimates yet. Tap “+ New estimate” to write the first one.' }));
         return;
       }
       box.replaceChildren(...rows.map(j => {
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id);
         const next = NEXT[j.status];
-        return el('div', { class: `sh-job sh-status-${j.status}` },
+        const color = boardColor(j);
+        return el('div', { class: `sh-job sh-status-${j.status} sh-c-${color}`, title: BOARD_LABEL[color], dataset: { board: color } },
           el('div', { class: 'sh-job-main' },
             el('div', { class: 'sh-job-top' },
               el('strong', { text: c.name || '(no name)' }),
