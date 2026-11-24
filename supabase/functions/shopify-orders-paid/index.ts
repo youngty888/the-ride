@@ -31,9 +31,15 @@ async function record(rec: Record<string, unknown>) {
   return out;
 }
 
-Deno.serve((req: Request) => handleShopifyWebhook(req, {
-  secret: env('SHOPIFY_WEBHOOK_SECRET'),
-  variantIds: env('SHOPIFY_PLAN_VARIANT_IDS').split(',').map(s => s.trim()).filter(Boolean),
-  shopDomain: env('SHOPIFY_SHOP_DOMAIN'),
-  record,
-}));
+Deno.serve(async (req: Request) => {
+  const res = await handleShopifyWebhook(req, {
+    secret: env('SHOPIFY_WEBHOOK_SECRET'),
+    variantIds: env('SHOPIFY_PLAN_VARIANT_IDS').split(',').map(s => s.trim()).filter(Boolean),
+    shopDomain: env('SHOPIFY_SHOP_DOMAIN'),
+    record,
+  });
+  // One line per call in the container log, so a setup mistake (wrong secret: 401)
+  // is easy to spot. Never logs the order itself.
+  console.log('shopify webhook', req.headers.get('x-shopify-topic') ?? '-', res.status);
+  return res;
+});

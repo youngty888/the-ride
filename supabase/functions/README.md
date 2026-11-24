@@ -32,7 +32,9 @@ Install (once, after `sql/shop/2026-11-23-shop-013-shopify-payments.sql` has run
    SHOPIFY_PLAN_VARIANT_IDS: ${SHOPIFY_PLAN_VARIANT_IDS}
    ```
 4. Restart the functions container: `docker compose up -d functions`.
-5. In Shopify, use "Send test notification". The test order has no loan number,
-   so it shows as held on the Payment plans page. Mark it handled.
+5. In Shopify, use "Send test notification" on the webhook. Shopify's sample
+   order is not a plan payment, so nothing is recorded, but the functions
+   container log shows `shopify webhook orders/paid 200`. A 401 there means the
+   secret in step 3 does not match.
 
 Undo: delete the webhook in Shopify, remove the folder, restart the container.
