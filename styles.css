@@ -1822,7 +1822,7 @@ a {
 
 .battery-badge {
   position: absolute;
-  top: 132px;
+  top: 200px;
   right: var(--space-4);
   z-index: 600;
   padding: 4px var(--space-3);
@@ -1836,7 +1836,7 @@ a {
 
 .bike-connection-badge {
   position: absolute;
-  top: 132px;
+  top: 200px;
   left: var(--space-4);
   z-index: 600;
   max-width: calc(100vw - 32px);
@@ -2439,6 +2439,7 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
 @media (min-width: 640px) {
   .route-bar { left: 50%; transform: translateX(-50%); width: 520px; right: auto; }
   .route-bar:active { transform: translateX(-50%) scale(0.985); }
+  .map-hotkeys { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
   .input-with-btn { flex-direction: row; align-items: center; }
   .input-with-btn .input-btn { flex: 0 0 auto; white-space: nowrap; }
   .route-actions { flex-direction: row; }
@@ -2509,7 +2510,10 @@ a.poi-btn:visited, a.poi-btn:hover { color: var(--color-text); text-decoration: 
   .map-side-btn svg { width: 20px; height: 20px; }
   .fab-report { right: calc(8px + env(safe-area-inset-right, 0px)); top: 158px; bottom: auto; width: 64px; min-width: 64px; height: 48px; min-height: 48px; }
   #cloudStatus { left: calc(96px + env(safe-area-inset-left, 0px)); right: calc(96px + env(safe-area-inset-right, 0px)); bottom: calc(58px + env(safe-area-inset-bottom, 0px)); max-height: 72px; padding: 5px 8px; font-size: 11px; }
-  .battery-badge { top: 106px; right: 100px; }
+  .battery-badge { top: 158px; right: 100px; }
+  .map-hotkeys { top: 104px; left: calc(96px + env(safe-area-inset-left, 0px)); right: calc(96px + env(safe-area-inset-right, 0px)); width: auto; transform: none; }
+  .map-hotkey { min-height: 44px; padding: 4px; font-size: 12px; flex-direction: row; }
+  .map-hotkey-icon { font-size: 18px; }
   .toast, .toast.active { left: 96px; right: 96px; width: auto; transform: none; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 }
 
@@ -2552,3 +2556,36 @@ summary:focus-visible,
   font-size: 1.5rem;
 }
 #shopStaffLink[hidden] { display: none !important; }
+
+/* Big one-tap hotkeys under "Where to?" (gloved thumbs, no typing) */
+.map-hotkeys {
+  position: absolute;
+  top: 132px;
+  left: var(--space-4);
+  right: var(--space-4);
+  z-index: 600;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+.map-hotkey {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: var(--space-2) 4px;
+  background: rgba(20, 20, 22, 0.94);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.map-hotkey:active { transform: scale(0.96); border-color: var(--color-primary); }
+.map-hotkey-icon { font-size: 24px; line-height: 1; }
