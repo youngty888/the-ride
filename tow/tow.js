@@ -86,10 +86,10 @@
         const r = await rpc('shop_tow_request', { p });
         $('mtSite').hidden = true; $('mtDone').hidden = false; window.scrollTo(0, 0);
         $('mtDoneTitle').textContent = `Got it. Your tow number is ${r.ref}`;
-        if (r.price == null) $('mtDoneText').textContent = 'We will call you with a price. Pay the link we text you, then we head your way.';
+        if (r.price == null) $('mtDoneText').textContent = 'We will call you with a price, then text or email you an invoice. Once it is paid, we head your way.';
         else $('mtDoneText').textContent = `${r.price_is_start ? 'Price: ' + C.money(r.price) + ' if you are within 15 miles of our shop. We call to confirm the miles first.' : 'Price: ' + C.money(r.price) + '.'} Pay first, then a driver heads your way.`;
         if (r.pay_link && /^https:\/\//.test(r.pay_link)) { $('mtPay').href = r.pay_link; $('mtPay').hidden = false; }
-        $('mtDoneNote').textContent = `Put ${r.ref} in the payment note. ${r.pay_link ? '' : 'We will text you a payment link. '}No pickup until it is paid. Same price day or night.`;
+        $('mtDoneNote').textContent = `${r.pay_link ? 'Put ' + r.ref + ' in the payment note.' : 'We will text or email you an invoice for ' + r.ref + '.'} No pickup until it is paid. Same price day or night.`;
       } catch (err) { msg(err.message); } finally { b.disabled = false; }
     });
   }

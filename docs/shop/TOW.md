@@ -44,8 +44,9 @@ Same price 24/7. Motorcycles, ATVs, golf carts, side-by-sides only.
    select id, 'Garrett' from auth.users where email = 'garrett@...';
    ```
    Add Tyler too if he will take tows himself.
-5. On the board's Settings tab, paste a pay link for each area
-   (Square, Stripe or Shopify payment link, must start with https://).
+5. Payment: send each customer an invoice (PayPal, Square or Shopify) for the
+   tow's price, then press Mark paid with the invoice number. Pay links on the
+   Settings tab are optional; leave them blank to use invoices.
 6. Set up texting: see `supabase/functions/README.md`, tow-alert.
 7. When the tow number is bought, put it in `PHONE` at the top of `tow/tow.js`.
 8. Have a lawyer read the waiver (version `2026-11-25` in shop-014) before
