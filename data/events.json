@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-23",
+  "updated": "2026-11-25",
   "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
   "events": [
     {
@@ -41,6 +41,14 @@
       "start": "2026-12-08",
       "end": "2026-12-12",
       "source": "https://superstitionhd.com/events"
+    },
+    {
+      "id": "red-sleigh-toy-run-2026",
+      "title": "Red Sleigh Toy Run - Sat Dec 19, 8am",
+      "detail": "20th annual Christmas toy run. Starts at American Legion #36, 5845 E 22nd St, Tucson.",
+      "start": "2026-12-15",
+      "end": "2026-12-19",
+      "source": "https://www.redsleightoyrun.com/"
     },
     {
       "id": "az-bike-week-2027",
