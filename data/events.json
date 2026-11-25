@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-23",
+  "updated": "2026-11-25",
   "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
   "events": [
     {
@@ -11,12 +11,28 @@
       "source": "https://www.kold.com/2026/10/14/el-tour-de-tucson-road-closures-delays/"
     },
     {
+      "id": "shd-swap-meet-2026-11",
+      "title": "Motorcycle Parts Swap Meet - Sun Nov 29, 10am-2pm",
+      "detail": "Superstition Harley-Davidson, 2910 W Apache Trail, Apache Junction. Free to sell, reserve a spot at 480-346-0600.",
+      "start": "2026-11-25",
+      "end": "2026-11-29",
+      "source": "https://superstitionhd.com/event/53281/swapmeet926"
+    },
+    {
       "id": "troll-teddy-bear-run-2026",
       "title": "Troll's Teddy Bear Run - Sat Dec 5, sign-in 9-10:30am",
       "detail": "Poker run starting at Superstition Harley-Davidson, Apache Junction. Expect lots of motorcycle traffic.",
       "start": "2026-12-01",
       "end": "2026-12-05",
       "source": "https://superstitionhd.com/events"
+    },
+    {
+      "id": "windy-point-ride-2026-12",
+      "title": "Windy Point group ride - Sun Dec 6, meet 8am",
+      "detail": "Sportbike Riders of Tucson. Meet at Gear Shifters AZ, 1045 N Catalina Ave, Tucson; kickstands up 8:30. Ask to join on Meetup.",
+      "start": "2026-12-02",
+      "end": "2026-12-06",
+      "source": "https://www.meetup.com/sportbike-riders-of-tucson/events/316963996/"
     },
     {
       "id": "xcel-trackday-2026-12",
