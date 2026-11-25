@@ -6,7 +6,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const C = window.PpCalc;
-  const VIEWS = ['myLoading', 'mySignIn', 'myNone', 'myPlans'];
+  const VIEWS = ['myLoading', 'mySignIn', 'myNone', 'myError', 'myPlans'];
   const show = id => VIEWS.forEach(v => { $(v).hidden = v !== id; });
   const pad = n => String(n).padStart(2, '0');
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -67,11 +67,16 @@
   async function load() {
     show('myLoading'); msg('');
     let s;
-    try { s = await ShApi.verify(); } catch (e) { show('mySignIn'); $('myOut').hidden = true; return; }
+    try { s = await ShApi.verify(); }
+    catch (e) {
+      // Only a rejected sign-in goes back to the form; no signal or a server error can be retried.
+      if (e.status === 401 || e.status === 403) { show('mySignIn'); $('myOut').hidden = true; } else show('myError');
+      return;
+    }
     $('myOut').hidden = false;
     let plans;
     try { plans = await ShApi.rpc('shop_my_payment_plans', {}); }
-    catch (e) { if (e.status === 401) { show('mySignIn'); return; } msg(e.message || 'Could not load your payments.', true); show('myNone'); $('myNoneEmail').textContent = s.user?.email || ''; return; }
+    catch (e) { show(e.status === 401 ? 'mySignIn' : 'myError'); return; }
     if (!Array.isArray(plans) || !plans.length) { $('myNoneEmail').textContent = s.user?.email || ''; show('myNone'); return; }
     const box = $('myPlans'); box.replaceChildren(...plans.map(renderPlan)); show('myPlans');
   }
@@ -83,6 +88,7 @@
     catch (err) { msg(err.status === 400 ? 'That email and password did not match.' : (err.message || 'Sign in failed.'), true); }
     finally { btn.disabled = false; }
   });
+  $('myRetry').addEventListener('click', () => load());
   $('myOut').addEventListener('click', async () => { await ShApi.signOut(); location.reload(); });
   load();
 })();
