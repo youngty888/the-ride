@@ -4,7 +4,7 @@
    ?sign=<token> opens the waiver alone, for calls the crew took by phone. */
 (function () {
   'use strict';
-  const PHONE = '';   // the tow number once it is bought, e.g. '+15209346869'. Empty hides the call button.
+  const PHONE = '+15209995691';   // Moto Tow line, 520-999-5691. Empty hides the call button.
   const $ = id => document.getElementById(id);
   const C = window.TowCalc;
   const cfg = window.SICC_RIDE_SUPABASE || {};
@@ -116,7 +116,7 @@
   }
 
   function init() {
-    if (PHONE) { $('mtCall').href = `tel:${PHONE}`; $('mtCall').hidden = false; }
+    if (PHONE) { $('mtCall').href = `tel:${PHONE}`; $('mtCall').textContent = 'Call or text 520-999-5691'; $('mtCall').hidden = false; }
     loadWaiver();
     const token = new URLSearchParams(location.search).get('sign');
     if (token) initSign(token); else initBooking();

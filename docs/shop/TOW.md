@@ -48,6 +48,6 @@ Same price 24/7. Motorcycles, ATVs, golf carts, side-by-sides only.
    tow's price, then press Mark paid with the invoice number. Pay links on the
    Settings tab are optional; leave them blank to use invoices.
 6. Set up texting: see `supabase/functions/README.md`, tow-alert.
-7. When the tow number is bought, put it in `PHONE` at the top of `tow/tow.js`.
+7. The tow number, 520-999-5691, is set in `PHONE` at the top of `tow/tow.js`.
 8. Have a lawyer read the waiver (version `2026-11-25` in shop-014) before
    real customers sign it. A new version is a new row in `shop_tow_waivers`.
