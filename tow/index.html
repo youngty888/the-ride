@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080808">
+<meta name="robots" content="noindex">
+<title>Moto Tow · Motorcycle towing in Tucson, 24/7</title>
+<meta name="description" content="Motorcycle, ATV, golf cart and side-by-side towing in Tucson, Sierra Vista and Phoenix. 24/7, no after-hours fee. Book and pay online.">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tow.css?v=20261125a">
+</head>
+<body>
+<header class="mt-top">
+  <img src="moto-tow-logo.png" alt="Moto Tow" width="1000" height="345" class="mt-logo">
+</header>
+
+<main>
+  <!-- Waiver-only view, from the link the crew texts after a phone call -->
+  <section id="mtSignView" class="mt-wrap" hidden>
+    <h1>Sign your tow waiver</h1>
+    <p id="mtSignIntro"></p>
+    <form id="mtSignForm" class="mt-card">
+      <div class="mt-waiver" data-waiver></div>
+      <label class="mt-check"><input type="checkbox" name="agree" required> I have read and agree to the waiver above.</label>
+      <label>Type your full name <input name="waiver_name" autocomplete="name" required></label>
+      <div class="mt-sigwrap"><span>Sign here</span><canvas class="mt-sig" width="600" height="180" aria-label="Signature box"></canvas><button type="button" class="mt-linkbtn" data-clear>Clear</button></div>
+      <button class="mt-btn mt-btn-red" type="submit">Sign waiver</button>
+    </form>
+  </section>
+
+  <div id="mtSite">
+    <section class="mt-hero">
+      <h1>Broke down? We tow bikes.</h1>
+      <p class="mt-lead">Motorcycles, ATVs, golf carts and side-by-sides. Tucson, Sierra Vista and Phoenix. <b>24/7, no after-hours fee.</b></p>
+      <div class="mt-cta">
+        <a class="mt-btn mt-btn-red" href="#book">Book a tow</a>
+        <a class="mt-btn" id="mtCall" hidden>Call or text</a>
+      </div>
+    </section>
+
+    <section class="mt-wrap">
+      <h2>Prices</h2>
+      <div class="mt-prices">
+        <div class="mt-price"><b>Tucson area</b><span class="mt-big">$125</span><small>within 15 miles of our shop, then $3.50 a mile</small><em>$100 if it's coming to SIC Cycles for work</em></div>
+        <div class="mt-price"><b>Sierra Vista</b><span class="mt-big">$295</span><small>flat, anywhere in Sierra Vista</small><em>$250 if it's coming to SIC Cycles</em></div>
+        <div class="mt-price"><b>Phoenix area</b><span class="mt-big">$425</span><small>flat, Phoenix metro</small><em>$375 if it's coming to SIC Cycles</em></div>
+      </div>
+      <p class="mt-note">Pay first, then we roll. No pickup until it's paid. Same price day or night. Somewhere else in Arizona? Ask, and we'll call you with a price.</p>
+
+      <h2>Where we go</h2>
+      <svg class="mt-map" viewBox="0 0 360 260" role="img" aria-label="Service area: Phoenix, Tucson and Sierra Vista along I-10 and Highway 90">
+        <path d="M70 40 L210 150 L270 225" fill="none" stroke="#444" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="210" cy="150" r="58" fill="rgba(255,0,0,.18)" stroke="#FF0000" stroke-width="2"/>
+        <circle cx="70" cy="40" r="26" fill="rgba(243,107,33,.18)" stroke="#F36B21" stroke-width="2"/>
+        <circle cx="270" cy="225" r="20" fill="rgba(243,107,33,.18)" stroke="#F36B21" stroke-width="2"/>
+        <circle cx="210" cy="150" r="5" fill="#fff"/><circle cx="70" cy="40" r="5" fill="#fff"/><circle cx="270" cy="225" r="5" fill="#fff"/>
+        <text x="222" y="146" fill="#fff" font-size="15">Tucson</text>
+        <text x="100" y="44" fill="#fff" font-size="15">Phoenix · 116 mi</text>
+        <text x="160" y="250" fill="#fff" font-size="15">Sierra Vista · 72 mi</text>
+        <text x="132" y="92" fill="#888" font-size="12">I-10</text>
+      </svg>
+
+      <h2>What we tow</h2>
+      <ul class="mt-list"><li>Motorcycles of any size, trikes too</li><li>ATVs and quads</li><li>Golf carts</li><li>Side-by-sides (UTVs)</li></ul>
+      <p class="mt-note">We don't tow cars, trucks or RVs.</p>
+    </section>
+
+    <section class="mt-wrap" id="book">
+      <h2>Book a tow</h2>
+      <form id="mtForm" class="mt-card" novalidate>
+        <fieldset>
+          <legend>You</legend>
+          <label>Your name <input name="customer_name" autocomplete="name" required></label>
+          <label>Phone <input name="phone" type="tel" autocomplete="tel" required></label>
+          <label>Email (for your receipt) <input name="email" type="email" autocomplete="email"></label>
+        </fieldset>
+        <fieldset>
+          <legend>The ride</legend>
+          <label>What is it <select name="vehicle_type" id="mtType"></select></label>
+          <label>Year, make and model <input name="vehicle" placeholder="2019 Harley Road Glide"></label>
+          <label>Does it run? <select name="vehicle_runs"><option value="">Not sure</option><option value="true">Yes</option><option value="false">No</option></select></label>
+        </fieldset>
+        <fieldset>
+          <legend>Where</legend>
+          <label>Area <select name="zone" id="mtZone"></select></label>
+          <label>Pick it up at <input name="pickup_address" placeholder="Address, cross streets or mile marker" required></label>
+          <label class="mt-check"><input type="checkbox" name="to_shop" id="mtToShop"> Take it to SIC Cycles for work (lower price)</label>
+          <label id="mtDropWrap">Take it to <input name="dropoff_address" placeholder="Address"></label>
+          <label class="mt-check"><input type="checkbox" name="ride_along"> I want to ride along (one person)</label>
+          <label>Anything we should know <textarea name="notes" rows="2" placeholder="Gate code, flat tire, keys, where it's parked"></textarea></label>
+          <p class="mt-quote" id="mtQuote"></p>
+        </fieldset>
+        <fieldset>
+          <legend>Waiver</legend>
+          <div class="mt-waiver" data-waiver></div>
+          <label class="mt-check"><input type="checkbox" name="agree" required> I have read and agree to the waiver above.</label>
+          <label>Type your full name <input name="waiver_name" autocomplete="name" required></label>
+          <div class="mt-sigwrap"><span>Sign here</span><canvas class="mt-sig" width="600" height="180" aria-label="Signature box"></canvas><button type="button" class="mt-linkbtn" data-clear>Clear</button></div>
+        </fieldset>
+        <button class="mt-btn mt-btn-red" type="submit">Request my tow</button>
+        <p class="mt-note">Next you pay, then a driver heads your way. We text you when we're rolling.</p>
+      </form>
+    </section>
+  </div>
+
+  <section id="mtDone" class="mt-wrap" hidden>
+    <div class="mt-card">
+      <h2 id="mtDoneTitle"></h2>
+      <p id="mtDoneText"></p>
+      <a class="mt-btn mt-btn-red" id="mtPay" target="_blank" rel="noopener" hidden>Pay now</a>
+      <p class="mt-note" id="mtDoneNote"></p>
+    </div>
+  </section>
+  <div id="mtMsg" class="mt-msg" role="alert" hidden></div>
+</main>
+<footer class="mt-foot">Moto Tow · Tucson, Arizona · A SIC Cycles company</footer>
+<script src="../supabase-config.js"></script>
+<script src="../shop/tow-calc.js?v=20261125a"></script>
+<script src="tow.js?v=20261125a"></script>
+</body>
+</html>

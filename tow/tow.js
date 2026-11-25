@@ -1,0 +1,125 @@
+/* Moto Tow public page (ride.siccycles.com/tow/). Anyone can ask for a tow
+   here without an account. The database (shop_tow_request, shop-014) checks
+   everything and sets the price itself; this page only shows a preview.
+   ?sign=<token> opens the waiver alone, for calls the crew took by phone. */
+(function () {
+  'use strict';
+  const PHONE = '';   // the tow number once it is bought, e.g. '+15209346869'. Empty hides the call button.
+  const $ = id => document.getElementById(id);
+  const C = window.TowCalc;
+  const cfg = window.SICC_RIDE_SUPABASE || {};
+  let waiver = null;
+
+  function msg(t) { const m = $('mtMsg'); m.textContent = t || ''; m.hidden = !t; if (t) setTimeout(() => { if (m.textContent === t) m.hidden = true; }, 8000); }
+
+  async function rpc(fn, args) {
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
+      method: 'POST', signal: AbortSignal.timeout(20000),
+      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${cfg.anonKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args || {}),
+    });
+    const text = await res.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) throw new Error((data && data.message) || 'Something went wrong. Call or text us.');
+    return data;
+  }
+
+  // ---------- signature pad ----------
+  function pad(canvas) {
+    const ctx = canvas.getContext('2d'); let drawing = false; let strokes = 0; let last = null;
+    const pos = e => { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height }; };
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
+    canvas.addEventListener('pointerdown', e => { drawing = true; last = pos(e); canvas.setPointerCapture(e.pointerId); e.preventDefault(); });
+    canvas.addEventListener('pointermove', e => {
+      if (!drawing) return; const p = pos(e);
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; strokes++;
+    });
+    const stop = () => { drawing = false; };
+    canvas.addEventListener('pointerup', stop); canvas.addEventListener('pointercancel', stop);
+    return {
+      clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); strokes = 0; },
+      empty() { return strokes < 5; },
+      // White background so the PNG reads on any viewer.
+      png() { const out = document.createElement('canvas'); out.width = canvas.width; out.height = canvas.height;
+        const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height); o.drawImage(canvas, 0, 0); return out.toDataURL('image/png'); },
+    };
+  }
+
+  function setupWaiver(form) {
+    const p = pad(form.querySelector('canvas'));
+    form.querySelector('[data-clear]').addEventListener('click', () => p.clear());
+    return p;
+  }
+
+  async function loadWaiver() {
+    try {
+      waiver = await rpc('shop_tow_waiver_text');
+      document.querySelectorAll('[data-waiver]').forEach(d => { d.textContent = waiver.body; });
+    } catch { document.querySelectorAll('[data-waiver]').forEach(d => { d.textContent = 'The waiver could not load. Call or text us to book.'; }); }
+  }
+
+  // ---------- booking ----------
+  function quote() {
+    const f = $('mtForm'); const z = f.zone.value; const toShop = f.to_shop.checked;
+    $('mtDropWrap').hidden = toShop;
+    const p = C.quote(z, { toShop });
+    $('mtQuote').textContent = p == null ? 'We will call you with a price.' : z === 'tucson' ? `${C.money(p)} within 15 miles of our shop. Farther out adds $3.50 a mile; we confirm before you pay.` : `${C.money(p)} flat.`;
+  }
+
+  function initBooking() {
+    const f = $('mtForm');
+    $('mtType').replaceChildren(...Object.entries(C.VEHICLES).map(([v, t]) => new Option(t, v)));
+    $('mtZone').replaceChildren(...Object.entries(C.ZONES).map(([v, z]) => new Option(z.label, v)));
+    const sig = setupWaiver(f);
+    f.addEventListener('change', quote); quote();
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(f); const p = Object.fromEntries(fd);
+      for (const k of ['customer_name', 'phone', 'pickup_address']) if (!String(p[k] || '').trim()) { msg('Fill in your name, phone and where to pick it up.'); f[k].focus(); return; }
+      if (!f.agree.checked) { msg('Read and agree to the waiver to continue.'); return; }
+      if (sig.empty()) { msg('Sign in the white box.'); return; }
+      if (!waiver) { msg('The waiver did not load. Call or text us.'); return; }
+      p.to_shop = f.to_shop.checked; p.ride_along = f.ride_along.checked; p.agree = true;
+      p.vehicle_runs = p.vehicle_runs === '' ? null : p.vehicle_runs === 'true';
+      p.signature = sig.png(); p.waiver_version = waiver.version;
+      const b = f.querySelector('button[type=submit]'); b.disabled = true;
+      try {
+        const r = await rpc('shop_tow_request', { p });
+        $('mtSite').hidden = true; $('mtDone').hidden = false; window.scrollTo(0, 0);
+        $('mtDoneTitle').textContent = `Got it. Your tow number is ${r.ref}`;
+        if (r.price == null) $('mtDoneText').textContent = 'We will call you with a price. Pay the link we text you, then we head your way.';
+        else $('mtDoneText').textContent = `${r.price_is_start ? 'Price: ' + C.money(r.price) + ' if you are within 15 miles of our shop. We call to confirm the miles first.' : 'Price: ' + C.money(r.price) + '.'} Pay first, then a driver heads your way.`;
+        if (r.pay_link && /^https:\/\//.test(r.pay_link)) { $('mtPay').href = r.pay_link; $('mtPay').hidden = false; }
+        $('mtDoneNote').textContent = `Put ${r.ref} in the payment note. ${r.pay_link ? '' : 'We will text you a payment link. '}No pickup until it is paid. Same price day or night.`;
+      } catch (err) { msg(err.message); } finally { b.disabled = false; }
+    });
+  }
+
+  // ---------- waiver from a link ----------
+  async function initSign(token) {
+    $('mtSite').hidden = true; $('mtSignView').hidden = false;
+    const f = $('mtSignForm'); const sig = setupWaiver(f);
+    let info = null;
+    try { info = await rpc('shop_tow_sign_info', { p_token: token }); } catch { /* below */ }
+    if (!info) { $('mtSignIntro').textContent = 'This link is not valid. Call or text us.'; f.hidden = true; return; }
+    if (info.signed) { $('mtSignIntro').textContent = `Thanks ${info.first_name}, your waiver for tow ${info.ref} is already signed.`; f.hidden = true; return; }
+    $('mtSignIntro').textContent = `Hi ${info.first_name}. Please read and sign the waiver for tow ${info.ref}.`;
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (sig.empty()) { msg('Sign in the white box.'); return; }
+      if (!waiver) { msg('The waiver did not load. Call or text us.'); return; }
+      const b = f.querySelector('button[type=submit]'); b.disabled = true;
+      try {
+        await rpc('shop_tow_sign', { p_token: token, p_name: f.waiver_name.value, p_signature: sig.png(), p_version: waiver.version });
+        f.hidden = true; $('mtSignIntro').textContent = `Signed. Thank you. Once it's paid, we head your way for tow ${info.ref}.`;
+      } catch (err) { msg(err.message); } finally { b.disabled = false; }
+    });
+  }
+
+  function init() {
+    if (PHONE) { $('mtCall').href = `tel:${PHONE}`; $('mtCall').hidden = false; }
+    loadWaiver();
+    const token = new URLSearchParams(location.search).get('sign');
+    if (token) initSign(token); else initBooking();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
