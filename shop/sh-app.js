@@ -24,7 +24,11 @@
     if (j.status === 'complete') return payOf(j) === 'paid' ? 'green' : 'red';
     return payOf(j) === 'unpaid' ? 'yellow' : 'orange';
   };
-  const isPaidDone = j => boardColor(j) === 'green';
+  // Closed folder (Tyler, Nov 26): a completed work order, or an estimate closed by hand,
+  // leaves the job board and lives in "Closed". Search still finds it.
+  const isClosed = j => j.status === 'complete' || (j.status === 'estimate' && !!j.closed_at);
+  const NEEDS_016 = ' (ask Tyler to run the shop-016 SQL file)';
+  const needs016 = e => /Could not find the function|schema cache|closed_at|tracking_number/i.test(e?.message || '') ? NEEDS_016 : '';
 
   const genId = () => (root.crypto?.randomUUID ? root.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)));
   const localToday = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
@@ -52,8 +56,8 @@
   }
 
   const App = {
-    user: null, jobs: [], customers: [], bikes: [], settings: null, savedJobs: [],
-    filter: '', search: '', showPaid: false, form: null, busy: false, photoCache: new Map(),
+    user: null, jobs: [], customers: [], bikes: [], settings: null, savedJobs: [], parts: [],
+    filter: '', search: '', form: null, partForm: null, busy: false, photoCache: new Map(),
 
     // ---------- startup / sign-in ----------
     async init() {
@@ -80,10 +84,11 @@
         $('shFilter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
         this.renderJobs();
       });
-      $('shShowPaid').addEventListener('click', () => {
-        this.showPaid = !this.showPaid;
-        this.renderJobs();
-      });
+      $('shOrderPartBtn').addEventListener('click', () => this.openPartForm(null, null));
+      $('shPartOrderForm').addEventListener('submit', e => { e.preventDefault(); this.savePartOrder(); });
+      $('shPoCancel').addEventListener('click', () => this.show('shList'));
+      $('shPoJob').addEventListener('change', () => this.loadJobParts($('shPoJob').value));
+      $('shPoDesc').addEventListener('change', () => this.fillPartCost());
       $('shEstimateForm').addEventListener('submit', e => { e.preventDefault(); this.save(); });
       $('shEstimateForm').addEventListener('input', () => { if (this.form) { this.form.dirty = true; this.recalc(); } });
       $('shCancelBtn').addEventListener('click', () => { if (this.confirmLeave()) this.show('shList'); });
@@ -176,13 +181,14 @@
     // ---------- data ----------
     async refresh() {
       try {
-        const [jobs, customers, bikes, settings] = await Promise.all([
+        const [jobs, customers, bikes, settings, parts] = await Promise.all([
           ShApi.select('shop_jobs', 'select=*&order=job_date.desc,estimate_number.desc'),
           ShApi.select('shop_customers', 'select=id,name,phone,email,address&order=name.asc'),
           ShApi.select('shop_bikes', 'select=id,customer_id,vin,make,model,year,mileage,photo_urls'),
           ShApi.select('shop_settings', 'select=*'),
+          ShApi.select('shop_part_orders', 'select=*&order=date_ordered.desc,created_at.desc').catch(e => { if (e?.status === 401) throw e; return []; }),
         ]);
-        this.jobs = jobs; this.customers = customers; this.bikes = bikes; this.settings = settings[0] || {};
+        this.jobs = jobs; this.customers = customers; this.bikes = bikes; this.settings = settings[0] || {}; this.parts = parts || [];
         await this.loadSavedJobs();
         this.renderJobs();
         return true;
@@ -209,6 +215,7 @@
     show(id) {
       for (const v of document.querySelectorAll('.sh-view')) v.hidden = v.id !== id;
       if (id !== 'shEditor') this.form = null;
+      if (id !== 'shPartForm') this.partForm = null;
       root.scrollTo?.(0, 0);
     },
 
@@ -222,12 +229,21 @@
       return !(this.form?.dirty && !$('shEditor').hidden) || root.confirm('Leave without saving this estimate?');
     },
 
+    openParts(jobId) { return this.parts.filter(p => !p.received && p.job_id === jobId); },
+
     renderJobs() {
       $('shTaxWarning').hidden = this.settings?.default_tax_rate !== null && this.settings?.default_tax_rate !== undefined;
+      const onOrder = this.parts.filter(p => !p.received).length;
+      const closedCount = this.jobs.filter(isClosed).length;
+      $('shPartsChip').textContent = `Parts on order${onOrder ? ` (${onOrder})` : ''}`;
+      $('shClosedChip').textContent = `Closed${closedCount ? ` (${closedCount})` : ''}`;
+      $('shPartsTools').hidden = this.filter !== 'parts';
+      if (this.filter === 'parts') { $('shUnpaidSummary').hidden = true; return this.renderParts(); }
       const q = this.search.trim().toLowerCase();
-      let paidHidden = 0;
+      let closedHidden = 0;
       const rows = this.jobs.filter(j => {
         if (this.filter === 'unpaid') { if (j.status === 'estimate' || (j.payment_status || 'unpaid') === 'paid') return false; }
+        else if (this.filter === 'closed') { if (!isClosed(j)) return false; }
         else if (this.filter && j.status !== this.filter) return false;
         if (!q) return true;
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id) || {};
@@ -237,14 +253,12 @@
         const qd = q.replace(/\D/g, '');
         return hit || (qd.length >= 3 && /^[\d\s().+-]+$/.test(q) && String(c.phone || '').replace(/\D/g, '').includes(qd));
       }).filter(j => {
-        // Paid and finished jobs come off the board; "Show paid" brings them back.
-        // A search still finds them, so an old invoice can be pulled up by name or phone.
-        if (!this.showPaid && !q && isPaidDone(j)) { paidHidden++; return false; }
-        return true;
+        // Closed jobs come off the board (All / Estimates / In progress). "Not paid" still
+        // lists a finished job that is owed money. A search still finds a closed job.
+        if (this.filter === 'closed' || this.filter === 'unpaid' || q || !isClosed(j)) return true;
+        closedHidden++; return false;
       });
-      const sp = $('shShowPaid');
-      sp.classList.toggle('on', this.showPaid); sp.setAttribute('aria-pressed', String(this.showPaid));
-      sp.textContent = this.showPaid ? 'Hide paid' : `Show paid${paidHidden ? ` (${paidHidden})` : ''}`;
+      if (this.filter === 'closed') rows.sort((x, y) => String(y.closed_at || y.updated_at || '').localeCompare(String(x.closed_at || x.updated_at || '')));
       const sum = $('shUnpaidSummary');
       if (this.filter === 'unpaid' && rows.length) {
         const cents = rows.reduce((n, j) => n + ShCalc.centsOf(j.total_amount ?? 0), 0n);
@@ -252,14 +266,18 @@
       } else sum.hidden = true;
       const box = $('shJobsList');
       if (!rows.length) {
-        box.replaceChildren(el('p', { class: 'sh-muted sh-empty', text: this.jobs.length ? (paidHidden ? 'Nothing open here. Paid jobs are hidden.' : 'No jobs match.') : 'No estimates yet. Tap “+ New estimate” to write the first one.' }));
+        const empty = this.filter === 'closed' ? 'Nothing closed yet. Completed work orders and closed estimates land here.'
+          : this.jobs.length ? (closedHidden ? 'Nothing open here. Finished jobs are in Closed.' : 'No jobs match.') : 'No estimates yet. Tap “+ New estimate” to write the first one.';
+        box.replaceChildren(el('p', { class: 'sh-muted sh-empty', text: empty }));
         return;
       }
       box.replaceChildren(...rows.map(j => {
         const c = this.customer(j.customer_id) || {}; const b = this.bike(j.bike_id);
-        const next = NEXT[j.status];
+        const closed = isClosed(j);
+        const next = closed ? null : NEXT[j.status];
         const color = boardColor(j);
-        return el('div', { class: `sh-job sh-status-${j.status} sh-c-${color}`, title: BOARD_LABEL[color], dataset: { board: color } },
+        const waiting = this.openParts(j.id).length;
+        return el('div', { class: `sh-job sh-status-${j.status} sh-c-${color}${closed ? ' sh-closed' : ''}`, title: BOARD_LABEL[color], dataset: { board: color, closed: closed ? '1' : '' } },
           el('div', { class: 'sh-job-main' },
             el('div', { class: 'sh-job-top' },
               el('strong', { text: c.name || '(no name)' }),
@@ -269,16 +287,151 @@
               el('span', { text: fmtDate(j.job_date) }),
               el('span', { class: 'sh-pill', text: STATUS_LABEL[j.status] || j.status }),
               j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: PAY_LABEL[j.payment_status] || 'Unpaid' }),
+              closed ? el('span', { class: 'sh-tag sh-tag-closed', text: 'Closed' }) : null,
+              waiting ? el('span', { class: 'sh-tag sh-tag-parts', text: `${waiting} part${waiting === 1 ? '' : 's'} on order` }) : null,
               b ? el('span', { text: bikeLabel(b) || b.vin || '' }) : null),
             j.work_description ? el('div', { class: 'sh-job-desc', text: j.work_description }) : null),
           el('div', { class: 'sh-job-actions' },
             el('button', { type: 'button', class: 'sh-btn', text: 'View / Print', onclick: () => this.openPrint(j.id) }),
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
-            j.status === 'estimate' ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Tech sign-off', onclick: () => this.openSignoff(j.id) }),
+            closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Order part', onclick: () => this.openPartForm(null, j.id) }),
+            j.status === 'estimate' || closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Tech sign-off', onclick: () => this.openSignoff(j.id) }),
             j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for ${wo(j.estimate_number)}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
               ...Object.entries(PAY_LABEL).map(([v, t]) => el('option', { value: v, text: t, selected: (j.payment_status || 'unpaid') === v }))),
+            j.status === 'estimate' && !closed ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Close estimate', onclick: ev => this.setClosed(j.id, true, ev.currentTarget) }) : null,
+            j.status === 'estimate' && closed ? el('button', { type: 'button', class: 'sh-btn', text: 'Reopen', onclick: ev => this.setClosed(j.id, false, ev.currentTarget) }) : null,
             next ? el('button', { type: 'button', class: 'sh-btn sh-btn-step', text: next[1], onclick: ev => this.setStatus(j.id, next[0], ev.currentTarget) }) : null));
       }));
+    },
+
+    async setClosed(jobId, closed, btn) {
+      if (this.busy) return;
+      const j = this.jobs.find(x => x.id === jobId);
+      if (closed && !root.confirm(`Close estimate ${wo(j?.estimate_number)}? It moves to Closed and off the board. You can reopen it.`)) return;
+      this.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+      try {
+        await ShApi.rpc('shop_set_job_closed', { p_job_id: jobId, p_closed: closed });
+        this.message(closed ? `${wo(j?.estimate_number)} closed. It's in Closed.` : `${wo(j?.estimate_number)} is back on the board.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`Not changed: ${e.message}${needs016(e)}`, true);
+      } finally { this.busy = false; await this.refresh(); }
+    },
+
+    // ---------- parts on order (shop-016) ----------
+    renderParts() {
+      const box = $('shJobsList');
+      const job = id => this.jobs.find(j => j.id === id);
+      const byEta = (x, y) => (x.eta ? 0 : 1) - (y.eta ? 0 : 1) || String(x.eta || '').localeCompare(String(y.eta || '')) || String(x.date_ordered || '').localeCompare(String(y.date_ordered || ''));
+      const open = this.parts.filter(p => !p.received).sort(byEta);
+      const done = this.parts.filter(p => p.received).sort((x, y) => String(y.received_at || '').localeCompare(String(x.received_at || ''))).slice(0, 10);
+      const today = localToday();
+      const card = p => {
+        const j = p.job_id ? job(p.job_id) : null; const c = j ? this.customer(j.customer_id) : null;
+        const late = !p.received && p.eta && String(p.eta).slice(0, 10) < today;
+        return el('div', { class: `sh-job sh-part${p.received ? ' sh-part-done' : ''}`, dataset: { part: p.id } },
+          el('div', { class: 'sh-job-main' },
+            el('div', { class: 'sh-job-top' }, el('strong', { text: p.part_description || '(no description)' }), el('span', { class: 'sh-job-total', text: money(p.cost) })),
+            el('div', { class: 'sh-job-sub' },
+              el('span', { text: p.supplier_name ? `From ${p.supplier_name}` : 'Vendor not set' }),
+              p.received ? el('span', { text: `Received ${fmtDate(p.received_at)}` })
+                : el('span', { class: late ? 'sh-tag sh-tag-late' : '', text: p.eta ? `ETA ${fmtDate(p.eta)}${late ? ' (late)' : ''}` : 'No ETA' }),
+              el('span', { text: j ? `${wo(j.estimate_number)} · ${c?.name || ''}` : 'Shop stock' }),
+              p.order_number ? el('span', { text: `Order ${p.order_number}` }) : null),
+            el('div', { class: 'sh-job-desc sh-part-track', text: p.tracking_number ? `Tracking ${p.tracking_number}` : 'No tracking # yet' })),
+          el('div', { class: 'sh-job-actions' },
+            p.received ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Not received', onclick: ev => this.setReceived(p.id, false, ev.currentTarget) })
+              : el('button', { type: 'button', class: 'sh-btn sh-btn-step', text: 'Received', onclick: ev => this.setReceived(p.id, true, ev.currentTarget) }),
+            el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openPartForm(p.id, p.job_id) }),
+            j ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: `Open ${wo(j.estimate_number)}`, onclick: () => this.openEditor(j.id) }) : null));
+      };
+      box.replaceChildren(
+        ...(open.length ? open.map(card) : [el('p', { class: 'sh-muted sh-empty', text: 'No parts on order. Press “Order part” on a job, or “+ Order a part” for shop stock.' })]),
+        ...(done.length ? [el('h2', { class: 'sh-parts-received', text: 'Recently received' }), ...done.map(card)] : []));
+    },
+
+    async setReceived(id, received, btn) {
+      if (this.busy) return;
+      const p = this.parts.find(x => x.id === id);
+      this.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+      try {
+        await ShApi.rpc('shop_set_part_received', { p_id: id, p_received: received });
+        this.message(received ? `${p?.part_description || 'Part'} received. It's off the list.` : `${p?.part_description || 'Part'} is back on order.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`Not changed: ${e.message}${needs016(e)}`, true);
+      } finally { this.busy = false; await this.refresh(); }
+    },
+
+    openPartForm(partId, jobId) {
+      if (this.busy || !this.confirmLeave()) return;
+      this.message('');
+      const p = partId ? this.parts.find(x => x.id === partId) : null;
+      this.partForm = { id: p?.id || null, back: this.filter, lines: [] };
+      $('shPoTitle').textContent = p ? 'Edit part order' : 'Order a part';
+      const sel = $('shPoJob');
+      const pickable = this.jobs.filter(j => !isClosed(j) || j.id === (p?.job_id || jobId));
+      sel.replaceChildren(el('option', { value: '', text: 'Shop stock / tools (no job)' }),
+        ...pickable.map(j => el('option', { value: j.id, text: `${wo(j.estimate_number)} · ${this.customer(j.customer_id)?.name || '(no name)'}${bikeLabel(this.bike(j.bike_id)) ? ' · ' + bikeLabel(this.bike(j.bike_id)) : ''}` })));
+      sel.value = p ? (p.job_id || '') : (jobId || '');
+      $('shPoDesc').value = p?.part_description || '';
+      $('shPoVendor').value = p?.supplier_name || '';
+      $('shPoCost').value = p ? numText(p.cost) : '';
+      $('shPoTracking').value = p?.tracking_number || '';
+      $('shPoEta').value = p?.eta ? String(p.eta).slice(0, 10) : '';
+      $('shPoOrderNo').value = p?.order_number || '';
+      $('shPoDate').value = p?.date_ordered ? String(p.date_ordered).slice(0, 10) : localToday();
+      $('shPoErrors').hidden = true;
+      const vendors = [...new Set(['JP Cycles', 'Drag', 'Amazon', "O'Reilly", ...this.parts.map(x => (x.supplier_name || '').trim()).filter(Boolean)])];
+      $('shPoVendors').replaceChildren(...vendors.map(v => el('option', { value: v })));
+      $('shPoSave').textContent = p ? 'Save changes' : 'Save part order';
+      this.show('shPartForm');
+      this.loadJobParts(sel.value);
+      $('shPoDesc').focus();
+    },
+
+    // Offer the job's own part lines, so the description and our cost come from the estimate.
+    async loadJobParts(jobId) {
+      $('shPoParts').replaceChildren();
+      if (this.partForm) this.partForm.lines = [];
+      if (!jobId) return;
+      try {
+        const lines = await ShApi.select('shop_job_line_items', `select=description,unit_cost,quantity&job_id=eq.${encodeURIComponent(jobId)}&kind=eq.part&order=sort_order.asc`);
+        if (!this.partForm || $('shPoJob').value !== jobId) return;
+        this.partForm.lines = lines;
+        $('shPoParts').replaceChildren(...lines.map(l => el('option', { value: l.description })));
+      } catch (e) { this.handleAuthError(e); }
+    },
+
+    fillPartCost() {
+      const k = $('shPoDesc').value.trim().toLowerCase();
+      const line = (this.partForm?.lines || []).find(l => String(l.description || '').trim().toLowerCase() === k);
+      if (line && !$('shPoCost').value.trim() && Number(line.unit_cost) > 0) $('shPoCost').value = numText(+(Number(line.unit_cost) * Number(line.quantity || 1)).toFixed(2));
+    },
+
+    async savePartOrder() {
+      if (this.busy || !this.partForm) return;
+      const errs = [];
+      const desc = $('shPoDesc').value.trim();
+      if (!desc) errs.push('Part description is required');
+      const cost = $('shPoCost').value.trim().replace(/^\$/, '').replace(/,/g, '');
+      if (cost && !/^\d{0,7}(\.\d{1,2})?$/.test(cost)) errs.push('Cost must be a dollar amount like 42.50');
+      const box = $('shPoErrors');
+      if (errs.length) { box.replaceChildren(...errs.map(t => el('div', { text: t }))); box.hidden = false; return; }
+      box.hidden = true;
+      const btn = $('shPoSave'); const label = btn.textContent;
+      this.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
+      const back = this.partForm.back;
+      try {
+        await ShApi.rpc('shop_save_part_order', { p_order: {
+          id: this.partForm.id, job_id: $('shPoJob').value || null, part_description: desc, supplier_name: $('shPoVendor').value,
+          cost, tracking_number: $('shPoTracking').value, eta: $('shPoEta').value, order_number: $('shPoOrderNo').value, date_ordered: $('shPoDate').value } });
+        this.busy = false; this.partForm = null;
+        this.filter = back === 'parts' ? 'parts' : back;
+        await this.refresh();
+        this.show('shList');
+        this.message(`${desc} is on the Parts on order list.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) { box.replaceChildren(el('div', { text: `Not saved: ${e.message}${needs016(e)}` })); box.hidden = false; }
+      } finally { this.busy = false; btn.disabled = false; btn.textContent = label; }
     },
 
     async setStatus(jobId, status, btn) {
