@@ -50,11 +50,24 @@
     return p;
   }
 
+  // If the waiver will not load nobody can book online, so give the number to
+  // tap and a way to try again without losing what was typed.
+  function waiverFailed(box) {
+    box.textContent = 'The waiver could not load. Call or text us to book: 520-999-5691\n';
+    const add = (tag, text, props) => { const el = Object.assign(document.createElement(tag), { className: 'mt-linkbtn', textContent: text }, props); box.append(el, ' \u00a0 '); return el; };
+    add('a', 'Call us', { href: `tel:${PHONE}` });
+    add('a', 'Text us', { href: `sms:${PHONE}` });
+    add('button', 'Try again', { type: 'button' }).addEventListener('click', loadWaiver);
+  }
+
   async function loadWaiver() {
+    const boxes = () => document.querySelectorAll('[data-waiver]');
+    boxes().forEach(d => { d.textContent = 'Loading the waiver…'; });
     try {
       waiver = await rpc('shop_tow_waiver_text');
-      document.querySelectorAll('[data-waiver]').forEach(d => { d.textContent = waiver.body; });
-    } catch { document.querySelectorAll('[data-waiver]').forEach(d => { d.textContent = 'The waiver could not load. Call or text us to book.'; }); }
+      const body = waiver.body;
+      boxes().forEach(d => { d.textContent = body; });
+    } catch { waiver = null; boxes().forEach(waiverFailed); }
   }
 
   // ---------- booking ----------
@@ -77,7 +90,7 @@
       for (const k of ['customer_name', 'phone', 'pickup_address']) if (!String(p[k] || '').trim()) { msg('Fill in your name, phone and where to pick it up.'); f[k].focus(); return; }
       if (!f.agree.checked) { msg('Read and agree to the waiver to continue.'); return; }
       if (sig.empty()) { msg('Sign in the white box.'); return; }
-      if (!waiver) { msg('The waiver did not load. Call or text us.'); return; }
+      if (!waiver) { msg('The waiver did not load. Call or text us: 520-999-5691.'); return; }
       p.to_shop = f.to_shop.checked; p.ride_along = f.ride_along.checked; p.agree = true;
       p.vehicle_runs = p.vehicle_runs === '' ? null : p.vehicle_runs === 'true';
       p.signature = sig.png(); p.waiver_version = waiver.version;
@@ -106,7 +119,7 @@
     f.addEventListener('submit', async e => {
       e.preventDefault();
       if (sig.empty()) { msg('Sign in the white box.'); return; }
-      if (!waiver) { msg('The waiver did not load. Call or text us.'); return; }
+      if (!waiver) { msg('The waiver did not load. Call or text us: 520-999-5691.'); return; }
       const b = f.querySelector('button[type=submit]'); b.disabled = true;
       try {
         await rpc('shop_tow_sign', { p_token: token, p_name: f.waiver_name.value, p_signature: sig.png(), p_version: waiver.version });
