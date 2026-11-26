@@ -12,6 +12,11 @@
 
 const RouteModule = {
   NOMINATIM: 'https://nominatim.openstreetmap.org/search',
+  // Photon (komoot, built on the same OpenStreetMap data) does search-as-you-type with a
+  // location bias, so half-typed addresses and names come back nearest first. Free, no key,
+  // fair use. If RIDE outgrows the public server, run Photon on our own VPS and change this.
+  PHOTON: 'https://photon.komoot.io/api/',
+  NEARBY_NAME_MI: 75,
   OSRM: 'https://router.project-osrm.org/route/v1/driving/',
 
   // Nominatim usage policy is a hard 1 request per second — enforced globally.
@@ -42,7 +47,7 @@ const RouteModule = {
 
   cacheKey(q, near, bounded) {
     const bias = near ? `@${near.lat.toFixed(1)},${near.lon.toFixed(1)}` : '@global';
-    return `v2:${q.toLowerCase()}${bias}${bounded ? ':local' : ''}`;
+    return `v3:${q.toLowerCase()}${bias}${bounded ? ':local' : ''}`;
   },
 
   cacheGet(q, near, bounded) {
@@ -81,9 +86,62 @@ const RouteModule = {
     return results;
   },
 
+  /* Search-as-you-type with location bias (Photon). Same result shape as geocode(). */
+  async photon(q, near) {
+    const key = 'photon:' + q;
+    const cached = this.cacheGet(key, near, false);
+    if (cached) return cached;
+    const bias = near ? `&lat=${near.lat.toFixed(4)}&lon=${near.lon.toFixed(4)}` : '';
+    const url = `${this.PHOTON}?q=${encodeURIComponent(q)}&limit=10&lang=en${bias}`;
+    const data = await Geo.fetchJson(url, { headers: { Accept: 'application/json' } }, 8000);
+    const results = this.photonToResults(data);
+    this.cacheSet(key, results, near, false);
+    return results;
+  },
+
+  // Pure: Photon GeoJSON -> [{name, short, lat, lon, type}], United States only (as before).
+  photonToResults(data) {
+    const feats = (data && Array.isArray(data.features)) ? data.features : [];
+    return feats.map(f => {
+      const p = f.properties || {};
+      const c = (f.geometry && f.geometry.coordinates) || [];
+      if (String(p.countrycode || '').toUpperCase() !== 'US' || c.length < 2) return null;
+      const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+      const parts = [p.name, street, p.city || p.town || p.village || p.district, p.state, p.postcode]
+        .filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+      if (!parts.length) return null;
+      return { name: parts.join(', '), short: parts.slice(0, 2).join(', '), lat: +c[1], lon: +c[0], type: p.osm_value || p.type || '' };
+    }).filter(Boolean);
+  },
+
+  /* Where to center a search: the rider's GPS, else the ride's start, else the middle
+     of the map they are looking at (like Google Maps). Never "the whole country". */
+  searchCenter() {
+    const gps = MapModule.currentLocation;
+    if (gps) return { lat: gps.lat, lon: gps.lon, source: 'gps' };
+    if (this.from && this.from.lat != null) return { lat: this.from.lat, lon: this.from.lon, source: 'start' };
+    const m = MapModule.map;
+    if (m && typeof m.getCenter === 'function') {
+      const c = m.getCenter();
+      if (c && c.lat != null) return { lat: c.lat, lon: c.lng, source: 'map' };
+    }
+    return null;
+  },
+
+  // Pure: first list wins; later lists only add results more than ~500 ft from one we have.
+  mergeResults(...lists) {
+    const out = [];
+    lists.forEach(list => (list || []).forEach(r => {
+      if (!r || isNaN(r.lat) || isNaN(r.lon)) return;
+      if (out.some(o => Geo.distMi(o.lat, o.lon, r.lat, r.lon) < 0.1)) return;
+      out.push(r);
+    }));
+    return out;
+  },
+
   /* Suggestion list for the search box. `picks` is what a click index refers to:
      nearby stops first (when the rider typed a kind of place), then address matches. */
-  buildSuggestions(kind, places, results, hasLocation, nearbyLabel) {
+  buildSuggestions(kind, places, results, hasLocation, nearbyLabel, nearText = 'near you') {
     const picks = [];
     const row = (p, sub) => {
       picks.push(p);
@@ -96,13 +154,16 @@ const RouteModule = {
     if (kind || nearbyLabel) {
       if (places.length) {
         const heading = kind ? `${kind.icon} ${kind.label}` : nearbyLabel;
-        html += `<div class="geo-hint">${App.escapeHtml(heading)} near you · closest first</div>`;
+        html += `<div class="geo-hint">${App.escapeHtml(heading)} ${App.escapeHtml(nearText)} · closest first</div>`;
         html += places.map(p => row({ short: p.name, name: p.address || p.name, lat: p.lat, lon: p.lon },
           `${Geo.fmtMi(p.distanceMi)} mi away${p.address ? ' · ' + p.address : ''}`)).join('');
       } else if (kind && !hasLocation) {
         html += `<div class="geo-hint">Turn on location to see ${App.escapeHtml(kind.label.toLowerCase())} near you.</div>`;
       } else if (kind) {
         html += `<div class="geo-hint">No ${App.escapeHtml(kind.label.toLowerCase())} found within 15 miles.</div>`;
+      } else if (hasLocation && results.length) {
+        // Say plainly that these are far away instead of passing them off as the answer.
+        html += `<div class="geo-hint">No ${App.escapeHtml(nearbyLabel)} within ${this.NEARBY_NAME_MI} miles. Farther away:</div>`;
       }
     }
     if (results.length) {
@@ -150,21 +211,37 @@ const RouteModule = {
           // A kind of place ("gas", "coffee", "hotel") also searches nearby stops, using
           // the same search as Add Stop. Address/name results still follow.
           const kind = PoiModule.matchKind(q);
-          const here = MapModule.currentLocation || this.from;
+          const here = this.searchCenter();
+          const nearText = !here || here.source === 'gps' ? 'near you' : here.source === 'start' ? 'near your start' : 'near the map';
           const nearbyName = !kind && !!here && PoiModule.looksLikePlaceName(q);
           let results = [], places = [];
           if (nearbyName) {
-            const local = await this.geocode(q, here, true).catch(() => []);
-            places = this.localizeResults(local, here);
-            // Only fall back to a broad search when the local search truly found nothing.
-            if (!places.length) results = await this.geocode(q, null, false);
+            // A business name: ask the map data for that name around the rider, plus both
+            // geocoders biased to the rider, and keep only what is actually close.
+            const [byName, typed, local] = await Promise.all([
+              PoiModule.searchByName(q, here.lat, here.lon).catch(() => []),
+              this.photon(q, here).catch(() => []),
+              this.geocode(q, here, true).catch(() => []),
+            ]);
+            const named = byName.map(p => ({ ...p, address: p.address || '' }));
+            const nearby = this.localizeResults([...typed, ...local], here, this.NEARBY_NAME_MI);
+            places = this.mergeResults(named, nearby)
+              .sort((a, b) => (PoiModule.nameTier(a, q) - PoiModule.nameTier(b, q)) || (a.distanceMi - b.distanceMi))
+              .slice(0, 6);
+            // Only show far-away matches when nothing nearby exists, and say so.
+            if (!places.length) results = await this.geocode(q, null, false).catch(() => []);
           } else {
-            [results, places] = await Promise.all([
-              this.geocode(q, here).catch(e => { if (!kind) throw e; return []; }),
+            const [typed, coded, near] = await Promise.all([
+              this.photon(q, here).then(r => ({ ok: true, r }), () => ({ ok: false, r: [] })),
+              this.geocode(q, here).then(r => ({ ok: true, r }), () => ({ ok: false, r: [] })),
               kind && here ? PoiModule.searchNearby(kind.cats, here.lat, here.lon, 15).then(l => l.slice(0, 5)).catch(() => []) : [],
             ]);
+            if (!typed.ok && !coded.ok && !kind) throw new Error('Search failed');
+            // Photon is biased to the rider, so it goes first; Nominatim fills in.
+            results = this.mergeResults(typed.r, coded.r).slice(0, 8);
+            places = near;
           }
-          const { html, picks } = this.buildSuggestions(kind, places, results, !!here, nearbyName ? q : '');
+          const { html, picks } = this.buildSuggestions(kind, places, results, !!here, nearbyName ? q : '', nearText);
           if (!picks.length && !kind) {
             resultsEl.innerHTML = '<div class="geo-hint">No match. Try a city, a park, a full address, or a kind of place like gas or coffee.</div>';
             return;

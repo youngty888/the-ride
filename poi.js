@@ -28,7 +28,7 @@ const PoiModule = {
     { id: 'cafe',       label: 'Coffee',     icon: '☕', filters: ['nwr["amenity"="cafe"]'] },
     { id: 'hotel',      label: 'Hotel',      icon: '🛏', filters: ['nwr["tourism"~"^(hotel|motel)$"]'] },
     { id: 'campsite',   label: 'Campsite',   icon: '⛺', filters: ['nwr["tourism"~"^(camp_site|caravan_site)$"]'] },
-    { id: 'mechanic',   label: 'Mechanic',   icon: '🔧', filters: ['nwr["shop"~"^(motorcycle|motorcycle_repair|car_repair)$"]', 'nwr["amenity"="motorcycle_parking"]'] },
+    { id: 'mechanic',   label: 'Mechanic',   icon: '🔧', filters: ['nwr["shop"~"^(motorcycle|motorcycle_repair|car_repair|tyres)$"]', 'nwr["craft"="mechanic"]'] },
     { id: 'toilets',    label: 'Restroom',   icon: '🚻', filters: ['nwr["amenity"="toilets"]'] },
     { id: 'store',      label: 'Store',      icon: '🛒', filters: ['nwr["shop"~"^(convenience|supermarket)$"]'] },
     { id: 'viewpoint',  label: 'Scenic',     icon: '🏞', filters: ['nwr["tourism"="viewpoint"]'] },
@@ -78,6 +78,68 @@ const PoiModule = {
   looksLikePlaceName(q) {
     const s = String(q || '').trim();
     return s.length >= 3 && s.length <= 48 && /[a-z]/i.test(s) && !/[\d,@]/.test(s) && s.split(/\s+/).length <= 5;
+  },
+
+  /* ---------- Big map hotkeys ----------
+     One tap from the map, no typing: each opens Add Stop on the right group and
+     sub-choice. Along a planned route they search the route corridor instead. */
+  HOTKEYS: [
+    { id: 'gas',      label: 'Gas',      icon: '⛽', group: 'gas',     sub: 'fuel' },
+    { id: 'food',     label: 'Food',     icon: '🍔', group: 'food',    sub: 'all' },
+    { id: 'hotel',    label: 'Hotels',   icon: '🛏', group: 'lodging', sub: 'hotel' },
+    { id: 'mechanic', label: 'Mechanic', icon: '🔧', group: 'store',   sub: 'mechanic' },
+  ],
+
+  hotkey(id) { return this.HOTKEYS.find(h => h.id === id) || null; },
+
+  /* ---------- Search by business name ----------
+     "mcdonalds", "Mc Donalds" and "McDonald's" should all find the McDonald's down
+     the street. The address geocoder ranks by fame, not distance, so a chain name used
+     to come back from across the country. This asks the map data directly for things
+     whose name or brand matches, around the rider, nearest first. */
+  normName(q) {
+    return String(q || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+  },
+
+  // Letters in order with any punctuation or spaces between them, starting a word.
+  nameRegex(q) {
+    const chars = this.normName(q);
+    if (chars.length < 3) return null;
+    return '(^|[^a-z0-9])' + chars.split('').join('[^a-z0-9]*');
+  },
+
+  buildNameQuery(re, lat, lon, radiusM, limit = 40) {
+    const a = `(around:${Math.round(radiusM)},${lat.toFixed(5)},${lon.toFixed(5)})`;
+    return `[out:json][timeout:25];(nwr["name"~"${re}",i]${a};nwr["brand"~"${re}",i]${a};);out center ${limit};`;
+  },
+
+  // 0 when the name or brand starts with what was typed, else 1. Used before distance.
+  nameTier(poi, q) {
+    const n = this.normName(q);
+    return [poi.name, poi.brand].some(v => this.normName(v).startsWith(n)) ? 0 : 1;
+  },
+
+  // Widens 25 -> 75 miles. Returns [] (not an error) when nothing matches.
+  async searchByName(q, lat, lon, radiiMi = [25, 75]) {
+    const re = this.nameRegex(q);
+    if (!re) return [];
+    for (const r of radiiMi) {
+      const els = await this.overpass(this.buildNameQuery(re, lat, lon, r * 1609.34));
+      const seen = new Set();
+      const out = [];
+      els.forEach(el => {
+        const poi = this.elToPoi(el, this.guessCat(el));
+        if (!poi || seen.has(poi.id) || this.isBlocked(poi)) return;
+        seen.add(poi.id);
+        poi.distanceMi = Geo.distMi(lat, lon, poi.lat, poi.lon);
+        poi.bearing = Geo.bearing(lat, lon, poi.lat, poi.lon);
+        out.push(poi);
+      });
+      out.sort((a, b) => (this.nameTier(a, q) - this.nameTier(b, q)) || (a.distanceMi - b.distanceMi));
+      if (out.length) return out.slice(0, 8);
+    }
+    return [];
   },
 
   // Current UI state

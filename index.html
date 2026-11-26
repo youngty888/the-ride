@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=202611221709">
+  <link rel="stylesheet" href="styles.css?v=202611260310">
   <meta name="app-version" content="202608311533">
 </head>
 <body>
@@ -59,6 +59,14 @@
       </span>
       <span class="route-bar-chevron" aria-hidden="true">›</span>
     </button>
+
+    <!-- Big one-tap hotkeys: nearest stops without typing (along the route when one is planned) -->
+    <div class="map-hotkeys" id="mapHotkeys" role="toolbar" aria-label="Find nearby stops">
+      <button type="button" class="map-hotkey" data-hotkey="gas" aria-label="Find gas"><span class="map-hotkey-icon" aria-hidden="true">⛽</span><span>Gas</span></button>
+      <button type="button" class="map-hotkey" data-hotkey="food" aria-label="Find food"><span class="map-hotkey-icon" aria-hidden="true">🍔</span><span>Food</span></button>
+      <button type="button" class="map-hotkey" data-hotkey="hotel" aria-label="Find hotels"><span class="map-hotkey-icon" aria-hidden="true">🛏</span><span>Hotels</span></button>
+      <button type="button" class="map-hotkey" data-hotkey="mechanic" aria-label="Find a mechanic"><span class="map-hotkey-icon" aria-hidden="true">🔧</span><span>Mechanic</span></button>
+    </div>
 
     <span id="batteryBadge" class="battery-badge" hidden></span>
     <span id="bikeConnectionBadge" class="bike-connection-badge" hidden></span>
@@ -626,7 +634,7 @@
 
           <div class="form-group">
             <label for="planTo">Where to</label>
-            <input type="text" id="planTo" placeholder="Search a town, park, or address" inputmode="search">
+            <input type="text" id="planTo" placeholder="Search a place, business, or address" inputmode="search">
             <div class="geo-results" id="planToResults"></div>
           </div>
 
@@ -798,14 +806,14 @@
   <script src="prefs-sync.js?v=202609211218"></script>
   <script src="geo.js?v=202608311533"></script>
   <script src="map.js?v=202609292042"></script>
-  <script src="route.js?v=202609292042"></script>
+  <script src="route.js?v=202611260310"></script>
   <script src="prefs.js?v=202609211218"></script>
-  <script src="poi.js?v=202609292042"></script>
+  <script src="poi.js?v=202611260310"></script>
   <script src="weather.js?v=202608311533"></script>
   <script src="events.js?v=202611180118"></script>
   <script src="hazards.js?v=202611251921"></script>
   <script src="alerts.js?v=202609292042"></script>
   <script src="bike-connection.js?v=202609292042"></script>
-  <script src="app.js?v=202611260125"></script>
+  <script src="app.js?v=202611260310"></script>
 </body>
 </html>

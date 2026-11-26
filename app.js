@@ -136,6 +136,11 @@ const App = {
       this.loadStops();
     });
 
+    // Map hotkeys: Gas / Food / Hotels / Mechanic in one tap
+    document.querySelectorAll('#mapHotkeys [data-hotkey]').forEach((btn) => {
+      btn.addEventListener('click', () => this.openHotkey(btn.dataset.hotkey));
+    });
+
     // Report a hazard — the whole flow is two taps and no typing
     document.getElementById('btnReport').addEventListener('click', () => {
       AlertsModule.openReportSheet();
@@ -311,6 +316,22 @@ const App = {
   applyStartGroupIfIdle() {
     const addStop = document.getElementById('overlay-addstop');
     if (!(addStop && addStop.classList.contains('active'))) this.applyStartGroup();
+  },
+
+  /* One-tap hotkey from the map. Opens Add Stop on that kind of stop; with a route
+     planned it searches along the route, otherwise around the rider. */
+  openHotkey(id) {
+    const h = PoiModule.hotkey(id);
+    if (!h) return;
+    const group = PoiModule.group(h.group);
+    this.currentStopGroup = group.id;
+    this.currentStopType = h.sub === 'all' && group.all ? 'all' : (group.subs.includes(h.sub) ? h.sub : group.subs[0]);
+    this.stopScope = (typeof RouteModule !== 'undefined' && RouteModule.activeRoute()) ? 'route' : 'near';
+    document.querySelectorAll('#stopScope .toggle-btn').forEach((b) => b.classList.toggle('active', b.dataset.scope === this.stopScope));
+    document.querySelectorAll('#stopGroups .chip').forEach((c) => c.classList.toggle('active', c.dataset.group === group.id));
+    this.renderStopSubs();
+    this.showOverlay('overlay-addstop');
+    return this.loadStops();
   },
 
   selectStopGroup(id) {
