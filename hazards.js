@@ -18,6 +18,9 @@ const HazardModule = {
   STATES: ['Arizona', 'California', 'Colorado', 'Nevada', 'New_Mexico', 'Texas', 'Utah'],
   CORRIDOR_MI: 2.5,
 
+  // Box around the Mt Lemmon (Catalina Highway) climb, north-east of Tucson.
+  LEMMON_BOX: { south: 32.33, north: 32.47, west: -110.80, east: -110.68 },
+
   hotspots: null,
   statePoints: {},     // 'Arizona' -> array
   layerGroup: null,
@@ -282,7 +285,25 @@ const HazardModule = {
     return hits;
   },
 
+  // route.coords is [[lat, lon], ...].
+  onMtLemmon(route) {
+    const b = this.LEMMON_BOX;
+    return !!(route && route.coords) && route.coords.some(([lat, lon]) =>
+      lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east);
+  },
+
+  lemmonHtml(route) {
+    if (!this.onMtLemmon(route)) return '';
+    return `<h3 class="plan-section-title">Mt Lemmon Road Status</h3>
+      <p class="plan-section-note">Check for ice or closures before you climb: Pima County Sheriff road condition hotline.</p>
+      <a class="btn-secondary btn-large shop-call" href="tel:+15203513351">Call (520) 351-3351</a>`;
+  },
+
   routeSectionHtml(failed) {
+    return this.lemmonHtml(RouteModule.activeRoute()) + this.crashSectionHtml(failed);
+  },
+
+  crashSectionHtml(failed) {
     const attr = `<p class="plan-section-note plan-attribution">Crash data: <a href="${this.ATTRIBUTION_URL}" target="_blank" rel="noopener">${this.ATTRIBUTION}</a>, motorcycle-involved crashes only.</p>`;
     if (failed || this.routeScanFailed) {
       return `<h3 class="plan-section-title">Crash History On This Route</h3>
