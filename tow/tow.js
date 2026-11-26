@@ -1,5 +1,6 @@
 /* Moto Tow public page (ride.siccycles.com/tow/). Anyone can ask for a tow
-   here without an account. The database (shop_tow_request, shop-014) checks
+   here without an account. A rider signed in to RIDE gets the form filled in
+   from their account and Garage. The database (shop_tow_request, shop-014) checks
    everything and sets the price itself; this page only shows a preview.
    ?sign=<token> opens the waiver alone, for calls the crew took by phone. */
 (function () {
@@ -12,15 +13,94 @@
 
   function msg(t) { const m = $('mtMsg'); m.textContent = t || ''; m.hidden = !t; if (t) setTimeout(() => { if (m.textContent === t) m.hidden = true; }, 8000); }
 
-  async function rpc(fn, args) {
+  // token: a signed-in rider's access token, or nothing for a guest.
+  async function rpc(fn, args, token) {
     const res = await fetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
       method: 'POST', signal: AbortSignal.timeout(20000),
-      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${cfg.anonKey}`, 'Content-Type': 'application/json' },
+      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${token || cfg.anonKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(args || {}),
     });
     const text = await res.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    if (!res.ok) throw new Error((data && data.message) || 'Something went wrong. Call or text us.');
+    if (!res.ok) { const e = new Error((data && data.message) || 'Something went wrong. Call or text us.'); e.status = res.status; throw e; }
     return data;
+  }
+
+  // ---------- signed-in RIDE rider ----------
+  // Same sign-in the RIDE app keeps on this site (auth-guard.js). A refreshed
+  // sign-in is saved back the same way, so the app stays signed in too.
+  // Riders only ever get their own details back (shop_tow_my_info, shop-015).
+  const SESSION_KEY = 'sicc-ride-auth-session';
+  const store = window.RideSessionStore;
+  const readSession = () => { try { return store ? JSON.parse(store.getItem(SESSION_KEY)) : null; } catch { return null; } };
+  const jwt = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } };
+  let riderId = '';
+
+  async function riderToken() {
+    const s = readSession(); if (!s || !s.access_token) return null;
+    if ((jwt(s.access_token).exp || 0) * 1000 > Date.now() + 60000) return s.access_token;
+    if (!s.refresh_token) return null;
+    try {
+      const res = await fetch(`${cfg.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', signal: AbortSignal.timeout(15000),
+        headers: { apikey: cfg.anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }),
+      });
+      const now = readSession();
+      if (now && now.access_token !== s.access_token) return now.access_token;   // another tab refreshed first
+      if (!res.ok) return null;
+      const next = await res.json();
+      if (!next || !next.access_token) return null;
+      store.setItem(SESSION_KEY, JSON.stringify(next));
+      return next.access_token;
+    } catch { return null; }
+  }
+
+  // Bikes this device has that may not be saved online yet (the app's own copy).
+  function localGarage(uid) {
+    try {
+      const raw = localStorage.getItem(`rideflow_bikes:${uid}`);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list.filter(b => b && typeof b === 'object' && b.id) : [];
+    } catch { return []; }
+  }
+
+  const bikeText = b => [b.year, b.make, b.model].filter(Boolean).join(' ').trim().slice(0, 100)
+    + (b.color ? ` (${String(b.color).slice(0, 30)})` : '');
+  const bikeLabel = b => (b.nickname ? `${b.nickname}: ` : '') + (bikeText(b) || 'Bike');
+
+  async function initRider(f) {
+    const s = readSession();
+    riderId = (s && ((s.user && s.user.id) || jwt(s.access_token || '').sub)) || '';
+    if (!riderId) { $('mtGuest').hidden = false; return; }
+    const token = await riderToken();
+    if (!token) { $('mtGuest').hidden = false; riderId = ''; return; }
+    let info = null;
+    try { info = await rpc('shop_tow_my_info', {}, token); } catch { /* before shop-015 runs: use what this device has */ }
+    info = info || {};
+    const fill = (name, v) => { if (v && !String(f[name].value || '').trim()) f[name].value = v; };
+    fill('customer_name', info.name);
+    fill('phone', info.phone);
+    fill('email', info.email || (s.user && s.user.email));
+
+    const bikes = new Map();
+    for (const b of (Array.isArray(info.bikes) ? info.bikes : [])) if (b && b.id) bikes.set(String(b.id), b);
+    for (const b of localGarage(riderId)) bikes.set(String(b.id), b);   // this device's copy is the newest
+    $('mtRider').hidden = false;
+    $('mtRiderHi').textContent = `Signed in to RIDE${info.name ? ' as ' + info.name : ''}. ${bikes.size ? 'Pick your bike and we fill in the rest.' : 'Your details are filled in. Add your bike to your Garage in RIDE to skip typing it next time.'}`;
+    if (!bikes.size) return;
+    const sel = $('mtBike');
+    sel.replaceChildren(...[...bikes.values()].map(b => new Option(bikeLabel(b), String(b.id))), new Option('Something else (type it below)', ''));
+    const want = new URLSearchParams(location.search).get('bike');
+    sel.value = want && bikes.has(want) ? want : String([...bikes.keys()][0]);
+    const pick = () => {
+      const b = bikes.get(sel.value);
+      if (!b) return;
+      f.vehicle_type.value = 'motorcycle';
+      f.vehicle.value = bikeText(b);
+      quote();
+    };
+    sel.addEventListener('change', pick); pick();
+    $('mtBikeWrap').hidden = false;
   }
 
   // ---------- signature pad ----------
@@ -71,6 +151,7 @@
     $('mtZone').replaceChildren(...Object.entries(C.ZONES).map(([v, z]) => new Option(z.label, v)));
     const sig = setupWaiver(f);
     f.addEventListener('change', quote); quote();
+    initRider(f);
     f.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(f); const p = Object.fromEntries(fd);
@@ -81,9 +162,15 @@
       p.to_shop = f.to_shop.checked; p.ride_along = f.ride_along.checked; p.agree = true;
       p.vehicle_runs = p.vehicle_runs === '' ? null : p.vehicle_runs === 'true';
       p.signature = sig.png(); p.waiver_version = waiver.version;
+      if (riderId && !$('mtBikeWrap').hidden && $('mtBike').value) p.bike_id = $('mtBike').value;
       const b = f.querySelector('button[type=submit]'); b.disabled = true;
       try {
-        const r = await rpc('shop_tow_request', { p });
+        // A signed-in rider's tow is saved with their account. If that sign-in
+        // has run out, the tow still goes in as a guest's.
+        const token = riderId ? await riderToken() : null;
+        let r;
+        try { r = await rpc('shop_tow_request', { p }, token); }
+        catch (err) { if (token && err.status === 401) r = await rpc('shop_tow_request', { p }); else throw err; }
         $('mtSite').hidden = true; $('mtDone').hidden = false; window.scrollTo(0, 0);
         $('mtDoneTitle').textContent = `Got it. Your tow number is ${r.ref}`;
         if (r.price == null) $('mtDoneText').textContent = 'We will call you with a price, then text or email you an invoice, or you can pay by Zelle. Once it is paid, we head your way.';

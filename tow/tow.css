@@ -42,3 +42,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--orange); bo
 .mt-foot { text-align: center; color: var(--muted); padding: 2rem 16px; font-size: .85rem; border-top: 1px solid var(--line); margin-top: 2rem; }
 [hidden] { display: none !important; }
 .mt-foot a { color: inherit; }
+.mt-rider { border: 1px solid var(--orange); border-radius: .6rem; padding: .2rem .8rem; margin-bottom: 1rem; }
+.mt-rider p { margin: .6rem 0; }
+.mt-note a { color: var(--orange); }

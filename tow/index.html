@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tow.css?v=20261125a">
+<link rel="stylesheet" href="tow.css?v=20261126a">
 </head>
 <body>
 <header class="mt-top">
@@ -73,6 +73,11 @@
     <section class="mt-wrap" id="book">
       <h2>Book a tow</h2>
       <form id="mtForm" class="mt-card" novalidate>
+        <div id="mtRider" class="mt-rider" hidden>
+          <p id="mtRiderHi"></p>
+          <label id="mtBikeWrap" hidden>Bike from your Garage <select id="mtBike"></select></label>
+        </div>
+        <p id="mtGuest" class="mt-note" hidden>Have a RIDE account? <a href="../auth.html?next=tow">Sign in</a> and we fill this in from your Garage.</p>
         <fieldset>
           <legend>You</legend>
           <label>Your name <input name="customer_name" autocomplete="name" required></label>
@@ -119,8 +124,9 @@
   <div id="mtMsg" class="mt-msg" role="alert" hidden></div>
 </main>
 <footer class="mt-foot">Tucson Moto Tow · <a href="https://520tow.com">520tow.com</a> · <a href="mailto:help@520tow.com">help@520tow.com</a> · <a href="tel:+15209995691">520-999-5691</a> · by SIC Cycles</footer>
+<script src="../session-store.js?v=202609210721"></script>
 <script src="../supabase-config.js"></script>
 <script src="../shop/tow-calc.js?v=20261125a"></script>
-<script src="tow.js?v=20261125a"></script>
+<script src="tow.js?v=20261126a"></script>
 </body>
 </html>

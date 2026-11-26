@@ -4,6 +4,8 @@
   const signOut = document.getElementById('signOutButton');
   const config = window.SICC_RIDE_SUPABASE || {};
   const sessionKey = 'sicc-ride-auth-session';
+  // Only one place to go back to besides the app: the tow page (tow/?bike=...).
+  const afterSignIn = new URLSearchParams(location.search).get('next') === 'tow' ? 'tow/#book' : './';
   const readSession = () => { try { return JSON.parse(RideSessionStore.getItem(sessionKey)); } catch { return null; } };
   const saveSession = value => value?.access_token && RideSessionStore.setItem(sessionKey, JSON.stringify(value));
   const configured = () => /^https:\/\//.test(config.url || '') && config.anonKey && !config.anonKey.startsWith('PASTE_');
@@ -61,7 +63,7 @@
         saveSession(result);
         signOut.hidden = false;
         message('Signed in securely. Opening Ride…');
-        setTimeout(() => location.replace('./'), 500);
+        setTimeout(() => location.replace(afterSignIn), 500);
 
       } else if (view === 'signup') {
         const result = await request('/auth/v1/signup', {
@@ -77,7 +79,7 @@
           saveSession(result);
           signOut.hidden = false;
           message('Rider account created. Opening Ride…');
-          setTimeout(() => location.replace('./'), 700);
+          setTimeout(() => location.replace(afterSignIn), 700);
         } else {
           message('Rider account created. Check your email to confirm your account, then sign in.');
         }
