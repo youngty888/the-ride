@@ -46,7 +46,7 @@
     if (t.status === 'delivered') fact(dl, 'Crew pay', [`${t.driver_name}: ${C.money(t.driver_pay)}`, t.navigator_name && `${t.navigator_name}: ${C.money(t.navigator_pay)}`].filter(Boolean).join(' · '));
     if (t.refund_due) fact(dl, 'Refund', 'Paid before it was cancelled. Refund is due.', 'tw-warn');
     fact(dl, 'Notes', t.notes);
-    fact(dl, 'Came in', `${when(t.created_at)} by ${t.source}`);
+    fact(dl, 'Came in', `${when(t.created_at)} by ${t.source}${t.rider_id ? ' (signed in to RIDE)' : ''}`);
     if (t.cancel_reason) fact(dl, 'Cancelled', t.cancel_reason);
 
     const a = k('actions'); const extra = k('extra');

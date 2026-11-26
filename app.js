@@ -811,7 +811,10 @@ const App = {
         }
       </div>
 
-      <button class="btn-secondary btn-large" id="btnAddService" style="width:100%;margin-top:var(--space-4);">
+      <a class="btn-primary btn-large" id="btnTowBike" href="tow/?bike=${encodeURIComponent(bike.id)}#book" style="display:block;text-align:center;text-decoration:none;width:100%;margin-top:var(--space-4);">
+        Broke down? Order a tow
+      </a>
+      <button class="btn-secondary btn-large" id="btnAddService" style="width:100%;margin-top:var(--space-2);">
         Add Service Record
       </button>
       <button class="btn-secondary btn-large" id="btnEditBike" style="width:100%;margin-top:var(--space-2);">
