@@ -30,10 +30,13 @@ before(async () => {
   await backend.sql(`update shop_staff set payroll_manager = true where display_name = 'Tyler'`);
   // A paid job and a part-paid job this month, and 3.5 signed-off hours for Garrett today.
   const t = id('tyler@test.local');
+  // The browser's local date, as the app saves it. current_date is UTC, a day ahead on Arizona evenings.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   await backend.sql(`insert into shop_customers (id, name, created_by, updated_by) values ('cust0001', 'TEST Paying Customer', $1, $1)`, [t]);
   await backend.sql(`insert into shop_jobs (id, customer_id, status, payment_status, job_date, total_amount, created_by, updated_by)
-    values ('job00001', 'cust0001', 'complete', 'paid', current_date, 600, $1, $1),
-           ('job00002', 'cust0001', 'complete', 'partial', current_date, 250, $1, $1)`, [t]);
+    values ('job00001', 'cust0001', 'complete', 'paid', $2, 600, $1, $1),
+           ('job00002', 'cust0001', 'complete', 'partial', $2, 250, $1, $1)`, [t, today]);
   await backend.sql(`insert into shop_labor_signoffs (job_id, step_key, step_name, tech_id, hours) values ('job00001', 'brakes', 'Brakes', $1, 3.5)`, [id('garrett@test.local')]);
   browser = await chromium.launch(process.env.SHOP_E2E_CHROME ? { executablePath: process.env.SHOP_E2E_CHROME } : {});
 });

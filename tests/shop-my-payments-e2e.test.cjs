@@ -109,6 +109,25 @@ test('a login with no plan sees "No payment plan found"; a wrong password is ref
   await p.context().close();
 });
 
+test('a failed load says so and can be retried; it never claims there is no plan', { skip }, async () => {
+  const p = await page(375);
+  let fail = 'server';
+  await p.route('**/rest/v1/rpc/shop_my_payment_plans', route => fail === 'server' ? route.fulfill({ status: 500, body: '{"message":"boom"}', contentType: 'application/json' }) : route.continue());
+  await p.route('**/auth/v1/user', route => fail === 'offline' ? route.abort() : route.continue());
+  await signInAtPay(p, 'buyer@test.local');
+  await p.waitForSelector('#myError:not([hidden])');
+  assert.equal(await p.isVisible('#myNone'), false);
+  fail = 'offline';
+  await p.reload();
+  await p.waitForSelector('#myError:not([hidden])');
+  assert.equal(await p.isVisible('#mySignIn'), false);
+  fail = '';
+  await p.click('#myRetry');
+  await p.waitForSelector('#myPlans:not([hidden])');
+  assert.deepEqual(p.errors, []);
+  await p.context().close();
+});
+
 test('Shopify checkout: the button carries the loan number, a paid order shows up, an odd one is held for staff', { skip }, async () => {
   const CART = 'https://www.example-shop.test/cart/111222333:1';
   const st = await page();
