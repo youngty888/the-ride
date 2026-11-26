@@ -145,6 +145,7 @@ const App = {
     document.getElementById('btnEmergency').addEventListener('click', () => {
       this.showOverlay('overlay-emergency');
       this.renderEmergencyContacts();
+      document.getElementById('locationDisplay').style.display = 'none'; // no stale share status
     });
   },
 
@@ -500,18 +501,36 @@ const App = {
     coordsEl.textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
     locationDisplay.style.display = '';
 
+    // Only say it was shared or copied after that really happens.
+    const status = document.getElementById('locationStatus');
+    status.textContent = 'Your location (not shared yet):';
+
+    const copyLink = () => {
+      const failed = () => {
+        status.textContent = 'Not shared. Your location:';
+        alert(`Could not share or copy your location. Nothing was sent.\n\n${link}`);
+      };
+      if (!navigator.clipboard) { failed(); return; }
+      navigator.clipboard.writeText(link).then(() => {
+        status.textContent = 'Link copied, not sent yet. Paste it into a message:';
+        alert('Location link copied. Nothing is sent yet: paste it into a message to your contacts.');
+      }, failed);
+    };
+
     // Try to use Web Share API
     if (navigator.share) {
       navigator.share({
         title: 'Emergency — My Location',
         text: `I need help. This is my current location: ${link}`,
         url: link,
-      }).catch(() => {});
+      }).then(() => {
+        status.textContent = 'Passed to your share app. Check that the message was sent:';
+      }, (err) => {
+        if (err && err.name === 'AbortError') status.textContent = 'Not shared. Tap Share Location to try again. Your location:';
+        else copyLink();
+      });
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard?.writeText(link).then(() => {
-        alert('Location link copied to clipboard. Share it with your contacts.');
-      }).catch(() => {});
+      copyLink();
     }
   },
 
@@ -1373,6 +1392,7 @@ const App = {
     document.getElementById('btnManageContacts').addEventListener('click', () => {
       this.showOverlay('overlay-emergency');
       this.renderEmergencyContacts();
+      document.getElementById('locationDisplay').style.display = 'none'; // no stale share status
     });
 
     document.getElementById('btnSignOut').addEventListener('click', () => this.signOut());
