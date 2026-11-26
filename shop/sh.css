@@ -60,6 +60,23 @@ input[readonly] { color: var(--muted); }
 .sh-status-estimate { border-left-color: var(--amber); }
 .sh-status-in_progress { border-left-color: var(--blue); }
 .sh-status-complete { border-left-color: var(--green); }
+/* Board colors (Nov 24): paid and done status wins over the old status colors. */
+.sh-job.sh-c-grey { border-left-color: #8e8e96; }
+.sh-job.sh-c-yellow { border-left-color: #f2d024; background: linear-gradient(90deg, rgba(242,208,36,.10), var(--surface) 55%); }
+.sh-job.sh-c-orange { border-left-color: var(--orange); background: linear-gradient(90deg, rgba(255,107,26,.12), var(--surface) 55%); }
+.sh-job.sh-c-red { border-left-color: var(--red); background: linear-gradient(90deg, rgba(229,62,62,.13), var(--surface) 55%); }
+.sh-job.sh-c-green { border-left-color: var(--green); background: linear-gradient(90deg, rgba(61,165,84,.12), var(--surface) 55%); }
+.sh-job[class*="sh-c-"] { border-left-width: 8px; }
+.sh-chips .sh-chip-toggle { border-style: dashed; }
+.sh-chips .sh-chip-toggle.on { background: var(--green); border-color: var(--green); border-style: solid; color: #fff; }
+.sh-legend { display: flex; flex-wrap: wrap; gap: .25rem .9rem; list-style: none; margin: 0 0 .75rem; padding: 0; font-size: .8rem; color: var(--muted); }
+.sh-legend li { display: flex; align-items: center; gap: .35rem; }
+.sh-legend li::before { content: ""; width: .75rem; height: .75rem; border-radius: .2rem; background: currentColor; }
+.sh-legend .sh-c-grey::before { background: #8e8e96; }
+.sh-legend .sh-c-yellow::before { background: #f2d024; }
+.sh-legend .sh-c-orange::before { background: var(--orange); }
+.sh-legend .sh-c-red::before { background: var(--red); }
+.sh-legend .sh-c-green::before { background: var(--green); }
 .sh-job-top { display: flex; justify-content: space-between; gap: .5rem; font-size: 1.05rem; }
 .sh-job-total { font-weight: 700; white-space: nowrap; }
 .sh-job-sub { display: flex; flex-wrap: wrap; gap: .25rem .75rem; color: var(--muted); font-size: .9rem; margin-top: .15rem; }
