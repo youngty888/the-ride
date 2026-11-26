@@ -89,7 +89,8 @@ test('staff add a customer, bike and plan, record a payment, and see the balance
   await page.context().close();
 });
 
-const iso = d => d.toISOString().slice(0, 10);
+// The browser's local date, not UTC: they differ from 5 pm to midnight in Arizona.
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const daysAgo = n => iso(new Date(Date.now() - n * 86400000));
 
 test('20% every two weeks: work out the payment, card pay link, late alert, and the contract fills in', { skip }, async () => {
