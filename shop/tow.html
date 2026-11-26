@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0c">
+<title>Moto Tow board</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="sic-icon-180.png">
+<link rel="stylesheet" href="sh.css?v=20261121c">
+<style>
+  .tw-main { max-width: 900px; margin: 0 auto; padding: 1rem; }
+  .tw-view[hidden], .tw-tab[hidden] { display: none; }
+  .tw-duty { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; }
+  .tw-duty .tw-on { color: #4cc38a; font-weight: 700; } .tw-duty .tw-off { color: var(--muted); font-weight: 700; }
+  .tw-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: .75rem; padding: .9rem; margin: 0 0 .8rem; }
+  .tw-card[data-s="new"] { border-left-color: #ff3b30; } .tw-card[data-s="quoted"] { border-left-color: #f5a623; }
+  .tw-card[data-s="paid"] { border-left-color: #4cc38a; } .tw-card[data-s="en_route"] { border-left-color: var(--orange); }
+  .tw-head { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; align-items: baseline; }
+  .tw-head b { font-size: 1.1rem; }
+  .tw-badge { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .5rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+  .tw-facts { display: grid; grid-template-columns: 7rem 1fr; gap: .15rem .6rem; margin: .5rem 0; font-size: .95rem; }
+  .tw-facts dt { color: var(--muted); } .tw-facts dd { margin: 0; overflow-wrap: anywhere; }
+  .tw-warn { color: #ff7a7a; font-weight: 600; } .tw-ok { color: #4cc38a; font-weight: 600; }
+  .tw-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+  .tw-inline { display: flex; flex-wrap: wrap; gap: .4rem; align-items: end; margin-top: .5rem; }
+  .tw-inline label { flex: 1 1 8rem; margin: 0; }
+  .tw-table { width: 100%; border-collapse: collapse; }
+  .tw-table th, .tw-table td { padding: .45rem .3rem; border-bottom: 1px solid var(--border); text-align: left; }
+  .tw-table .num { text-align: right; white-space: nowrap; }
+  .tw-sig { background: #fff; border-radius: .4rem; max-width: 100%; }
+</style>
+</head>
+<body>
+<header class="sh-header">
+  <div class="sh-brand"><a class="sh-logo-badge" href="./" aria-label="SIC Cycles Shop home"><img class="sh-logo" src="sic-logo.png" alt="SIC Cycles" width="130" height="109"></a> <small>Moto Tow</small></div>
+  <nav class="sh-nav"><a class="sh-btn sh-btn-quiet" href="../tow/" target="_blank" rel="noopener">Customer page</a><button class="sh-btn sh-btn-quiet" id="twSignOut" type="button" hidden>Sign out</button></nav>
+</header>
+<div id="twMsg" class="sh-msg" role="alert" hidden></div>
+<main class="tw-main">
+  <section id="twLoading" class="tw-view"><p class="sh-muted">Loading…</p></section>
+
+  <section id="twSignIn" class="tw-view sh-card sh-narrow" hidden>
+    <h1>Tow crew sign in</h1>
+    <form id="twSignInForm">
+      <label>Email <input type="email" id="twEmail" autocomplete="username" required></label>
+      <label>Password <input type="password" id="twPassword" autocomplete="current-password" required></label>
+      <button class="sh-btn sh-btn-primary" type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <section id="twBlocked" class="tw-view sh-card sh-narrow" hidden>
+    <h1>Not on the tow crew</h1>
+    <p id="twBlockedText">This login is not on the tow crew list. Ask Tyler to add you.</p>
+  </section>
+
+  <section id="twMain" class="tw-view" hidden>
+    <div class="sh-card tw-duty">
+      <div><span id="twDutyState" class="tw-off">Off duty</span> <span class="sh-muted" id="twDutyWho"></span></div>
+      <form id="twDutyForm" class="tw-inline">
+        <label>Text me at <input type="tel" id="twDutyPhone" autocomplete="tel"></label>
+        <label>Email me at <input type="email" id="twDutyEmail"></label>
+        <button class="sh-btn" type="submit" id="twDutyBtn">Go on duty</button>
+      </form>
+    </div>
+
+    <div class="sh-chips" id="twTabs" role="tablist" style="margin-bottom:1rem">
+      <button type="button" data-t="open" class="on">Open</button>
+      <button type="button" data-t="mine">My tows</button>
+      <button type="button" data-t="done">Done</button>
+      <button type="button" data-t="pay">Pay</button>
+      <button type="button" data-t="settings" id="twTabSettings" hidden>Settings</button>
+    </div>
+
+    <section class="tw-tab" id="tabOpen">
+      <details class="sh-card" id="twAddWrap">
+        <summary><b>Add a call</b> <span class="sh-muted">(phone, text or email)</span></summary>
+        <form id="twAddForm">
+          <div class="sh-grid2">
+            <label>Came in by <select name="source"><option value="phone">Phone</option><option value="text">Text</option><option value="email">Email</option></select></label>
+            <label>What is it <select name="vehicle_type" id="twAddType"></select></label>
+            <label>Customer name <input name="customer_name" required></label>
+            <label>Phone <input name="phone" type="tel" required></label>
+            <label>Email (optional) <input name="email" type="email"></label>
+            <label>Year make model <input name="vehicle"></label>
+            <label>Area <select name="zone" id="twAddZone"></select></label>
+            <label>Miles from the shop (Tucson only) <input name="miles" inputmode="decimal"></label>
+          </div>
+          <label>Pick up at <input name="pickup_address" required></label>
+          <label><input type="checkbox" name="to_shop" style="display:inline;width:auto"> Going to SIC Cycles (shop price)</label>
+          <label>Drop off at <input name="dropoff_address"></label>
+          <label><input type="checkbox" name="ride_along" style="display:inline;width:auto"> Customer rides along</label>
+          <label>Notes <textarea name="notes" rows="2"></textarea></label>
+          <p class="sh-muted" id="twAddPrice"></p>
+          <button class="sh-btn sh-btn-primary" type="submit">Add to board</button>
+        </form>
+      </details>
+      <div id="twOpenList"></div>
+    </section>
+    <section class="tw-tab" id="tabMine" hidden><div id="twMineList"></div></section>
+    <section class="tw-tab" id="tabDone" hidden><div id="twDoneList"></div></section>
+
+    <section class="tw-tab" id="tabPay" hidden>
+      <div class="sh-card tw-inline">
+        <div class="sh-chips" id="twPayChips">
+          <button type="button" data-p="week" class="on">This week</button>
+          <button type="button" data-p="last">Last week</button>
+          <button type="button" data-p="month">This month</button>
+        </div>
+        <label>From <input type="date" id="twPayFrom"></label>
+        <label>To <input type="date" id="twPayTo"></label>
+      </div>
+      <div id="twPayOut"></div>
+      <p class="sh-muted">Pay is worked out when a tow is marked delivered, using the crew share set at that time. Use these totals when you write checks or file pay stubs.</p>
+    </section>
+
+    <section class="tw-tab" id="tabSettings" hidden>
+      <form class="sh-card" id="twSetForm">
+        <h2>Crew pay</h2>
+        <div class="sh-grid3" style="grid-template-columns:1fr 1fr 1fr">
+          <label>Solo share % <input name="solo_pct" inputmode="decimal"></label>
+          <label>Two-person share % <input name="pair_pct" inputmode="decimal"></label>
+          <label>Driver's part % <input name="driver_pct" inputmode="decimal"></label>
+        </div>
+        <p class="sh-muted">Solo: one person runs the tow and gets the solo share. Two-person: driver and navigator split the two-person share. Driver's part 50 is an even split; 60 gives the driver 60 and the navigator 40.</p>
+        <table class="tw-table"><thead><tr><th>Tow</th><th class="num">Price</th><th class="num">Solo</th><th class="num">Driver</th><th class="num">Navigator</th><th class="num">Shop keeps (2)</th></tr></thead><tbody id="twSetPreview"></tbody></table>
+        <h2>Payment links</h2>
+        <p class="sh-muted">Shown to the customer after they ask for a tow. Make one fixed-price link per area in Square, Stripe or PayPal.</p>
+        <label>Tucson <input name="pay_link_tucson" type="url" placeholder="https://"></label>
+        <label>Sierra Vista <input name="pay_link_sierra_vista" type="url" placeholder="https://"></label>
+        <label>Phoenix <input name="pay_link_phoenix" type="url" placeholder="https://"></label>
+        <button class="sh-btn sh-btn-primary" type="submit">Save settings</button>
+      </form>
+    </section>
+  </section>
+</main>
+
+<template id="twCardTpl">
+  <article class="tw-card">
+    <div class="tw-head"><b data-k="title"></b><span class="tw-badge" data-k="badge"></span></div>
+    <dl class="tw-facts" data-k="facts"></dl>
+    <div class="tw-actions" data-k="actions"></div>
+    <div data-k="extra"></div>
+  </article>
+</template>
+
+<script src="../supabase-config.js"></script>
+<script src="../session-store.js"></script>
+<script src="sh-api.js?v=20261030a"></script>
+<script src="tow-calc.js?v=20261125a"></script>
+<script src="tow-app.js?v=20261125a"></script>
+</body>
+</html>

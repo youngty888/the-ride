@@ -75,7 +75,8 @@ async function startFakeBackend({ users, staff, extraSql = [] }) {
     stats.requests++;
     const url = new URL(req.url, 'http://x');
     const p = decodeURIComponent(url.pathname);
-    const bearer = (req.headers.authorization || '').replace(/^Bearer /, '');
+    // The public pages (tow request) send the browser key as the bearer, like Supabase does for anon.
+    const bearer = (req.headers.authorization || '').replace(/^Bearer /, '').replace(/^local-test-anon-key$/, '');
     const user = tokens.get(bearer) || null;
 
     if (p === '/auth/v1/token') {
