@@ -590,6 +590,22 @@ const App = {
     }
   },
 
+  // Only digits and a leading + go into call and text links.
+  dialNumber(phone) {
+    const text = String(phone || '').trim();
+    const digits = text.replace(/\D/g, '');
+    return digits ? (text.startsWith('+') ? '+' : '') + digits : '';
+  },
+
+  // A text message the rider still has to send. "?&body=" is read by iPhone and Android.
+  locationTextHref(number) {
+    const at = MapModule.currentLocation;
+    const body = at
+      ? `I need help. This is my current location: https://www.google.com/maps?q=${at.lat},${at.lon}`
+      : 'I need help. My phone could not get my location. Please call me.';
+    return `sms:${number}?&body=${encodeURIComponent(body)}`;
+  },
+
   renderEmergencyContacts() {
     const profile = Storage.getProfile();
     const contacts = profile.emergencyContacts || [];
@@ -601,20 +617,28 @@ const App = {
     }
 
     listEl.innerHTML = contacts
-      .map((c) => `
+      .map((c) => {
+        const number = this.dialNumber(c.phone);
+        return `
         <div class="contact-item">
           <div class="contact-info">
             <div class="contact-name">${this.escapeHtml(c.name)}</div>
             <div class="contact-phone">${this.escapeHtml(c.phone)}</div>
           </div>
-          <a href="tel:${c.phone}" class="contact-call">
+          ${number ? `<a href="sms:${number}" class="contact-text" data-number="${number}" aria-label="Text my location to ${this.escapeHtml(c.name)}">Text location</a>
+          <a href="tel:${number}" class="contact-call" aria-label="Call ${this.escapeHtml(c.name)}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
             </svg>
-          </a>
+          </a>` : ''}
         </div>
-      `)
+      `;
+      })
       .join('');
+    // Built on tap so the text carries where the rider is now.
+    listEl.querySelectorAll('.contact-text').forEach((a) => {
+      a.addEventListener('click', () => { a.href = this.locationTextHref(a.dataset.number); });
+    });
   },
 
   addEmergencyContact() {
