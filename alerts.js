@@ -655,8 +655,8 @@ const AlertsModule = {
     });
     document.getElementById('btnOpenStopPrefs').addEventListener('click', () => PrefsModule.open());
     document.getElementById('btnRefreshNow').addEventListener('click', () => {
+      // manualRefresh() says what actually happened; don't claim success here.
       this.manualRefresh(false);
-      App.toast('Hazards refreshed from the network.');
     });
     document.getElementById('setReserve').addEventListener('change', e => {
       const st = this.settings(); st.reserveFactor = (+e.target.value) / 100; Storage.saveRideSettings(st);
