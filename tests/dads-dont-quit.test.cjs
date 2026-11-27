@@ -83,6 +83,19 @@ test('the profile, the shop and the bike payment page all offer Dollars for Dads
   assert.ok(pay.indexOf('d4d.js') < pay.indexOf('pay.js?'), 'd4d.js loads before pay.js');
 });
 
+test('a points tally shows on the Shop header, the profile and next to the round-up', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const header = html.slice(html.indexOf('class="screen-header shop-header"'), html.indexOf('class="shop-content"'));
+  assert.match(header, /data-dads-tally[^>]*data-dads-goto="shopDads"/);
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const at = app.indexOf('<div class="profile-header">'); const profile = app.slice(at, app.indexOf('<div class="profile-stats">', at));
+  assert.match(profile, /data-dads-tally[^>]*data-dads-goto="dadsCard"/);
+  assert.match(app, /screenName === 'shop' \|\| screenName === 'profile'\) this\.refreshDadsTally\(\)/);
+  const pay = fs.readFileSync(path.join(root, 'pay', 'index.html'), 'utf8');
+  assert.match(pay, /data-k="dadsPoints"/);
+  assert.match(fs.readFileSync(path.join(root, 'pay', 'pay.js'), 'utf8'), /rpc\('ride_my_dads'/);
+});
+
 test('the database starts with the same tiers as the app', () => {
   const text = sql('2026-11-27-shop-016-dads-points.sql');
   for (const t of D.TIERS) assert.ok(text.includes(`(${t.min}, '${t.name}', '${t.gift}')`), `tier ${t.min} in shop-016`);

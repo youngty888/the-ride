@@ -2635,3 +2635,13 @@ summary:focus-visible,
 .dads-tiers li small { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: var(--text-xs); color: var(--color-text-muted); text-align: right; }
 .dads-tiers li.earned { border-color: var(--color-primary); }
 .dads-tiers li.earned small { color: var(--color-primary); }
+/* Points tally: Shop header and profile. A tap opens the Dads card. */
+.dads-tally { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3); margin-left: auto; border-radius: var(--radius-full); background: var(--color-surface-2); border: 1px solid var(--color-primary); color: inherit; font-size: var(--text-sm); white-space: nowrap; cursor: pointer; }
+.dads-tally i { color: var(--color-primary); font-style: normal; }
+.dads-tally b { font-size: 1.05em; }
+.dads-tally span { color: var(--color-text-muted); font-size: var(--text-xs); }
+.shop-header .dads-tally { margin-left: 0; }
+@media (max-width: 420px) { .shop-header .shop-brand { display: none; } .shop-header .dads-tally { margin-left: auto; } }
+.dads-tally-lg { margin: var(--space-2) auto var(--space-1); padding: 0 var(--space-4); font-size: var(--text-base, 1rem); }
+.dads-tally-lg b { font-size: 1.35em; }
+.dads-tally-lg span { font-size: var(--text-sm); }

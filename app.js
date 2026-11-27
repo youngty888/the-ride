@@ -108,6 +108,8 @@ const App = {
       screen.classList.toggle('active', screen.id === 'screen-' + screenName);
     });
 
+    if (screenName === 'shop' || screenName === 'profile') this.refreshDadsTally();
+
     // Invalidate map if switching back to map
     if (screenName === 'map' && MapModule.map) {
       setTimeout(() => MapModule.map.invalidateSize(), 100);
@@ -1389,6 +1391,7 @@ const App = {
           : `<div class="profile-avatar">${initials}</div>`
         }
         <div class="profile-name">${this.escapeHtml(profile.name || 'Rider')}</div>
+        <button type="button" class="dads-tally dads-tally-lg" data-dads-tally data-dads-goto="dadsCard" aria-label="Your Dads Don't Quit points"><i aria-hidden="true">&#9829;</i><b>&ndash;</b><span>Dads Don't Quit points</span></button>
         <div class="profile-level ${profile.level || 'Novice'}">${profile.level || 'Novice'}</div>
         <div class="profile-region">${this.escapeHtml(profile.region || 'Set your region')}</div>
         ${accountEmail ? `<div class="profile-account">Signed in as ${this.escapeHtml(accountEmail)}</div>` : ''}
@@ -1448,6 +1451,7 @@ const App = {
     document.getElementById('btnSignOut').addEventListener('click', () => this.signOut());
 
     this.renderDads(document.getElementById('dadsCard'), { withPoints: true });
+    this.refreshDadsTally();
 
     // Leaderboard
     this.renderLeaderboard('local');
@@ -1563,6 +1567,52 @@ const App = {
     if (withPoints) this.loadDadsPoints(el);
   },
 
+  // One read of the rider's points, shared by the profile card and the tallies.
+  // Kept a minute so switching tabs doesn't ask the server every time.
+  // Resolves to the points object, 'off' (server not set up yet) or null (failed).
+  fetchDads(force) {
+    if (!force && this._dadsFetch && Date.now() - this._dadsFetch.at < 60000) return this._dadsFetch.p;
+    const p = (async () => {
+      try {
+        const session = await RideAuth.session();
+        const config = window.SICC_RIDE_SUPABASE;
+        const response = await fetch(`${config.url}/rest/v1/rpc/ride_my_dads`, {
+          method: 'POST', signal: AbortSignal.timeout(15000),
+          headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (response.status === 404) return 'off';
+        if (!response.ok) throw new Error(String(response.status));
+        return await response.json();
+      } catch { return null; }
+    })();
+    this._dadsFetch = { at: Date.now(), p };
+    p.then(r => { if (r === null && this._dadsFetch?.p === p) this._dadsFetch = null; });
+    return p;
+  },
+
+  // The points tally on the Shop header and the profile. A tap opens the Dads card.
+  async refreshDadsTally() {
+    const tallies = document.querySelectorAll('[data-dads-tally]');
+    tallies.forEach(t => {
+      if (t.dataset.wired) return;
+      t.dataset.wired = '1';
+      t.addEventListener('click', () => {
+        const target = document.getElementById(t.dataset.dadsGoto);
+        if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); const d = target.querySelector('details'); if (d && t.dataset.dadsGoto === 'shopDads') d.open = true; }
+      });
+    });
+    const data = await this.fetchDads();
+    document.querySelectorAll('[data-dads-tally]').forEach(t => {
+      const b = t.querySelector('b');
+      const ok = data && typeof data === 'object';
+      b.textContent = ok ? Number(data.points || 0).toLocaleString() : '\u2013';
+      const tier = ok ? (D4D.tierFor(data.donated).current?.name || 'Supporter Brother') : '';
+      t.title = ok ? `${tier}: ${b.textContent} Dads Don't Quit points` : data === 'off' ? 'Points show here once SIC Cycles turns them on' : "Couldn't load your points right now";
+      t.setAttribute('aria-label', t.title);
+    });
+  },
+
   async loadDadsPoints(el) {
     const D = window.D4D;
     const k = name => el.querySelector(`[data-k="${name}"]`);
@@ -1589,22 +1639,12 @@ const App = {
       }).join('');
     };
     show(null);
-    try {
-      const session = await RideAuth.session();
-      const config = window.SICC_RIDE_SUPABASE;
-      const response = await fetch(`${config.url}/rest/v1/rpc/ride_my_dads`, {
-        method: 'POST', signal: AbortSignal.timeout(15000),
-        headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: '{}'
-      });
-      if (!el.isConnected) return;
-      if (response.status === 404) { k('status').textContent = 'Points show here once SIC Cycles turns them on.'; return; }
-      if (!response.ok) throw new Error(String(response.status));
-      show(await response.json());
-      k('status').textContent = 'New points show once the store marks your order paid.';
-    } catch {
-      if (el.isConnected) k('status').textContent = "Couldn't load your points right now. Your gifts still count.";
-    }
+    const data = await this.fetchDads();
+    if (!el.isConnected) return;
+    if (data === 'off') { k('status').textContent = 'Points show here once SIC Cycles turns them on.'; return; }
+    if (!data) { k('status').textContent = "Couldn't load your points right now. Your gifts still count."; return; }
+    show(data);
+    k('status').textContent = 'New points show once the store marks your order paid.';
   },
 
   renderShop() {

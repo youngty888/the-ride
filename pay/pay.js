@@ -52,7 +52,12 @@
       for (const n of [1, 5, 10]) if (!choices.some(([a]) => a === n)) choices.push([n, `Add ${C.money(n * 100)}`]);
       choices.sort((a, b) => a[0] - b[0]);
       [[0, 'No round-up'], ...choices].forEach(([value, label]) => { const o = document.createElement('option'); o.value = String(value); o.textContent = label; pick.appendChild(o); });
-      pick.addEventListener('change', () => { btn.href = D.addToCart(link, Number(pick.value), { member, how: 'Round-up' }); });
+      const add = k('dadsAdd');
+      pick.addEventListener('change', () => {
+        const n = Number(pick.value);
+        btn.href = D.addToCart(link, n, { member, how: 'Round-up' });
+        add.textContent = n ? `+${D.pointsFor(n)} when this payment goes through` : '';
+      });
       k('dads').hidden = false;
     }
     k('payNote').textContent = s.paidOff ? 'Nothing left to pay. Thank you!'
@@ -75,6 +80,16 @@
     return node;
   }
 
+  // The rider's Dads Don't Quit points next to each round-up. Before SIC Cycles
+  // turns points on (or with no signal) it just shows a dash.
+  async function showDadsPoints(box) {
+    const spots = box.querySelectorAll('[data-k="dadsPoints"]');
+    if (!spots.length) return;
+    let points = null;
+    try { const d = await ShApi.rpc('ride_my_dads', {}); if (d && typeof d === 'object') points = Number(d.points || 0); } catch { /* dash stays */ }
+    spots.forEach(b => { b.textContent = points === null ? '\u2013' : points.toLocaleString(); });
+  }
+
   async function load() {
     show('myLoading'); msg('');
     let s;
@@ -90,6 +105,7 @@
     catch (e) { show(e.status === 401 ? 'mySignIn' : 'myError'); return; }
     if (!Array.isArray(plans) || !plans.length) { $('myNoneEmail').textContent = s.user?.email || ''; show('myNone'); return; }
     const box = $('myPlans'); box.replaceChildren(...plans.map(p => renderPlan(p, s.user?.id))); show('myPlans');
+    showDadsPoints(box);
   }
 
   $('mySignInForm').addEventListener('submit', async e => {
