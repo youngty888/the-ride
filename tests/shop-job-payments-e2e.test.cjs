@@ -100,6 +100,38 @@ test('voiding a payment puts the balance back', { skip }, async () => {
   await page.context().close();
 });
 
+test('the result of saving a payment stays on screen, good or bad', { skip }, async () => {
+  const page = await signedInPage(withPay);
+  await card(page).getByRole('button', { name: 'Payments' }).click();
+  await page.waitForSelector('#shPayments:not([hidden])');
+
+  await page.route('**/rpc/shop_record_job_payment', r => r.fulfill({ status: 400, contentType: 'application/json', body: '{"message":"Server said no."}' }));
+  await page.fill('#shPayAmount', '5');
+  await page.selectOption('#shPayMethod', 'cash');
+  await page.click('#shPaySave');
+  await page.waitForFunction(() => document.querySelector('#shPaySave').textContent === 'Save payment' && !document.querySelector('#shPayMethod').value);
+  await page.waitForTimeout(300);
+  assert.equal(await page.isVisible('#shMsg'), true);
+  assert.match(await page.locator('#shMsg').innerText(), /Payment not saved: Server said no\./);
+
+  await page.unroute('**/rpc/shop_record_job_payment');
+  await page.fill('#shPayAmount', '5');
+  await page.selectOption('#shPayMethod', 'cash');
+  await page.click('#shPaySave');
+  await page.waitForFunction(() => !document.querySelector('#shPayMethod').value);
+  await page.waitForTimeout(300);
+  assert.equal(await page.isVisible('#shMsg'), true);
+  assert.match(await page.locator('#shMsg').innerText(), /\$5\.00 recorded/);
+
+  // Leaving and opening the screen again starts clean.
+  await page.click('#shPayBack');
+  await card(page).getByRole('button', { name: 'Payments' }).click();
+  await page.waitForSelector('#shPayments:not([hidden])');
+  assert.equal(await page.isVisible('#shMsg'), false);
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
 test('before shop-017 is run, the old label dropdown still works and no Payments button shows', { skip }, async () => {
   const page = await signedInPage(withoutPay);
   assert.equal(await card(page).getByRole('button', { name: 'Payments' }).count(), 0);
