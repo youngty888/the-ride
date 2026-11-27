@@ -108,6 +108,8 @@ const App = {
       screen.classList.toggle('active', screen.id === 'screen-' + screenName);
     });
 
+    if (screenName === 'shop' || screenName === 'profile') this.refreshDadsTally();
+
     // Invalidate map if switching back to map
     if (screenName === 'map' && MapModule.map) {
       setTimeout(() => MapModule.map.invalidateSize(), 100);
@@ -1426,6 +1428,7 @@ const App = {
           : `<div class="profile-avatar">${initials}</div>`
         }
         <div class="profile-name">${this.escapeHtml(profile.name || 'Rider')}</div>
+        <button type="button" class="dads-tally dads-tally-lg" data-dads-tally data-dads-goto="dadsCard" aria-label="Your Dads Don't Quit points"><i aria-hidden="true">&#9829;</i><b>&ndash;</b><span>Dads Don't Quit points</span></button>
         <div class="profile-level ${profile.level || 'Novice'}">${profile.level || 'Novice'}</div>
         <div class="profile-region">${this.escapeHtml(profile.region || 'Set your region')}</div>
         ${accountEmail ? `<div class="profile-account">Signed in as ${this.escapeHtml(accountEmail)}</div>` : ''}
@@ -1447,6 +1450,8 @@ const App = {
       </div>
 
       ${profile.bio ? `<p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;margin-bottom:var(--space-4);">${this.escapeHtml(profile.bio)}</p>` : ''}
+
+      <section class="dads-card" id="dadsCard" aria-label="Dads Don't Quit"></section>
 
       <button class="btn-primary btn-large" id="btnEditProfile">Edit Profile</button>
       <button class="btn-secondary btn-large" id="btnManageContacts" style="margin-top:var(--space-2);">Emergency Contacts</button>
@@ -1481,6 +1486,9 @@ const App = {
     });
 
     document.getElementById('btnSignOut').addEventListener('click', () => this.signOut());
+
+    this.renderDads(document.getElementById('dadsCard'), { withPoints: true });
+    this.refreshDadsTally();
 
     // Leaderboard
     this.renderLeaderboard('local');
@@ -1527,6 +1535,153 @@ const App = {
       this.renderShopProducts();
     }));
     document.querySelectorAll('#serviceRail [data-link]').forEach(button => button.addEventListener('click', () => window.open(button.dataset.link, '_blank', 'noopener')));
+    this.renderDads(document.getElementById('shopDads'), { withPoints: false });
+  },
+
+  // ===== DADS DON'T QUIT (Dollars for Dads, ManUp Movement) =====
+  // Giving goes through the SIC Cycles store (siccycles.com cart links from d4d.js).
+  // Nothing is charged in RIDE: every button opens the store's checkout, where the
+  // rider pays. Points come from the shop server once Shopify reports the order paid.
+  dadsMember() {
+    try { return RideAuth.read()?.user?.id || ''; } catch { return ''; }
+  },
+
+  renderDads(el, { withPoints } = {}) {
+    if (!el || !window.D4D) return;
+    const D = window.D4D;
+    const member = this.dadsMember();
+    const amounts = [10, 20, 30, 50, 100];
+    const money = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 });
+    el.innerHTML = `
+      <div class="dads-head">
+        <div><div class="dads-kicker">Dollars for Dads &middot; ManUp Movement</div><h3>Dads Don't Quit</h3></div>
+        ${withPoints ? '<span class="dads-badge" data-k="tier">Supporter Brother</span>' : ''}
+      </div>
+      ${withPoints ? `
+        <div class="dads-points"><b data-k="points">&ndash;</b><span>points</span></div>
+        <div class="dads-progress" data-k="progressBox" hidden><div class="dads-bar"><i data-k="bar"></i></div><small data-k="next"></small></div>` : ''}
+      <p class="dads-sub">Every $1 you give, and every $1 you spend on ManUp merch, is 1 point. Gifts check out at the SIC Cycles store and go to ManUp Movement.</p>
+      <div class="dads-amounts" role="group" aria-label="Gift amount">
+        ${amounts.map(a => `<button type="button" class="chip${a === 30 ? ' active' : ''}" data-dads-amount="${a}">$${a}</button>`).join('')}
+        <label class="dads-other">Other $<input type="number" inputmode="numeric" min="1" max="${D.MAX_GIFT}" step="1" placeholder="20" data-k="other" aria-label="Other amount in dollars"></label>
+      </div>
+      <a class="btn-primary btn-large dads-give" data-k="give" target="_blank" rel="noopener noreferrer">Give $30 to Dollars for Dads</a>
+      <details class="dads-roundup">
+        <summary>Round up for Dads</summary>
+        <label>What did you spend? <input type="text" inputmode="decimal" placeholder="37.40" data-k="spent" aria-label="Amount you spent"></label>
+        <div class="dads-round-choices" data-k="choices"><small>Enter an amount to see your round-up.</small></div>
+      </details>
+      <a class="dads-alt" href="${D.MANUP_DONATE}" target="_blank" rel="noopener noreferrer">Or give on manup-movement.org (PayPal)</a>
+      <small class="dads-note">Points for gifts made on manup-movement.org are added by SIC Cycles.</small>
+      ${withPoints ? '<ul class="dads-tiers" data-k="tiers"></ul><div class="dads-status" data-k="status" role="status"></div>' : ''}
+    `;
+    const k = name => el.querySelector(`[data-k="${name}"]`);
+    const give = k('give');
+    const setAmount = n => {
+      const link = D.donateLink(n, { member, how: 'RIDE app' });
+      if (link) { give.href = link; give.textContent = `Give ${money(n)} to Dollars for Dads`; give.removeAttribute('aria-disabled'); }
+      else { give.removeAttribute('href'); give.textContent = `Pick an amount from $1 to $${D.MAX_GIFT}`; give.setAttribute('aria-disabled', 'true'); }
+    };
+    el.querySelectorAll('[data-dads-amount]').forEach(button => button.addEventListener('click', () => {
+      el.querySelectorAll('[data-dads-amount]').forEach(b => b.classList.toggle('active', b === button));
+      k('other').value = '';
+      setAmount(Number(button.dataset.dadsAmount));
+    }));
+    k('other').addEventListener('input', () => {
+      el.querySelectorAll('[data-dads-amount]').forEach(b => b.classList.remove('active'));
+      setAmount(Number(k('other').value));
+    });
+    k('spent').addEventListener('input', () => {
+      const choices = D.roundUpChoices(k('spent').value);
+      const box = k('choices');
+      if (!choices.length) {
+        box.innerHTML = `<small>${String(k('spent').value).trim() ? 'Already a round number. Pick an amount above instead.' : 'Enter an amount to see your round-up.'}</small>`;
+        return;
+      }
+      box.innerHTML = choices.map(c => `<a class="btn-secondary dads-round" target="_blank" rel="noopener noreferrer" href="${this.escapeHtml(D.donateLink(c.add, { member, how: 'Round-up' }))}">Add ${money(c.add)} <small>${money(c.total)} total, next $${c.step}</small></a>`).join('');
+    });
+    setAmount(30);
+    if (withPoints) this.loadDadsPoints(el);
+  },
+
+  // One read of the rider's points, shared by the profile card and the tallies.
+  // Kept a minute so switching tabs doesn't ask the server every time.
+  // Resolves to the points object, 'off' (server not set up yet) or null (failed).
+  fetchDads(force) {
+    if (!force && this._dadsFetch && Date.now() - this._dadsFetch.at < 60000) return this._dadsFetch.p;
+    const p = (async () => {
+      try {
+        const session = await RideAuth.session();
+        const config = window.SICC_RIDE_SUPABASE;
+        const response = await fetch(`${config.url}/rest/v1/rpc/ride_my_dads`, {
+          method: 'POST', signal: AbortSignal.timeout(15000),
+          headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (response.status === 404) return 'off';
+        if (!response.ok) throw new Error(String(response.status));
+        return await response.json();
+      } catch { return null; }
+    })();
+    this._dadsFetch = { at: Date.now(), p };
+    p.then(r => { if (r === null && this._dadsFetch?.p === p) this._dadsFetch = null; });
+    return p;
+  },
+
+  // The points tally on the Shop header and the profile. A tap opens the Dads card.
+  async refreshDadsTally() {
+    const tallies = document.querySelectorAll('[data-dads-tally]');
+    tallies.forEach(t => {
+      if (t.dataset.wired) return;
+      t.dataset.wired = '1';
+      t.addEventListener('click', () => {
+        const target = document.getElementById(t.dataset.dadsGoto);
+        if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); const d = target.querySelector('details'); if (d && t.dataset.dadsGoto === 'shopDads') d.open = true; }
+      });
+    });
+    const data = await this.fetchDads();
+    document.querySelectorAll('[data-dads-tally]').forEach(t => {
+      const b = t.querySelector('b');
+      const ok = data && typeof data === 'object';
+      b.textContent = ok ? Number(data.points || 0).toLocaleString() : '\u2013';
+      const tier = ok ? (D4D.tierFor(data.donated).current?.name || 'Supporter Brother') : '';
+      t.title = ok ? `${tier}: ${b.textContent} Dads Don't Quit points` : data === 'off' ? 'Points show here once SIC Cycles turns them on' : "Couldn't load your points right now";
+      t.setAttribute('aria-label', t.title);
+    });
+  },
+
+  async loadDadsPoints(el) {
+    const D = window.D4D;
+    const k = name => el.querySelector(`[data-k="${name}"]`);
+    const show = data => {
+      const tiers = Array.isArray(data?.tiers) && data.tiers.length ? data.tiers
+        : D.TIERS.map(t => ({ min: t.min, name: t.name, gift: t.gift, earned: false, given: false }));
+      const donated = Number(data?.donated || 0);
+      const earned = t => !!t.earned || donated >= Number(t.min);
+      const reached = tiers.filter(earned).pop();
+      const next = tiers.find(t => !earned(t));
+      k('points').textContent = data ? Number(data.points || 0).toLocaleString() : '–';
+      k('tier').textContent = reached ? reached.name : 'Supporter Brother';
+      if (next) {
+        const prev = reached ? Number(reached.min) : 0;
+        k('progressBox').hidden = false;
+        k('bar').style.width = `${Math.max(0, Math.min(100, ((donated - prev) / (Number(next.min) - prev)) * 100))}%`;
+        k('next').textContent = `$${(Math.ceil((Number(next.min) - donated) * 100) / 100).toLocaleString()} more to ${next.name} (${String(next.gift).toLowerCase()})`;
+      } else {
+        k('progressBox').hidden = !reached; k('bar').style.width = '100%'; k('next').textContent = 'Top tier reached. Thank you!';
+      }
+      k('tiers').innerHTML = tiers.map(t => {
+        const state = t.given ? 'Handed out' : earned(t) ? 'Earned. SIC Cycles will get it to you' : `Give $${Number(t.min).toLocaleString()} total`;
+        return `<li class="${earned(t) ? 'earned' : ''}"><strong>${this.escapeHtml(t.name)}</strong><span>${this.escapeHtml(t.gift)}</span><small>${this.escapeHtml(state)}</small></li>`;
+      }).join('');
+    };
+    show(null);
+    const data = await this.fetchDads();
+    if (!el.isConnected) return;
+    if (data === 'off') { k('status').textContent = 'Points show here once SIC Cycles turns them on.'; return; }
+    if (!data) { k('status').textContent = "Couldn't load your points right now. Your gifts still count."; return; }
+    show(data);
+    k('status').textContent = 'New points show once the store marks your order paid.';
   },
 
   renderShop() {

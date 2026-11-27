@@ -12,9 +12,9 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>RIDE by SIC Cycles — Motorcycle Riding</title>
   <style>.auth-pending body{visibility:hidden}</style>
-  <script src="session-store.js?v=202609210721"></script>
-  <script defer src="supabase-config.js?v=72624a2"></script>
-  <script defer src="auth-guard.js?v=202609210721"></script>
+  <script src="session-store.js?v=202611271309"></script>
+  <script defer src="supabase-config.js?v=202611271309"></script>
+  <script defer src="auth-guard.js?v=202611271309"></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,8 +25,8 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=202611260728">
-  <meta name="app-version" content="202608311533">
+  <link rel="stylesheet" href="styles.css?v=202611271309">
+  <meta name="app-version" content="202611271309">
 </head>
 <body>
   <aside id="cloudStatus" role="status" aria-live="polite">Loading your Profile and Garage…</aside>
@@ -486,6 +486,7 @@
     <div class="screen-header shop-header">
       <h1>Shop</h1>
       <div class="shop-brand">RIDE <span>By SIC Cycles</span></div>
+      <button type="button" class="dads-tally" data-dads-tally data-dads-goto="shopDads" aria-label="Your Dads Don't Quit points"><i aria-hidden="true">&#9829;</i><b>&ndash;</b><span>pts</span></button>
       <button class="shop-cart-button" id="btnCart" aria-label="Open quote list">
         <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H6"/></svg>
         <span id="cartCount">0</span>
@@ -520,6 +521,7 @@
         <a class="btn-secondary btn-large shop-call" href="tel:+15204204214">Call SIC Cycles</a>
         <a class="btn-secondary btn-large shop-call" href="/pay/">My bike payments</a>
       </section>
+      <section class="shop-section dads-card dads-shop" id="shopDads" aria-label="Dads Don't Quit"></section>
       <section class="shop-note"><strong>Parts and service, explained straight.</strong><p>Send the bike and part details. SIC Cycles confirms fitment and pricing before any appointment.</p></section>
     </div>
   </div>
@@ -798,22 +800,23 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="storage.js?v=202611261320"></script>
-  <script src="cloud-sync.js?v=202609291227"></script>
-  <script src="cloud-rest.js?v=202609211318"></script>
-  <script src="rides-sync.js?v=202609211318"></script>
-  <script src="routes-sync.js?v=202609211318"></script>
-  <script src="prefs-sync.js?v=202611261320"></script>
-  <script src="geo.js?v=202608311533"></script>
-  <script src="map.js?v=202609292042"></script>
-  <script src="route.js?v=202611260310"></script>
-  <script src="prefs.js?v=202609211218"></script>
-  <script src="poi.js?v=202611260310"></script>
-  <script src="weather.js?v=202608311533"></script>
-  <script src="events.js?v=202611180118"></script>
-  <script src="hazards.js?v=202611251921"></script>
-  <script src="alerts.js?v=202609292042"></script>
-  <script src="bike-connection.js?v=202609292042"></script>
-  <script src="app.js?v=202611270120"></script>
+  <script src="storage.js?v=202611271309"></script>
+  <script src="cloud-sync.js?v=202611271309"></script>
+  <script src="cloud-rest.js?v=202611271309"></script>
+  <script src="rides-sync.js?v=202611271309"></script>
+  <script src="routes-sync.js?v=202611271309"></script>
+  <script src="prefs-sync.js?v=202611271309"></script>
+  <script src="geo.js?v=202611271309"></script>
+  <script src="map.js?v=202611271309"></script>
+  <script src="route.js?v=202611271309"></script>
+  <script src="prefs.js?v=202611271309"></script>
+  <script src="poi.js?v=202611271309"></script>
+  <script src="weather.js?v=202611271309"></script>
+  <script src="events.js?v=202611271309"></script>
+  <script src="hazards.js?v=202611271309"></script>
+  <script src="alerts.js?v=202611271309"></script>
+  <script src="bike-connection.js?v=202611271309"></script>
+  <script src="d4d.js?v=202611271309"></script>
+  <script src="app.js?v=202611271845"></script>
 </body>
 </html>
