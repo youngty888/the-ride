@@ -30,3 +30,12 @@ test('esc() and safeUrl() block markup and non-https links', () => {
   assert.equal(Events.safeUrl('javascript:alert(1)'), '');
   assert.equal(Events.safeUrl('https://a.com'), 'https://a.com');
 });
+test('banner: notices sit in a scrolling box with the close button outside it', () => {
+  let html = '';
+  const box = {setAttribute() {}, querySelector: () => ({addEventListener() {}}), set innerHTML(v) { html = v; }};
+  global.document = {getElementById: () => ({appendChild() {}}), createElement: () => box};
+  try { Events.render([{id: 'a', title: 'A'}, {id: 'b', title: 'B'}]); } finally { delete global.document; }
+  assert.match(html, /^<div class="events-scroll" tabindex="0">[\s\S]*data-id="b"[\s\S]*<\/div><button[^>]*events-close/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+  assert.match(css, /\.events-scroll\s*\{[^}]*max-height[^}]*overflow-y:\s*auto/);
+});

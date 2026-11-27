@@ -232,15 +232,21 @@ const WeatherModule = {
         const leg = legs[cursor++];
         try {
           const [alerts, periods] = await Promise.all([
-            this.fetchAlerts(leg.lat, leg.lon).catch(() => []),
+            this.fetchAlerts(leg.lat, leg.lon).catch(() => { leg.alertsFailed = true; return []; }),
             this.fetchHourly(leg.lat, leg.lon).catch(() => []),
           ]);
           leg.alerts = alerts;
           leg.period = this.periodAt(periods, leg.arrival);
           leg.potential = this.potentialAdvisories(leg.period, leg);
           leg.rideScore = this.rideScore(leg.period, leg.potential, leg.alerts);
+          // An unchecked alert feed must not read as a good ride.
+          if (leg.alertsFailed && ['Great', 'Good'].includes(leg.rideScore.score)) {
+            leg.rideScore = { score: 'Unknown', cls: 'score-unknown' };
+          }
         } catch (e) {
           leg.error = true;
+          leg.alertsFailed = true;
+          leg.period = null;
           leg.alerts = []; leg.potential = []; leg.rideScore = { score: 'Unknown', cls: 'score-unknown' };
         }
       }
@@ -255,11 +261,18 @@ const WeatherModule = {
     const section = document.getElementById('weatherSection');
     const legs = this.legs;
     if (!legs.length) {
-      section.innerHTML = `<h3 class="plan-section-title">Route Weather</h3><div class="err-box">No forecast returned. <button type="button" class="btn-secondary" id="wxRetry">Retry</button></div>`;
+      section.innerHTML = `<h3 class="plan-section-title">Route Weather</h3><div class="err-box">No forecast returned. <button type="button" class="btn-secondary wx-retry">Retry</button></div>`;
       this.bindRetry();
       return;
     }
     const anyData = legs.some(l => l.period);
+    const noAlertCheck = legs.filter(l => l.alertsFailed).length;
+    const noForecast = legs.filter(l => !l.period).length;
+    const points = n => `${n} of ${legs.length} check points`;
+    const alertGap = noAlertCheck
+      ? `<div class="err-box">Couldn't check NWS advisories for ${points(noAlertCheck)}. Don't assume there are none.</div>` : '';
+    const forecastGap = noForecast
+      ? `<div class="err-box">No forecast for ${points(noForecast)}, so wind, heat, cold, rain, fog and sun glare were not checked there.</div>` : '';
     const realAlerts = [];
     const seenAlert = new Set();
     legs.forEach(l => (l.alerts || []).forEach(a => {
@@ -278,7 +291,7 @@ const WeatherModule = {
       <h3 class="plan-section-title">Route Weather</h3>
       <p class="plan-section-note">Forecast for when you'll be there, based on a ${Geo.fmtClock(legs[0].arrival)} departure. ${legs.length} check points.</p>
 
-      ${!anyData ? `<div class="err-box">The National Weather Service returned no hourly data for this route (it only covers the US). <button type="button" class="btn-secondary" id="wxRetry">Retry</button></div>` : ''}
+      ${!anyData ? `<div class="err-box">Couldn't get an hourly forecast for this route. Check your signal. The National Weather Service only covers the US, and only about the next two and a half days. <button type="button" class="btn-secondary wx-retry">Retry</button></div>` : ''}
 
       <div class="wx-strip">
         ${legs.map(l => {
@@ -291,7 +304,7 @@ const WeatherModule = {
             <div class="wx-leg-temp">${p ? p.temperature + '°' : '—'}</div>
             <div class="wx-leg-rows">
               <div>${p ? (this.peakWind(p.windSpeed) || 0) + ' mph ' + (p.windDirection || '') : '—'}</div>
-              <div>${p && p.pop != null ? p.pop + '% rain' : '0% rain'}</div>
+              <div>${p ? (p.pop != null ? p.pop : 0) + '% rain' : '—'}</div>
             </div>
             <div class="wx-leg-cond">${p ? App.escapeHtml(p.shortForecast) : 'No data'}</div>
             <div class="wx-score ${l.rideScore.cls}">${l.rideScore.score}</div>
@@ -308,7 +321,8 @@ const WeatherModule = {
             ${a.instruction ? `<div class="wx-alert-instr">${App.escapeHtml(a.instruction)}</div>` : ''}
             <div class="wx-alert-meta">Near mile ${Math.round(a.mile)}</div>
           </div>`).join('')}
-      ` : `<h4 class="wx-subhead">Active NWS advisories on this route</h4><p class="plan-section-note">None active right now.</p>`}
+      ` : `<h4 class="wx-subhead">Active NWS advisories on this route</h4>${noAlertCheck ? '' : '<p class="plan-section-note">None active right now.</p>'}`}
+      ${alertGap}
 
       ${potentialCards.length ? `
         <h4 class="wx-subhead">Potential rider advisories</h4>
@@ -319,19 +333,20 @@ const WeatherModule = {
             <div class="wx-alert-instr">${App.escapeHtml(a.text)}</div>
             <div class="wx-alert-meta">Near mile ${Math.round(a.mile)} · about ${Geo.fmtClock(a.arrival)}</div>
           </div>`).join('')}
-      ` : '<h4 class="wx-subhead">Potential rider advisories</h4><p class="plan-section-note">Nothing flagged. Wind, heat, cold, rain, fog and sun glare all check out for your timing.</p>'}
+      ` : `<h4 class="wx-subhead">Potential rider advisories</h4>${noForecast ? '' : '<p class="plan-section-note">Nothing flagged. Wind, heat, cold, rain, fog and sun glare all check out for your timing.</p>'}`}
+      ${forecastGap}
 
-      <p class="plan-section-note plan-attribution">Forecasts and advisories from the <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">NOAA / National Weather Service API</a>. Cached 30 minutes. <button type="button" class="wx-refresh-link" id="wxRetry">Refresh now</button></p>
+      <p class="plan-section-note plan-attribution">Forecasts and advisories from the <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">NOAA / National Weather Service API</a>. Cached 30 minutes. <button type="button" class="wx-refresh-link wx-retry">Refresh now</button></p>
     `;
     this.bindRetry();
   },
 
   bindRetry() {
-    const b = document.getElementById('wxRetry');
-    if (b) b.addEventListener('click', () => {
+    // The error box and the footer can both show a button, so bind every one.
+    document.querySelectorAll('#weatherSection .wx-retry').forEach(b => b.addEventListener('click', () => {
       Storage.set(Storage.KEYS.WEATHER_CACHE, {});
       WeatherModule.loadForRoute(RouteModule.activeRoute(), RouteModule.departAt);
-    });
+    }));
   },
 
   icon(p) {

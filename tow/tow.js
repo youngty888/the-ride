@@ -1,4 +1,4 @@
-/* Moto Tow public page (ride.siccycles.com/tow/). Anyone can ask for a tow
+/* 520 Moto Tow public page (ride.siccycles.com/tow/). Anyone can ask for a tow
    here without an account. A rider signed in to RIDE gets the form filled in
    from their account and Garage. The database (shop_tow_request, shop-014) checks
    everything and sets the price itself; this page only shows a preview.

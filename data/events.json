@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-25",
+  "updated": "2026-11-27",
   "note": "Only confirmed events go here. Each needs a source link. Past events hide themselves.",
   "events": [
     {
@@ -25,6 +25,14 @@
       "start": "2026-12-01",
       "end": "2026-12-05",
       "source": "https://superstitionhd.com/events"
+    },
+    {
+      "id": "ho-ho-ho-520-toy-run-2026",
+      "title": "Ho Ho Ho 520 Toy Run - Sat Dec 5, sign-in 10-11am",
+      "detail": "Combat Veterans MA 32-2 poker run from Shooters, 3115 E Prince Rd, Tucson. $20 rider, $10 passenger, plus a new unwrapped toy.",
+      "start": "2026-12-01",
+      "end": "2026-12-05",
+      "source": "https://www.bikernation.biz/pages/motorcycle-event/cvma-az-32-2-1st-annual-ho-ho-ho-520-toy-run"
     },
     {
       "id": "windy-point-ride-2026-12",
