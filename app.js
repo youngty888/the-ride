@@ -1180,21 +1180,44 @@ const App = {
   },
 
   savePost() {
+    if (this.postSaving) return; // a second tap while the photo is still shrinking
     const profile = Storage.getProfile();
     const photoInput = document.getElementById('postPhoto');
-    let photoData = null;
+    const file = photoInput.files && photoInput.files[0];
+    if (!file) return this._savePostWithPhoto(profile, null);
 
-    // Handle photo upload
-    if (photoInput.files && photoInput.files[0]) {
+    this.postSaving = true;
+    this.shrinkPhoto(file, 1280)
+      .then((photo) => this._savePostWithPhoto(profile, photo))
+      .catch(() => this.toast("Couldn't read that photo, so nothing was posted. Try a JPG or PNG."))
+      .finally(() => { this.postSaving = false; });
+  },
+
+  /* Phone photos are several MB, which fills the browser's storage and stops later rides and
+     bikes from saving. Every stored photo is scaled to maxSide pixels and saved as a JPEG. */
+  shrinkPhoto(file, maxSide) {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        photoData = e.target.result;
-        this._savePostWithPhoto(profile, photoData);
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Not a readable image'));
+        img.onload = () => {
+          const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('No canvas'));
+          ctx.fillStyle = '#fff'; // JPEG has no transparency
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = reader.result;
       };
-      reader.readAsDataURL(photoInput.files[0]);
-    } else {
-      this._savePostWithPhoto(profile, null);
-    }
+      reader.readAsDataURL(file);
+    });
   },
 
   _savePostWithPhoto(profile, photoData) {
@@ -1212,7 +1235,10 @@ const App = {
       comments: [],
     };
 
-    Storage.savePost(post);
+    if (!Storage.savePost(post)) {
+      this.toast('Not posted: this device is out of storage space.');
+      return;
+    }
     this.hideOverlay('overlay-post-form');
     this.renderBlog();
   },
@@ -1649,18 +1675,22 @@ const App = {
     const preview = document.getElementById('profilePicPreview');
     if (!picInput) return;
     picInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          preview.innerHTML = `<img src="${ev.target.result}" style="width:100%;border-radius:var(--radius-md);margin-top:var(--space-2);">`;
-          const profile = Storage.getProfile();
-          profile.profilePic = ev.target.result;
-          Storage.saveProfile(profile);
-        };
-        reader.readAsDataURL(e.target.files[0]);
-      } else {
+      const file = e.target.files && e.target.files[0];
+      if (!file) { preview.innerHTML = ''; return; }
+      this.shrinkPhoto(file, 400).then((photo) => {
+        const profile = Storage.getProfile();
+        profile.profilePic = photo;
+        if (!Storage.saveProfile(profile)) {
+          preview.innerHTML = '';
+          this.toast('Picture not saved: this device is out of storage space.');
+          return;
+        }
+        preview.innerHTML = `<img src="${photo}" style="width:100%;border-radius:var(--radius-md);margin-top:var(--space-2);">`;
+        this.renderProfile();
+      }).catch(() => {
         preview.innerHTML = '';
-      }
+        this.toast("Couldn't read that picture. Try a JPG or PNG.");
+      });
     });
   },
 
