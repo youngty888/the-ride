@@ -8,7 +8,7 @@
 <title>SIC Cycles — Shop</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
-<link rel="stylesheet" href="sh.css?v=20261126a">
+<link rel="stylesheet" href="sh.css?v=20261127q">
 </head>
 <body>
 <header class="sh-header">
@@ -252,6 +252,47 @@
     <div class="sh-actions"><button type="button" class="sh-btn" id="shSoBack">Back to jobs</button></div>
   </section>
 
+  <section id="shPayments" class="sh-view" hidden>
+    <div class="sh-editor-head"><h1 id="shPayTitle">Payments</h1><span id="shPaySub" class="sh-muted"></span></div>
+    <div id="shPayTotals" class="sh-card sh-pay-totals"></div>
+    <form id="shPayForm" class="sh-card sh-narrow">
+      <h2>Record a payment</h2>
+      <div class="sh-grid2">
+        <label>Amount ($) <input id="shPayAmount" inputmode="decimal" required autocomplete="off"></label>
+        <label>Date paid <input id="shPayDate" type="date" required></label>
+        <label>How they paid
+          <select id="shPayMethod" required>
+            <option value="">Pick one</option>
+            <option value="cash">Cash</option><option value="card">Card</option><option value="zelle">Zelle</option>
+            <option value="cash_app">Cash App</option><option value="venmo">Venmo</option><option value="paypal">PayPal</option>
+            <option value="check">Check</option><option value="shopify">Online (Shopify)</option>
+            <option value="financing">Financing</option><option value="other">Other</option>
+          </select></label>
+        <label>Check no. or last 4 (optional) <input id="shPayRef" maxlength="40" autocomplete="off"></label>
+      </div>
+      <label>Note (optional) <input id="shPayNote" maxlength="200"></label>
+      <p class="sh-muted">Never type a full card or bank number here.</p>
+      <div class="sh-actions"><button type="submit" class="sh-btn sh-btn-primary" id="shPaySave">Save payment</button></div>
+    </form>
+    <p id="shPayDone" class="sh-card" hidden>Paid in full.</p>
+    <h2>Payments on this job</h2>
+    <ul id="shPayList" class="sh-pay-list"></ul>
+    <div class="sh-actions"><button type="button" class="sh-btn" id="shPayBack">Back to jobs</button></div>
+  </section>
+
+  <section id="shIntake" class="sh-view" hidden>
+    <div class="sh-editor-head"><h1 id="shInTitle">Intake photos</h1><span id="shInSub" class="sh-muted"></span></div>
+    <p class="sh-muted">Take these the moment the bike comes in, before anyone touches it. Each photo is stamped with the time and who took it, and can't be changed or deleted.</p>
+    <p id="shInCount"></p>
+    <div class="sh-card sh-narrow">
+      <label>Take or pick photos <input id="shInFiles" type="file" accept="image/*" capture="environment" multiple></label>
+      <label>Note for these photos (optional) <input id="shInNote" maxlength="200" placeholder="Example: dent on left side of tank"></label>
+      <div class="sh-actions"><button type="button" class="sh-btn sh-btn-primary" id="shInSave">Save photos</button></div>
+    </div>
+    <div id="shInGrid" class="sh-photo-grid sh-intake-grid"></div>
+    <div class="sh-actions"><button type="button" class="sh-btn" id="shInBack">Back to jobs</button></div>
+  </section>
+
   <section id="shSettings" class="sh-view" hidden>
     <form id="shSettingsForm" class="sh-card sh-narrow">
       <h1>Shop settings</h1>
@@ -283,7 +324,7 @@
 <script src="../show-password.js?v=20261119a"></script>
 <script src="sh-calc.js?v=20261119b"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="sh-app.js?v=20261126a"></script>
+<script src="sh-app.js?v=20261127q"></script>
 <script src="home-app.js?v=20261121a"></script>
 </body>
 </html>
