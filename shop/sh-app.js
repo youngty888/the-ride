@@ -12,6 +12,7 @@
   const BUCKET = 'shop-bike-photos';
   const STATUS_LABEL = { estimate: 'Estimate', in_progress: 'In progress', complete: 'Complete' };
   const PAY_LABEL = { unpaid: 'Unpaid', partial: 'Part paid', paid: 'Paid' };
+  const PAY_METHOD = { cash: 'Cash', card: 'Card', zelle: 'Zelle', cash_app: 'Cash App', venmo: 'Venmo', paypal: 'PayPal', check: 'Check', shopify: 'Online (Shopify)', financing: 'Financing', other: 'Other' };
   const NEXT = { estimate: ['in_progress', 'Start job'], in_progress: ['complete', 'Mark complete'] };
   const TAX_LABEL = { parts: 'on parts', parts_labor: 'on parts and labor', none: '' };
   // Board colors (Tyler, Nov 23): grey = estimate never started; yellow = in work, unpaid;
@@ -103,6 +104,8 @@
       $('shSettingsForm').addEventListener('submit', e => { e.preventDefault(); this.saveSettings(); });
       $('shSetCancel').addEventListener('click', () => this.show('shList'));
       $('shSoBack').addEventListener('click', () => this.show('shList'));
+      $('shPayBack').addEventListener('click', () => this.show('shList'));
+      $('shPayForm').addEventListener('submit', ev => this.savePayment(ev));
       root.addEventListener('beforeunload', e => { if (this.form?.dirty && !$('shEditor').hidden) { e.preventDefault(); e.returnValue = ''; } });
     },
 
@@ -181,14 +184,17 @@
     // ---------- data ----------
     async refresh() {
       try {
-        const [jobs, customers, bikes, settings, parts] = await Promise.all([
+        const [jobs, customers, bikes, settings, parts, balances] = await Promise.all([
           ShApi.select('shop_jobs', 'select=*&order=job_date.desc,estimate_number.desc'),
           ShApi.select('shop_customers', 'select=id,name,phone,email,address&order=name.asc'),
           ShApi.select('shop_bikes', 'select=id,customer_id,vin,make,model,year,mileage,photo_urls'),
           ShApi.select('shop_settings', 'select=*'),
           ShApi.select('shop_part_orders', 'select=*&order=date_ordered.desc,created_at.desc').catch(e => { if (e?.status === 401) throw e; return []; }),
+          // shop-017: what each job has been paid. null = that SQL file isn't on the server yet.
+          ShApi.select('shop_job_balances', 'select=*').catch(e => { if (e?.status === 401) throw e; return null; }),
         ]);
         this.jobs = jobs; this.customers = customers; this.bikes = bikes; this.settings = settings[0] || {}; this.parts = parts || [];
+        this.balances = balances ? Object.fromEntries(balances.map(b => [b.job_id, b])) : null;
         await this.loadSavedJobs();
         this.renderJobs();
         return true;
@@ -286,7 +292,7 @@
               el('span', { text: wo(j.estimate_number) }),
               el('span', { text: fmtDate(j.job_date) }),
               el('span', { class: 'sh-pill', text: STATUS_LABEL[j.status] || j.status }),
-              j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: PAY_LABEL[j.payment_status] || 'Unpaid' }),
+              j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: this.payText(j) }),
               closed ? el('span', { class: 'sh-tag sh-tag-closed', text: 'Closed' }) : null,
               waiting ? el('span', { class: 'sh-tag sh-tag-parts', text: `${waiting} part${waiting === 1 ? '' : 's'} on order` }) : null,
               b ? el('span', { text: bikeLabel(b) || b.vin || '' }) : null),
@@ -296,7 +302,8 @@
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
             closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Order part', onclick: () => this.openPartForm(null, j.id) }),
             j.status === 'estimate' || closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Tech sign-off', onclick: () => this.openSignoff(j.id) }),
-            j.status === 'estimate' ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for ${wo(j.estimate_number)}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
+            j.status === 'estimate' || !this.balances ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Payments', onclick: () => this.openPayments(j.id) }),
+            j.status === 'estimate' || this.balances?.[j.id]?.has_payments ? null : el('select', { class: 'sh-btn sh-pay-select', 'aria-label': `Payment status for ${wo(j.estimate_number)}`, onchange: ev => this.setPayment(j.id, ev.currentTarget) },
               ...Object.entries(PAY_LABEL).map(([v, t]) => el('option', { value: v, text: t, selected: (j.payment_status || 'unpaid') === v }))),
             j.status === 'estimate' && !closed ? el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Close estimate', onclick: ev => this.setClosed(j.id, true, ev.currentTarget) }) : null,
             j.status === 'estimate' && closed ? el('button', { type: 'button', class: 'sh-btn', text: 'Reopen', onclick: ev => this.setClosed(j.id, false, ev.currentTarget) }) : null,
@@ -549,6 +556,88 @@
       const note = root.prompt(`What's wrong with the split on "${step}"? The payroll manager will settle it.`);
       if (note === null) return;
       return this.runSignoff(jobId, null, () => ShApi.rpc('shop_dispute_step', { p_job_id: jobId, p_step: step, p_note: note }), `Flagged ${step} for the payroll manager.`);
+    },
+
+    // ---------- payments on a job (shop-017) ----------
+    payText(j) {
+      const b = this.balances?.[j.id];
+      if (b && Number(b.amount_paid) > 0 && j.payment_status !== 'paid') return `Paid ${money(b.amount_paid)} of ${money(j.total_amount)}`;
+      return PAY_LABEL[j.payment_status] || 'Unpaid';
+    },
+
+    async openPayments(jobId) {
+      if (this.busy) return;
+      this.message('');
+      const j = this.jobs.find(x => x.id === jobId);
+      if (!j) return;
+      let pays;
+      try {
+        pays = await ShApi.select('shop_job_payments', `select=*&job_id=eq.${encodeURIComponent(jobId)}&order=paid_on.asc,created_at.asc`);
+      } catch (e) {
+        if (this.handleAuthError(e)) return;
+        this.message(/shop_job_payments|Could not find|does not exist/i.test(e.message) ? 'Payments are not set up on the server yet (ask Tyler to run the shop-017 SQL file).' : `Could not open payments: ${e.message}`, true);
+        return;
+      }
+      this.payJobId = jobId;
+      const c = this.customer(j.customer_id) || {};
+      const live = pays.filter(p => !p.voided_at);
+      const paidCents = live.reduce((n, p) => n + ShCalc.centsOf(p.amount), 0n);
+      const dueCents = ShCalc.centsOf(j.total_amount ?? 0) - paidCents;
+      $('shPayTitle').textContent = `Payments · ${wo(j.estimate_number)}`;
+      $('shPaySub').textContent = [c.name, bikeLabel(this.bike(j.bike_id))].filter(Boolean).join(' · ');
+      $('shPayTotals').replaceChildren(
+        el('div', {}, el('span', { class: 'sh-muted', text: 'Total' }), el('strong', { text: money(j.total_amount) })),
+        el('div', {}, el('span', { class: 'sh-muted', text: 'Paid' }), el('strong', { text: ShCalc.money(paidCents) })),
+        el('div', {}, el('span', { class: 'sh-muted', text: dueCents < 0n ? 'Overpaid' : 'Balance due' }), el('strong', { id: 'shPayDue', text: ShCalc.money(dueCents < 0n ? -dueCents : dueCents) })));
+      const f = $('shPayForm');
+      f.reset();
+      $('shPayAmount').value = dueCents > 0n ? ShCalc.money(dueCents).replace(/[$,]/g, '') : '';
+      $('shPayDate').value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      f.hidden = dueCents <= 0n;
+      $('shPayDone').hidden = dueCents > 0n;
+      $('shPayList').replaceChildren(...(pays.length ? pays.map(p => el('li', { class: `sh-pay-row${p.voided_at ? ' sh-pay-void' : ''}` },
+        el('span', { text: `${fmtDate(p.paid_on)} · ${money(p.amount)} · ${PAY_METHOD[p.method] || p.method}${p.reference ? ` · ${p.reference}` : ''}` }),
+        p.note ? el('span', { class: 'sh-muted', text: p.note }) : null,
+        p.voided_at ? el('span', { class: 'sh-tag', text: `Void: ${p.void_reason || ''}` })
+          : el('button', { type: 'button', class: 'sh-btn sh-btn-quiet', text: 'Void', onclick: ev => this.voidPayment(p, ev.currentTarget) })))
+        : [el('li', { class: 'sh-muted', text: 'No payments recorded yet.' })]));
+      this.show('shPayments');
+    },
+
+    async savePayment(ev) {
+      ev.preventDefault();
+      if (this.busy) return;
+      const jobId = this.payJobId; const j = this.jobs.find(x => x.id === jobId);
+      const btn = $('shPaySave');
+      const payment = { amount: $('shPayAmount').value.replace(/[$,\s]/g, ''), paid_on: $('shPayDate').value, method: $('shPayMethod').value,
+        reference: $('shPayRef').value, note: $('shPayNote').value };
+      if (!payment.method) { this.message('Pick how they paid.', true); return; }
+      this.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        if (!this.payDraftId || this.payDraftFor !== JSON.stringify([jobId, payment])) { this.payDraftId = genId(); this.payDraftFor = JSON.stringify([jobId, payment]); }
+        const r = await ShApi.rpc('shop_record_job_payment', { p_id: this.payDraftId, p_job_id: jobId, p_payment: payment });
+        this.payDraftId = null;
+        this.message(`${money(payment.amount)} recorded on ${wo(j?.estimate_number)}. It is now ${(PAY_LABEL[r?.payment_status] || '').toLowerCase()}.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`Payment not saved: ${e.message}`, true);
+      } finally { this.busy = false; btn.disabled = false; btn.textContent = 'Save payment'; }
+      await this.refresh();
+      if (!$('shPayments').hidden) await this.openPayments(jobId);
+    },
+
+    async voidPayment(p, btn) {
+      if (this.busy) return;
+      const reason = root.prompt(`Void the ${money(p.amount)} payment from ${fmtDate(p.paid_on)}? It stays on record, marked void. Why?`);
+      if (reason === null) return;
+      this.busy = true; btn.disabled = true;
+      try {
+        await ShApi.rpc('shop_void_job_payment', { p_id: p.id, p_reason: reason });
+        this.message(`Voided the ${money(p.amount)} payment.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`Not voided: ${e.message}`, true);
+      } finally { this.busy = false; }
+      await this.refresh();
+      if (!$('shPayments').hidden) await this.openPayments(p.job_id);
     },
 
     // ---------- editor ----------
@@ -819,15 +908,20 @@
         if (!job) throw new Error('That job no longer exists.');
         items = await ShApi.select('shop_job_line_items', `select=kind,description,quantity,unit_price,sort_order&job_id=eq.${encodeURIComponent(jobId)}&order=sort_order.asc`);
       } catch (e) { if (!this.handleAuthError(e)) this.message(`Could not open the estimate: ${e.message}`, true); return; }
+      let pays = [];
+      if (this.balances && job.status === 'complete') {
+        pays = await ShApi.select('shop_job_payments', `select=amount,paid_on,method,voided_at&job_id=eq.${encodeURIComponent(jobId)}&order=paid_on.asc`)
+          .then(r => r.filter(p => !p.voided_at)).catch(() => []);
+      }
       this.printJobId = jobId;
-      $('shDoc').replaceChildren(...this.buildDoc(job, items).filter(Boolean));
+      $('shDoc').replaceChildren(...this.buildDoc(job, items, pays).filter(Boolean));
       document.title = `SIC Cycles ${job.status === 'complete' ? 'Invoice' : 'Estimate'} ${wo(job.estimate_number)} — ${this.customer(job.customer_id)?.name || ''}`;
       this.show('shPrintView');
     },
 
     // Builds the customer copy from SAVED data only. Never includes parts
     // cost, profit, invoice-internal fields or internal notes.
-    buildDoc(job, items) {
+    buildDoc(job, items, pays = []) {
       const s = this.settings || {}; const c = this.customer(job.customer_id) || {}; const b = this.bike(job.bike_id);
       const jobs = ShCalc.groupJobs(items);
       const jobRow = j => el('tr', {},
@@ -866,7 +960,10 @@
             el('td', { class: 'num', text: ShCalc.money(jobs.reduce((n, j) => n + j.totalCents, 0n)) }))) : null),
         el('table', { class: 'sh-doc-totals' }, el('tbody', {},
           el('tr', {}, el('td', { text: taxLabel }), el('td', { class: 'num', text: money(job.tax_amount) })),
-          el('tr', { class: 'sh-doc-grand' }, el('td', { text: isInv ? 'Total' : 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })))),
+          el('tr', { class: 'sh-doc-grand' }, el('td', { text: isInv ? 'Total' : 'Estimated total' }), el('td', { class: 'num', text: money(job.total_amount) })),
+          ...(isInv ? pays.map(p => el('tr', { class: 'sh-doc-paid' }, el('td', { text: `Paid ${fmtDate(p.paid_on)} (${PAY_METHOD[p.method] || p.method})` }), el('td', { class: 'num', text: `-${money(p.amount)}` }))) : []),
+          isInv && pays.length ? el('tr', { class: 'sh-doc-grand' }, el('td', { text: 'Balance due' }),
+            el('td', { class: 'num', text: ShCalc.money(ShCalc.centsOf(job.total_amount ?? 0) - pays.reduce((n, p) => n + ShCalc.centsOf(p.amount), 0n)) })) : null)),
         job.customer_notes ? el('div', { class: 'sh-doc-block' }, el('h3', { text: 'Notes' }), el('p', { class: 'sh-pre', text: job.customer_notes })) : null,
         s.estimate_terms ? el('div', { class: 'sh-doc-block sh-doc-terms' }, el('p', { class: 'sh-pre', text: s.estimate_terms })) : null,
         isInv ? null : el('p', { class: 'sh-doc-auth', text: 'I authorize the work listed above.' }),
