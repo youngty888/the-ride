@@ -239,3 +239,12 @@ a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .sh-part .sh-part-track { font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
 .sh-parts-received { margin-top: 1.2rem; font-size: 1rem; color: var(--muted); }
 .sh-part.sh-part-done { opacity: .7; }
+
+/* Payments on a job (shop-017) */
+.sh-pay-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; text-align: center; }
+.sh-pay-totals div { display: flex; flex-direction: column; gap: .15rem; }
+.sh-pay-list { list-style: none; padding: 0; margin: .4rem 0; display: grid; gap: .4rem; }
+.sh-pay-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; justify-content: space-between; padding: .5rem .7rem; border: 1px solid currentColor; border-radius: 8px; border-color: rgba(127,127,127,.35); }
+.sh-pay-void { opacity: .55; text-decoration: line-through; }
+.sh-pay-void .sh-tag { text-decoration: none; }
+.sh-doc-paid td { color: #444; }
