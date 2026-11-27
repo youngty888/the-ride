@@ -1,20 +1,25 @@
-:root { --black: #080808; --deep: #780505; --red: #FF0000; --orange: #F36B21; --white: #fff; --muted: #a0a0a8; --card: #121214; --line: #2c2c30; }
+:root { --black: #120a06; --deep: #5a1d06; --red: #B8410E; --orange: #F08A3C; --rust: #A63A0B; --sand: #F6D3A3; --peach: #F2A877; --cactus: #6E9A3E; --white: #fff; --muted: #b9a596; --card: #1d120c; --line: #3a2619; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--black); color: var(--white); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-h1, h2 { font-family: Anton, Impact, sans-serif; font-weight: 400; letter-spacing: .02em; line-height: 1.1; text-transform: uppercase; }
+h1, h2 { font-family: "Rubik Dirt", Anton, Impact, sans-serif; font-weight: 400; letter-spacing: .02em; line-height: 1.1; text-transform: uppercase; }
 h1 { font-size: clamp(2rem, 8vw, 3.4rem); margin: .2em 0; }
 h2 { font-size: 1.8rem; margin: 2rem 0 .8rem; color: var(--orange); }
 a { color: var(--orange); }
-.mt-top { padding: 1rem 16px 0; text-align: center; }
-.mt-logo { width: min(520px, 100%); height: auto; }
-.mt-hero { text-align: center; padding: 1rem 16px 2rem; border-bottom: 4px solid var(--red); background: linear-gradient(180deg, var(--black), #1a0303); }
+.mt-top { padding: 0; text-align: center; background: linear-gradient(180deg, var(--peach), var(--sand)); }
+.mt-banner { display: block; width: 100%; max-width: 1050px; height: auto; margin: 0 auto; }
+.mt-banner-sm { max-width: 760px; border-radius: .6rem; border: 3px solid #000; margin: 2rem auto 0; }
+.mt-brand { font: 1.4rem "Rubik Dirt", Anton, Impact, sans-serif; color: var(--rust); text-transform: uppercase; letter-spacing: .04em; margin: 0; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
+.mt-hero { text-align: center; padding: 1.4rem 16px 2rem; border-top: 4px solid #000; border-bottom: 4px solid var(--rust); background: linear-gradient(180deg, var(--sand) 0%, var(--peach) 45%, #C9643A 100%); color: #1a0d06; }
+.mt-hero h1 { color: var(--rust); text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
+.mt-hero .mt-lead { color: #2a160b; }
+.mt-hero .mt-btn:not(.mt-btn-red) { color: #1a0d06; border-color: #1a0d06; }
 .mt-lead { font-size: 1.15rem; max-width: 34rem; margin: 0 auto 1.2rem; color: #ddd; }
 .mt-cta { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; }
 .mt-wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 1rem; }
 .mt-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: .6rem 1.4rem; border-radius: .6rem; border: 2px solid var(--white); color: var(--white); background: transparent; font: 1.1rem Anton, Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
-.mt-btn-red { background: var(--red); border-color: var(--red); }
-.mt-btn-red:hover { background: #d40000; }
+.mt-btn-red { background: var(--red); border-color: #000; color: #fff; box-shadow: 3px 3px 0 #000; }
+.mt-btn-red:hover { background: var(--rust); }
 .mt-btn:disabled { opacity: .6; cursor: wait; }
 .mt-prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .8rem; }
 .mt-price { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--red); border-radius: .6rem; padding: 1rem; display: flex; flex-direction: column; gap: .2rem; }
