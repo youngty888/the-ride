@@ -199,10 +199,23 @@
     $('mtSite').hidden = true; $('mtSignView').hidden = false;
     const f = $('mtSignForm'); const sig = setupWaiver(f);
     let info = null;
-    try { info = await rpc('shop_tow_sign_info', { p_token: token }); } catch { /* below */ }
-    if (!info) { $('mtSignIntro').textContent = 'This link is not valid. Call or text us.'; f.hidden = true; return; }
-    if (info.signed) { $('mtSignIntro').textContent = `Thanks ${info.first_name}, your waiver for tow ${info.ref} is already signed.`; f.hidden = true; return; }
-    $('mtSignIntro').textContent = `Hi ${info.first_name}. Please read and sign the waiver for tow ${info.ref}.`;
+    // A weak signal is not a bad link: only the database can say the link is wrong.
+    const loadInfo = async () => {
+      const intro = $('mtSignIntro');
+      f.hidden = true; intro.textContent = 'Loading your tow…';
+      try { info = await rpc('shop_tow_sign_info', { p_token: token }); } catch {
+        intro.textContent = 'We could not load your tow. Check your signal, or call or text us: 520-999-5691\n';
+        const add = (tag, text, props) => { const el = Object.assign(document.createElement(tag), { className: 'mt-linkbtn', textContent: text }, props); intro.append(el, ' \u00a0 '); return el; };
+        add('a', 'Call us', { href: `tel:${PHONE}` });
+        add('a', 'Text us', { href: `sms:${PHONE}` });
+        add('button', 'Try again', { type: 'button' }).addEventListener('click', () => { if (!waiver) loadWaiver(); loadInfo(); });
+        return;
+      }
+      if (!info) { intro.textContent = 'This link is not valid. Call or text us.'; return; }
+      if (info.signed) { intro.textContent = `Thanks ${info.first_name}, your waiver for tow ${info.ref} is already signed.`; return; }
+      intro.textContent = `Hi ${info.first_name}. Please read and sign the waiver for tow ${info.ref}.`;
+      f.hidden = false;
+    };
     f.addEventListener('submit', async e => {
       e.preventDefault();
       if (sig.empty()) { msg('Sign in the white box.'); return; }
@@ -213,6 +226,7 @@
         f.hidden = true; $('mtSignIntro').textContent = `Signed. Thank you. Once it's paid, we head your way for tow ${info.ref}.`;
       } catch (err) { msg(err.message); } finally { b.disabled = false; }
     });
+    await loadInfo();
   }
 
   function init() {
