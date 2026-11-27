@@ -890,8 +890,13 @@ const App = {
   addServiceRecord(bikeId) {
     const type = prompt('Service type (e.g., Oil Change, Tire Replacement):');
     if (!type) return;
-    const miles = prompt('Mileage at service:');
-    if (!miles) return;
+    const entered = prompt('Mileage at service:');
+    if (!entered) return;
+    const miles = this.parseMiles(entered);
+    if (miles === null) {
+      alert('Enter the mileage as a number, like 12500. Nothing was saved.');
+      return;
+    }
     const notes = prompt('Notes (optional):') || '';
 
     const bike = Storage.getBike(bikeId);
@@ -900,12 +905,18 @@ const App = {
       id: Storage.genId(),
       type,
       date: new Date().toISOString().split('T')[0],
-      miles: parseInt(miles) || 0,
+      miles,
       notes,
     });
 
     Storage.saveBike(bike);
     this.showBikeDetail(bikeId); // Re-render
+  },
+
+  // "12,500" or "12500 mi" -> 12500. Anything else -> null (never guess a mileage).
+  parseMiles(text) {
+    const match = String(text).trim().match(/^(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(?:mi|miles)?$/i);
+    return match ? Math.round(Number(match[1].replace(/,/g, '') + (match[2] || ''))) : null;
   },
 
   // --- Packs ---
