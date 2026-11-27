@@ -2559,6 +2559,7 @@ summary:focus-visible,
   font-size: var(--text-sm);
   color: var(--color-text);
 }
+.events-scroll { max-height: min(25vh, 240px); overflow-y: auto; overscroll-behavior: contain; }
 .events-item { display: flex; flex-direction: column; gap: 2px; }
 .events-item + .events-item { margin-top: var(--space-2); }
 .events-item a { color: var(--color-accent); }
