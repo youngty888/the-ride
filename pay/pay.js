@@ -19,7 +19,7 @@
 
   function msg(text, error) { const m = $('myMsg'); m.textContent = text || ''; m.hidden = !text; m.classList.toggle('sh-msg-error', !!error); }
 
-  function renderPlan(p) {
+  function renderPlan(p, member) {
     const node = document.getElementById('myPlanTpl').content.cloneNode(true);
     const k = name => node.querySelector(`[data-k="${name}"]`);
     const s = C.summary(p, p.payments || [], today());
@@ -44,6 +44,17 @@
     const link = C.payHref(p, p.bike && p.bike.vin_last6);
     const btn = k('payBtn');
     if (link && !s.paidOff) { btn.href = link; btn.hidden = false; }
+    const D = window.D4D;
+    if (link && !s.paidOff && D && D.canAddTo(link)) {
+      // Optional round-up: adds a Dollars for Dads gift to the same store checkout.
+      const pick = k('dadsPick');
+      const choices = D.roundUpChoices(amount / 100).map(c => [c.add, `Add ${C.money(c.add * 100)} (pay ${C.money(Math.round(c.total * 100))})`]);
+      for (const n of [1, 5, 10]) if (!choices.some(([a]) => a === n)) choices.push([n, `Add ${C.money(n * 100)}`]);
+      choices.sort((a, b) => a[0] - b[0]);
+      [[0, 'No round-up'], ...choices].forEach(([value, label]) => { const o = document.createElement('option'); o.value = String(value); o.textContent = label; pick.appendChild(o); });
+      pick.addEventListener('change', () => { btn.href = D.addToCart(link, Number(pick.value), { member, how: 'Round-up' }); });
+      k('dads').hidden = false;
+    }
     k('payNote').textContent = s.paidOff ? 'Nothing left to pay. Thank you!'
       : !link ? 'Online payment is not set up yet. Call SIC Cycles to pay.'
       : C.isShopifyCart(p) ? `Pays at the SIC Cycles checkout. Your loan number ${p.pay_ref} goes with the payment, and it shows here once the payment goes through. Use this same button every time.`
@@ -78,7 +89,7 @@
     try { plans = await ShApi.rpc('shop_my_payment_plans', {}); }
     catch (e) { show(e.status === 401 ? 'mySignIn' : 'myError'); return; }
     if (!Array.isArray(plans) || !plans.length) { $('myNoneEmail').textContent = s.user?.email || ''; show('myNone'); return; }
-    const box = $('myPlans'); box.replaceChildren(...plans.map(renderPlan)); show('myPlans');
+    const box = $('myPlans'); box.replaceChildren(...plans.map(p => renderPlan(p, s.user?.id))); show('myPlans');
   }
 
   $('mySignInForm').addEventListener('submit', async e => {

@@ -2,3 +2,6 @@
 .my-view { max-width: 860px; margin: 0 auto; }
 .my-pay { margin: .25rem 0 1rem; }
 .my-paybtn { display: flex; justify-content: center; align-items: center; width: 100%; min-height: 52px; font-size: 1.1rem; text-decoration: none; }
+.my-dads { margin-top: .75rem; padding: .75rem; border: 1px dashed currentColor; border-radius: 10px; opacity: .95; }
+.my-dads label { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; font-weight: 600; }
+.my-dads select { min-height: 44px; flex: 1 1 12rem; font: inherit; }
