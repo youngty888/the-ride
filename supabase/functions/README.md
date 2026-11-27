@@ -39,6 +39,33 @@ Install (once, after `sql/shop/2026-11-23-shop-013-shopify-payments.sql` has run
 
 Undo: delete the webhook in Shopify, remove the folder, restart the container.
 
+### Dads Don't Quit points (same function)
+
+The same webhook can also give RIDE riders Dads Don't Quit points: 1 point per
+$1 given through the "Dollars for Dads Donation" product on siccycles.com, and
+1 point per $1 spent on ManUp merch sold there. It stays off until you turn it on.
+
+1. Run `sql/shop/2026-11-27-shop-016-dads-points.sql` in the server's SQL editor.
+2. Add to `/root/supabase/docker/.env`:
+   ```
+   DADS_POINTS=on
+   ```
+   and under `functions:` > `environment:` in `docker-compose.yml`:
+   ```
+   DADS_POINTS: ${DADS_POINTS}
+   ```
+   Optional, same way: `D4D_VARIANT_IDS` (defaults to today's $1, $5, $10, $20,
+   $25, $50 and $100 donation variants), `MANUP_VENDORS` (default `manup`: any product
+   whose vendor contains "ManUp" counts as merch), `MANUP_PRODUCT_IDS`.
+3. Restart the functions container: `docker compose up -d functions`.
+
+An order is matched to a rider by the RIDE member id the app adds to the cart,
+or else by the order email (a confirmed RIDE login). Orders that match nobody
+are kept in `ride_dads_orders_held` for staff. Gifts made on manup-movement.org
+(PayPal) and gear bought there don't reach Shopify; add those by hand with
+`select public.ride_dads_add('rider@email', 'donation', 20, null, 'PayPal 11/27');`
+Undo: set `DADS_POINTS=off` and restart; the rollback file removes the tables.
+
 ## tow-alert
 
 Texts (and optionally emails) everyone on duty on the Moto Tow board when a

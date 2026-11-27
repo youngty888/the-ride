@@ -163,18 +163,17 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
   await page.locator('.sh-job').first().getByRole('button', { name: 'Start job' }).click();
   await page.waitForFunction(() => /In progress/.test(document.querySelector('.sh-job')?.innerText));
   await page.locator('.sh-job').first().getByRole('button', { name: 'Mark complete' }).click();
-  await page.waitForFunction(() => /Complete/.test(document.querySelector('.sh-job')?.innerText));
+  // a completed work order leaves the board and goes to Closed
+  await page.waitForFunction(() => !document.querySelector('#shJobsList .sh-job') && /Closed \(1\)/.test(document.querySelector('#shClosedChip')?.textContent));
   const [done] = await backend.sql('select status, total_amount from public.shop_jobs');
   assert.equal(done.status, 'complete'); assert.equal(Number(done.total_amount), 377.67);
   // payment status: new jobs show Unpaid; staff can mark Paid; amounts untouched
   await page.waitForSelector('#shList:not([hidden])');
-  assert.match(await page.locator('.sh-job').first().innerText(), /Unpaid/);
+  await page.click('#shClosedChip');
+  assert.match(await page.locator('.sh-job').first().innerText(), /Unpaid[\s\S]*Closed/);
   assert.equal(await page.locator('.sh-job').first().getAttribute('data-board'), 'red', 'finished and unpaid is red');
-  // paid and finished: the job drops off the board; "Show paid" brings it back in green
+  // paid and finished: still in Closed, now green
   await page.locator('.sh-job').first().getByRole('combobox').selectOption('paid');
-  await page.waitForFunction(() => !document.querySelector('#shJobsList .sh-job'));
-  assert.match(await text(page, '#shShowPaid'), /^Show paid \(1\)$/);
-  await page.click('#shShowPaid');
   await page.waitForFunction(() => /Paid/.test(document.querySelector('.sh-job .sh-pay-paid')?.textContent || ''));
   assert.equal(await page.locator('.sh-job').first().getAttribute('data-board'), 'green');
   const [paid] = await backend.sql('select payment_status, total_amount from public.shop_jobs');
@@ -183,14 +182,14 @@ test('acceptance: create, verify math, save, reload, reopen, edit, status, print
 
   // Garrett (other staff) sees the same job and photo
   const g = await newPage(); await signIn(g, 'garrett@test.local'); await g.waitForSelector('#shList:not([hidden])');
-  await g.click('#shShowPaid');
+  await g.click('#shClosedChip');
   assert.match(await g.locator('.sh-job').first().innerText(), /TEST ESTIMATE[\s\S]*\$377\.67/);
   await g.context().close();
 
   // Phone layout (iPhone-sized)
   const phone = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await signIn(phone, 'fang@test.local'); await phone.waitForSelector('#shList:not([hidden])');
-  await phone.click('#shShowPaid');
+  await phone.click('#shClosedChip');
   assert.ok(await noSideScroll(phone), 'list fits phone'); await shot(phone, '3-phone-list.png');
   await phone.locator('.sh-job').first().getByRole('button', { name: 'Edit' }).click(); await phone.waitForSelector('#shEditor:not([hidden])');
   await phone.waitForFunction(() => document.querySelector('#shPhotoPreview img')?.naturalWidth > 0);
@@ -307,7 +306,7 @@ test('search finds a customer by phone however the number was typed', { skip }, 
   await page.context().close();
 });
 
-test('board colors: grey estimate, yellow unpaid in work, orange part paid in work, red done unpaid, green paid and done (hidden)', { skip }, async () => {
+test('board colors: grey estimate, yellow unpaid in work, orange part paid in work; red done unpaid and green paid and done are in Closed', { skip }, async () => {
   const [job] = await backend.sql('select id, status, payment_status from public.shop_jobs order by created_at limit 1');
   const page = await newPage();
   await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
@@ -320,15 +319,16 @@ test('board colors: grey estimate, yellow unpaid in work, orange part paid in wo
     await page.reload(); await page.waitForSelector('#shList:not([hidden])');
     const [{ n }] = await backend.sql(`select estimate_number as n from public.shop_jobs where id = $1`, [job.id]);
     const mine = page.locator('#shJobsList .sh-job').filter({ hasText: `IV#${n}` });
-    if (color === 'green') {
-      assert.equal(await mine.count(), 0, 'paid and done is off the board');
-      await page.click('#shShowPaid');
-      assert.equal(await text(page, '#shShowPaid'), 'Hide paid');
-      assert.equal(await mine.getAttribute('data-board'), 'green');
-      await page.click('#shShowPaid');
+    if (status === 'complete') {
+      assert.equal(await mine.count(), 0, 'a completed work order is off the board');
+      await page.click('#shClosedChip');
+      assert.equal(await mine.getAttribute('data-board'), color, `${status}/${pay} in Closed`);
+      await page.click('#shFilter [data-filter=unpaid]');
+      assert.equal(await mine.count(), pay === 'paid' ? 0 : 1, 'Not paid still lists money owed on a finished job');
+      await page.click('#shFilter [data-filter=""]');
       assert.equal(await mine.count(), 0);
       await page.fill('#shSearch', `IV#${n}`);
-      assert.equal(await mine.count(), 1, 'a search still finds a paid job');
+      assert.equal(await mine.count(), 1, 'a search still finds a closed job');
       await page.fill('#shSearch', '');
     } else {
       assert.equal(await mine.getAttribute('data-board'), color, `${status}/${pay}`);
@@ -336,6 +336,84 @@ test('board colors: grey estimate, yellow unpaid in work, orange part paid in wo
   }
   assert.equal(await page.locator('.sh-legend li').count(), 5);
   await backend.sql('update public.shop_jobs set status = $1, payment_status = $2 where id = $3', [job.status, job.payment_status, job.id]);
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
+test('parts on order: order a part for a job, see vendor, cost, tracking and ETA, mark received', { skip }, async () => {
+  const page = await newPage();
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.fill('#shName', 'Parts Order Customer');
+  const row = page.locator('#shJobLines .sh-line').nth(0);
+  await row.locator('.sh-l-desc').fill('Clutch pack'); await row.locator('.sh-l-parts').fill('180'); await row.locator('.sh-l-cost').fill('144');
+  await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
+  await page.click('#shPrintBack'); await page.waitForSelector('#shList:not([hidden])');
+  const card = page.locator('#shJobsList .sh-job').filter({ hasText: 'Parts Order Customer' });
+  await card.getByRole('button', { name: 'Order part' }).click(); await page.waitForSelector('#shPartForm:not([hidden])');
+  // the job is picked, and its part line fills the description and our cost
+  assert.match(await page.locator('#shPoJob option:checked').innerText(), /Parts Order Customer/);
+  await page.waitForFunction(() => document.querySelectorAll('#shPoParts option').length === 1);
+  await page.fill('#shPoDesc', 'Clutch pack'); await page.locator('#shPoDesc').blur();
+  assert.equal(await page.inputValue('#shPoCost'), '144');
+  await page.fill('#shPoVendor', 'JP Cycles'); await page.fill('#shPoTracking', '1Z999AA10123456784');
+  await page.fill('#shPoEta', '2099-12-01'); await page.fill('#shPoOrderNo', '55158798');
+  await page.click('#shPoSave'); await page.waitForSelector('#shList:not([hidden])');
+  assert.match(await card.innerText(), /1 part on order/);
+  assert.match(await text(page, '#shPartsChip'), /^Parts on order \(1\)$/);
+  await page.click('#shPartsChip');
+  const part = page.locator('#shJobsList .sh-part').filter({ hasText: 'Clutch pack' });
+  const t = await part.innerText();
+  for (const want of ['From JP Cycles', '$144.00', 'ETA 12/1/2099', 'Tracking 1Z999AA10123456784', 'Order 55158798', 'Parts Order Customer']) assert.ok(t.includes(want), want);
+  const [row1] = await backend.sql(`select supplier_name, cost::text as cost, tracking_number, eta::text as eta, received, job_id is not null as linked from public.shop_part_orders where part_description = 'Clutch pack'`);
+  assert.deepEqual(row1, { supplier_name: 'JP Cycles', cost: '144.00', tracking_number: '1Z999AA10123456784', eta: '2099-12-01', received: false, linked: true });
+  // edit keeps it on the list; a late ETA is flagged
+  await part.getByRole('button', { name: 'Edit' }).click(); await page.waitForSelector('#shPartForm:not([hidden])');
+  await page.fill('#shPoEta', '2020-01-02'); await page.click('#shPoSave'); await page.waitForSelector('#shList:not([hidden])');
+  assert.match(await part.innerText(), /ETA 1\/2\/2020 \(late\)/);
+  // shop stock with no job, bad cost is refused on the page
+  await page.click('#shOrderPartBtn'); await page.waitForSelector('#shPartForm:not([hidden])');
+  await page.fill('#shPoDesc', 'Shop rags'); await page.fill('#shPoCost', '12.345'); await page.click('#shPoSave');
+  assert.match(await text(page, '#shPoErrors'), /dollar amount/);
+  await page.fill('#shPoCost', '12.34'); await page.click('#shPoSave'); await page.waitForSelector('#shList:not([hidden])');
+  assert.match(await page.locator('#shJobsList .sh-part').filter({ hasText: 'Shop rags' }).innerText(), /Shop stock/);
+  // received: off the list, shown under Recently received, and the job no longer says on order
+  await part.getByRole('button', { name: 'Received' }).click();
+  await page.waitForFunction(() => /Parts on order \(1\)/.test(document.querySelector('#shPartsChip').textContent));
+  assert.match(await text(page, '#shJobsList'), /Recently received[\s\S]*Clutch pack/);
+  const [r2] = await backend.sql(`select received, received_at is not null as stamped from public.shop_part_orders where part_description = 'Clutch pack'`);
+  assert.deepEqual(r2, { received: true, stamped: true });
+  await page.click('#shFilter [data-filter=""]');
+  assert.doesNotMatch(await card.innerText(), /on order/);
+  assert.ok(await noSideScroll(page));
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
+
+test('closed folder: close an estimate, it leaves the board, reopen brings it back', { skip }, async () => {
+  const page = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await signIn(page, 'tyler@test.local'); await page.waitForSelector('#shList:not([hidden])');
+  await page.click('#shNewMenuBtn'); await page.click('#shNewJobBtn'); await page.waitForSelector('#shEditor:not([hidden])');
+  await page.fill('#shName', 'Quote Only Customer');
+  await page.locator('#shJobLines .sh-line').nth(0).locator('.sh-l-desc').fill('Tire quote');
+  await page.click('#shSaveBtn'); await page.waitForSelector('#shPrintView:not([hidden])');
+  await page.click('#shPrintBack'); await page.waitForSelector('#shList:not([hidden])');
+  const card = page.locator('#shJobsList .sh-job').filter({ hasText: 'Quote Only Customer' });
+  assert.equal(await card.count(), 1);
+  await card.getByRole('button', { name: 'Close estimate' }).click();
+  await page.waitForFunction(() => !/Quote Only Customer/.test(document.querySelector('#shJobsList').innerText));
+  const [j] = await backend.sql(`select j.status, j.closed_at is not null as closed from public.shop_jobs j join public.shop_customers c on c.id = j.customer_id where c.name = 'Quote Only Customer'`);
+  assert.deepEqual(j, { status: 'estimate', closed: true });
+  await page.click('#shFilter [data-filter=estimate]');
+  assert.equal(await card.count(), 0, 'not under Estimates either');
+  await page.click('#shClosedChip');
+  assert.match(await card.innerText(), /Closed/);
+  assert.equal(await card.getByRole('button', { name: 'Start job' }).count(), 0);
+  assert.ok(await noSideScroll(page), 'closed folder fits phone');
+  await card.getByRole('button', { name: 'Reopen' }).click();
+  await page.waitForFunction(() => !/Quote Only Customer/.test(document.querySelector('#shJobsList').innerText));
+  await page.click('#shFilter [data-filter=""]');
+  assert.equal(await card.count(), 1, 'back on the board');
   assert.deepEqual(page.errors, []);
   await page.context().close();
 });

@@ -2604,3 +2604,44 @@ summary:focus-visible,
 }
 .map-hotkey:active { transform: scale(0.96); border-color: var(--color-primary); }
 .map-hotkey-icon { font-size: 24px; line-height: 1; }
+
+/* --- Dads Don't Quit (Dollars for Dads, ManUp Movement) --- */
+.dads-card { display: flex; flex-direction: column; gap: var(--space-3); margin: var(--space-4) 0; padding: var(--space-4); background: var(--color-surface-2); border: 1px solid var(--color-border); border-left: 3px solid var(--color-primary); border-radius: var(--radius-md); }
+.dads-card:empty { display: none; }
+.dads-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
+.dads-head h3 { margin: 0; font-size: var(--text-lg, 1.125rem); }
+.dads-kicker { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.dads-badge { padding: var(--space-1, .25rem) var(--space-3); border-radius: var(--radius-full); background: var(--color-primary); color: #fff; font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
+.dads-points { display: flex; align-items: baseline; gap: var(--space-2); }
+.dads-points b { font-size: 2rem; line-height: 1; }
+.dads-points span, .dads-sub, .dads-note, .dads-status, .dads-progress small { color: var(--color-text-muted); font-size: var(--text-sm); }
+.dads-sub { margin: 0; }
+.dads-bar { height: 8px; border-radius: var(--radius-full); background: var(--color-surface-3); overflow: hidden; }
+.dads-bar i { display: block; height: 100%; width: 0; background: var(--color-primary); transition: width 300ms ease; }
+.dads-amounts { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.dads-other { display: flex; align-items: center; gap: var(--space-1, .25rem); font-size: var(--text-sm); }
+.dads-other input, .dads-roundup input { min-height: 44px; width: 6.5rem; padding: 0 var(--space-3); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: inherit; font: inherit; }
+.dads-give { text-align: center; text-decoration: none; }
+.dads-give[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.dads-roundup summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.dads-roundup label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.dads-round-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.dads-round { text-decoration: none; display: inline-flex; flex-direction: column; align-items: center; }
+.dads-round small { color: var(--color-text-muted); font-size: var(--text-xs); }
+.dads-alt { font-size: var(--text-sm); color: var(--color-primary); }
+.dads-tiers { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.dads-tiers li { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.dads-tiers li span { grid-column: 1; color: var(--color-text-muted); font-size: var(--text-sm); }
+.dads-tiers li small { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: var(--text-xs); color: var(--color-text-muted); text-align: right; }
+.dads-tiers li.earned { border-color: var(--color-primary); }
+.dads-tiers li.earned small { color: var(--color-primary); }
+/* Points tally: Shop header and profile. A tap opens the Dads card. */
+.dads-tally { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3); margin-left: auto; border-radius: var(--radius-full); background: var(--color-surface-2); border: 1px solid var(--color-primary); color: inherit; font-size: var(--text-sm); white-space: nowrap; cursor: pointer; }
+.dads-tally i { color: var(--color-primary); font-style: normal; }
+.dads-tally b { font-size: 1.05em; }
+.dads-tally span { color: var(--color-text-muted); font-size: var(--text-xs); }
+.shop-header .dads-tally { margin-left: 0; }
+@media (max-width: 420px) { .shop-header .shop-brand { display: none; } .shop-header .dads-tally { margin-left: auto; } }
+.dads-tally-lg { margin: var(--space-2) auto var(--space-1); padding: 0 var(--space-4); font-size: var(--text-base, 1rem); }
+.dads-tally-lg b { font-size: 1.35em; }
+.dads-tally-lg span { font-size: var(--text-sm); }
