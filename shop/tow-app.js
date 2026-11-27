@@ -40,6 +40,7 @@
     fact(dl, 'Price', t.price != null ? C.money(t.price) : 'Needs a price', t.price != null ? '' : 'tw-warn');
     fact(dl, 'Paid', t.paid_at ? `${t.paid_method} · ${t.paid_ref}` : 'Not paid', t.paid_at ? 'tw-ok' : 'tw-warn');
     fact(dl, 'Waiver', t.waiver_signed ? 'Signed' : 'Not signed', t.waiver_signed ? 'tw-ok' : 'tw-warn');
+    if (t.before_photos != null) fact(dl, 'Before-tow photos', `${t.before_photos} of ${MIN_PHOTOS}${t.before_photos >= MIN_PHOTOS ? '' : ' needed before the tow starts'}`, t.before_photos >= MIN_PHOTOS ? 'tw-ok' : 'tw-warn');
     fact(dl, 'Vehicle runs', t.vehicle_runs == null ? '' : t.vehicle_runs ? 'Yes' : 'No');
     fact(dl, 'Rides along', t.rider_count ? 'Customer rides along' : '');
     fact(dl, 'Crew', [t.driver_name && `Driver: ${t.driver_name}`, t.navigator_name && `Navigator: ${t.navigator_name}`].filter(Boolean).join(' · ') || 'Nobody yet');
@@ -59,6 +60,7 @@
       if (!t.paid_at || me.admin) a.append(btn(t.price == null ? 'Set price' : 'Change price', () => priceForm(extra, t)));
       if (!t.paid_at && t.price != null) a.append(btn('Mark paid', () => paidForm(extra, t), true));
       if (!t.waiver_signed) a.append(btn('Waiver link', () => signLink(extra, t)));
+      if (t.before_photos != null && t.status !== 'en_route') a.append(btn('Before-tow photos', () => photoPanel(extra, t), t.status === 'paid' && t.before_photos < MIN_PHOTOS));
       if (t.status === 'paid' && (t.mine || me.admin)) a.append(btn('Start tow', () => run('shop_tow_start', {}, `${t.ref} is on the way.`), true));
       if (t.status === 'en_route' && (t.mine || me.admin)) a.append(btn('Delivered', () => run('shop_tow_deliver', {}, `${t.ref} delivered. Crew pay is saved.`), true));
       a.append(btn('Cancel', () => cancelForm(extra, t)));
@@ -66,6 +68,47 @@
     if (t.waiver_signed) a.append(btn('See waiver', () => showWaiver(extra, t)));
     if (me.admin) a.append(btn('Set crew', () => crewForm(extra, t)));
     return node;
+  }
+
+  // ---------- before-tow photos (shop-018) ----------
+  // Taken at the pickup spot before it goes on the trailer. Each one is stamped
+  // with the server time and who took it, and can't be changed or deleted.
+  const MIN_PHOTOS = 4; const PHOTO_BUCKET = 'shop-condition-photos';
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+  async function photoPanel(extra, t) {
+    let photos;
+    try { photos = await ShApi.select('shop_condition_photos', `select=id,storage_path,taken_at&tow_id=eq.${encodeURIComponent(t.id)}&order=taken_at.asc`); }
+    catch (e) { msg(`Could not open photos: ${e.message}`, true); return; }
+    const box = el('div', null, 'tw-photos');
+    box.append(el('p', `Get the front, back, both sides and any damage up close. ${photos.length} saved so far.`, 'sh-muted'));
+    const grid = el('div', null, 'tw-photo-grid');
+    for (const p of photos) {
+      const fig = el('figure'); const img = el('img'); img.alt = 'Before-tow photo';
+      ShApi.download(PHOTO_BUCKET, p.storage_path).then(b => { img.src = URL.createObjectURL(b); }).catch(() => { img.alt = 'Photo unavailable'; });
+      fig.append(img, el('figcaption', when(p.taken_at))); grid.append(fig);
+    }
+    const input = el('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = true; input.setAttribute('capture', 'environment');
+    input.setAttribute('aria-label', `Before-tow photos for ${t.ref}`);
+    const save = btn('Save photos', async () => {
+      const files = [...input.files];
+      if (!files.length) { msg('Take or pick at least one photo first.', true); return; }
+      save.disabled = true; let n = 0;
+      try {
+        for (const file of files) {
+          save.textContent = `Saving ${n + 1} of ${files.length}…`;
+          const id = newId(); const ext = (/\.([a-z0-9]{1,5})$/i.exec(file.name)?.[1] || 'jpg').toLowerCase();
+          const path = `tow/${t.id}/${Date.now()}-${id.slice(0, 8)}.${ext}`;
+          await ShApi.upload(PHOTO_BUCKET, path, file, file.type || 'image/jpeg');
+          await ShApi.rpc('shop_add_condition_photo', { p_id: id, p_kind: 'before_tow', p_target_id: t.id, p_path: path, p_note: null });
+          n++;
+        }
+        msg(`${n} before-tow photo${n === 1 ? '' : 's'} saved for ${t.ref}.`);
+      } catch (e) { msg(`${n ? `${n} saved, then ` : ''}a photo was not saved: ${e.message}. Pick the rest again and press Save.`, true); }
+      await load();
+    }, true);
+    const pick = el('label', 'Take or pick photos'); pick.append(input);
+    box.append(grid, pick, save);
+    extra.replaceChildren(box);
   }
 
   function inlineForm(extra, fields, submitLabel, onSubmit) {

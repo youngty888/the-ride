@@ -10,6 +10,8 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const BUCKET = 'shop-bike-photos';
+  const COND_BUCKET = 'shop-condition-photos';   // shop-018: locked intake photos
+  const MIN_INTAKE = 4;
   const STATUS_LABEL = { estimate: 'Estimate', in_progress: 'In progress', complete: 'Complete' };
   const PAY_LABEL = { unpaid: 'Unpaid', partial: 'Part paid', paid: 'Paid' };
   const PAY_METHOD = { cash: 'Cash', card: 'Card', zelle: 'Zelle', cash_app: 'Cash App', venmo: 'Venmo', paypal: 'PayPal', check: 'Check', shopify: 'Online (Shopify)', financing: 'Financing', other: 'Other' };
@@ -105,6 +107,8 @@
       $('shSetCancel').addEventListener('click', () => this.show('shList'));
       $('shSoBack').addEventListener('click', () => this.show('shList'));
       $('shPayBack').addEventListener('click', () => this.show('shList'));
+      $('shInBack').addEventListener('click', () => this.show('shList'));
+      $('shInSave').addEventListener('click', () => this.saveIntake());
       $('shPayForm').addEventListener('submit', ev => this.savePayment(ev));
       root.addEventListener('beforeunload', e => { if (this.form?.dirty && !$('shEditor').hidden) { e.preventDefault(); e.returnValue = ''; } });
     },
@@ -184,7 +188,7 @@
     // ---------- data ----------
     async refresh() {
       try {
-        const [jobs, customers, bikes, settings, parts, balances] = await Promise.all([
+        const [jobs, customers, bikes, settings, parts, balances, intake] = await Promise.all([
           ShApi.select('shop_jobs', 'select=*&order=job_date.desc,estimate_number.desc'),
           ShApi.select('shop_customers', 'select=id,name,phone,email,address&order=name.asc'),
           ShApi.select('shop_bikes', 'select=id,customer_id,vin,make,model,year,mileage,photo_urls'),
@@ -192,9 +196,12 @@
           ShApi.select('shop_part_orders', 'select=*&order=date_ordered.desc,created_at.desc').catch(e => { if (e?.status === 401) throw e; return []; }),
           // shop-017: what each job has been paid. null = that SQL file isn't on the server yet.
           ShApi.select('shop_job_balances', 'select=*').catch(e => { if (e?.status === 401) throw e; return null; }),
+          // shop-018: how many locked intake photos each job has. null = not on the server yet.
+          ShApi.select('shop_condition_photos', 'select=job_id&kind=eq.intake').catch(e => { if (e?.status === 401) throw e; return null; }),
         ]);
         this.jobs = jobs; this.customers = customers; this.bikes = bikes; this.settings = settings[0] || {}; this.parts = parts || [];
         this.balances = balances ? Object.fromEntries(balances.map(b => [b.job_id, b])) : null;
+        this.intake = intake ? intake.reduce((m, r) => { m[r.job_id] = (m[r.job_id] || 0) + 1; return m; }, {}) : null;
         await this.loadSavedJobs();
         this.renderJobs();
         return true;
@@ -295,11 +302,13 @@
               j.status === 'estimate' ? null : el('span', { class: `sh-pill sh-pay-${j.payment_status || 'unpaid'}`, text: this.payText(j) }),
               closed ? el('span', { class: 'sh-tag sh-tag-closed', text: 'Closed' }) : null,
               waiting ? el('span', { class: 'sh-tag sh-tag-parts', text: `${waiting} part${waiting === 1 ? '' : 's'} on order` }) : null,
+              this.intake && !closed ? el('span', { class: `sh-tag${(this.intake[j.id] || 0) < MIN_INTAKE ? ' sh-tag-late' : ''}`, text: `${this.intake[j.id] || 0} intake photo${this.intake[j.id] === 1 ? '' : 's'}` }) : null,
               b ? el('span', { text: bikeLabel(b) || b.vin || '' }) : null),
             j.work_description ? el('div', { class: 'sh-job-desc', text: j.work_description }) : null),
           el('div', { class: 'sh-job-actions' },
             el('button', { type: 'button', class: 'sh-btn', text: 'View / Print', onclick: () => this.openPrint(j.id) }),
             el('button', { type: 'button', class: 'sh-btn', text: 'Edit', onclick: () => this.openEditor(j.id) }),
+            this.intake ? el('button', { type: 'button', class: 'sh-btn', text: 'Intake photos', onclick: () => this.openIntake(j.id) }) : null,
             closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Order part', onclick: () => this.openPartForm(null, j.id) }),
             j.status === 'estimate' || closed ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Tech sign-off', onclick: () => this.openSignoff(j.id) }),
             j.status === 'estimate' || !this.balances ? null : el('button', { type: 'button', class: 'sh-btn', text: 'Payments', onclick: () => this.openPayments(j.id) }),
@@ -445,6 +454,8 @@
       if (this.busy) return;
       const j = this.jobs.find(x => x.id === jobId);
       if (status === 'complete' && !root.confirm(`Mark ${wo(j?.estimate_number)} complete?`)) return;
+      if (status === 'in_progress' && this.intake && (this.intake[jobId] || 0) < MIN_INTAKE &&
+        !root.confirm(`${wo(j?.estimate_number)} has ${this.intake[jobId] || 0} intake photos. Take at least ${MIN_INTAKE} (front, back and both sides) before work starts. Start anyway?`)) return;
       this.busy = true; if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
       try {
         await ShApi.rpc('shop_set_job_status', { p_job_id: jobId, p_status: status });
@@ -638,6 +649,70 @@
       } finally { this.busy = false; }
       await this.refresh();
       if (!$('shPayments').hidden) await this.openPayments(p.job_id);
+    },
+
+    // ---------- locked intake photos (shop-018) ----------
+    async openIntake(jobId) {
+      if (this.busy) return;
+      this.message('');
+      const j = this.jobs.find(x => x.id === jobId);
+      if (!j) return;
+      let photos;
+      try {
+        photos = await ShApi.select('shop_condition_photos', `select=id,storage_path,note,taken_at,taken_by&job_id=eq.${encodeURIComponent(jobId)}&order=taken_at.asc`);
+      } catch (e) {
+        if (this.handleAuthError(e)) return;
+        this.message(/shop_condition_photos|Could not find|does not exist/i.test(e.message) ? 'Intake photos are not set up on the server yet (ask Tyler to run the shop-018 SQL file).' : `Could not open photos: ${e.message}`, true);
+        return;
+      }
+      this.intakeJobId = jobId;
+      const c = this.customer(j.customer_id) || {};
+      $('shInTitle').textContent = `Intake photos · ${wo(j.estimate_number)}`;
+      $('shInSub').textContent = [c.name, bikeLabel(this.bike(j.bike_id))].filter(Boolean).join(' · ');
+      $('shInCount').textContent = photos.length >= MIN_INTAKE ? `${photos.length} photos saved.`
+        : `${photos.length} of at least ${MIN_INTAKE} photos. Get the front, back, both sides and any damage up close.`;
+      $('shInCount').className = photos.length >= MIN_INTAKE ? 'sh-muted' : 'sh-warn';
+      $('shInFiles').value = ''; $('shInNote').value = '';
+      $('shInGrid').replaceChildren(...photos.map((p, i) => {
+        const img = el('img', { alt: `Intake photo ${i + 1}` });
+        this.condSrc(p.storage_path).then(src => { img.src = src; }).catch(() => { img.alt = 'Photo unavailable'; img.classList.add('sh-photo-bad'); });
+        return el('figure', {}, img, el('figcaption', { text: `${new Date(p.taken_at).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${p.note ? ' · ' + p.note : ''}` }));
+      }));
+      this.show('shIntake');
+    },
+
+    condSrc(path) {
+      const key = `${COND_BUCKET}/${path}`;
+      if (!this.photoCache.has(key)) {
+        this.photoCache.set(key, ShApi.download(COND_BUCKET, path).then(b => URL.createObjectURL(b)).catch(e => { this.photoCache.delete(key); throw e; }));
+      }
+      return this.photoCache.get(key);
+    },
+
+    // Each file is uploaded once, then saved to the job. A retry skips what is already saved.
+    async saveIntake() {
+      if (this.busy) return;
+      const jobId = this.intakeJobId; const files = [...$('shInFiles').files];
+      if (!files.length) { this.message('Take or pick at least one photo first.', true); return; }
+      const btn = $('shInSave'); const note = $('shInNote').value;
+      this.busy = true; btn.disabled = true;
+      let saved = 0;
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          btn.textContent = `Saving photo ${i + 1} of ${files.length}…`;
+          const ext = (/\.([a-z0-9]{1,5})$/i.exec(file.name)?.[1] || 'jpg').toLowerCase();
+          const id = genId(); const path = `job/${jobId}/${Date.now()}-${id.slice(0, 8)}.${ext}`;
+          await ShApi.upload(COND_BUCKET, path, file, file.type || 'image/jpeg');
+          await ShApi.rpc('shop_add_condition_photo', { p_id: id, p_kind: 'intake', p_target_id: jobId, p_path: path, p_note: note || null });
+          saved++;
+        }
+        this.message(`${saved} intake photo${saved === 1 ? '' : 's'} saved and locked.`);
+      } catch (e) {
+        if (!this.handleAuthError(e)) this.message(`${saved ? `${saved} saved, then ` : ''}a photo was not saved: ${e.message}. Pick the rest again and press Save.`, true);
+      } finally { this.busy = false; btn.disabled = false; btn.textContent = 'Save photos'; }
+      await this.refresh();
+      if (!$('shIntake').hidden) await this.openIntake(jobId);
     },
 
     // ---------- editor ----------
