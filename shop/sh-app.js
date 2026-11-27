@@ -478,9 +478,9 @@
     },
 
     // ---------- tech sign-off (shop-008) ----------
-    async openSignoff(jobId) {
+    async openSignoff(jobId, keepMessage = false) {
       if (this.busy) return;
-      this.message('');
+      if (!keepMessage) this.message('');   // after a save, leave its result on screen
       const j = this.jobs.find(x => x.id === jobId);
       if (!j) return;
       let items, signs, staff, pm = false;
@@ -557,7 +557,7 @@
       try { await call(); this.message(okText); }
       catch (e) { if (!this.handleAuthError(e)) this.message(e.message, true); }
       finally { this.busy = false; if (btn) btn.disabled = false; }
-      if (!$('shSignoff').hidden) await this.openSignoff(jobId);
+      if (!$('shSignoff').hidden) await this.openSignoff(jobId, true);
     },
     signStep(jobId, step, hours, btn) {
       return this.runSignoff(jobId, btn, () => ShApi.rpc('shop_sign_step', { p_job_id: jobId, p_step: step, p_hours: String(hours || '0') }),
@@ -576,9 +576,9 @@
       return PAY_LABEL[j.payment_status] || 'Unpaid';
     },
 
-    async openPayments(jobId) {
+    async openPayments(jobId, keepMessage = false) {
       if (this.busy) return;
-      this.message('');
+      if (!keepMessage) this.message('');   // after a save, leave its result on screen
       const j = this.jobs.find(x => x.id === jobId);
       if (!j) return;
       let pays;
@@ -633,7 +633,7 @@
         if (!this.handleAuthError(e)) this.message(`Payment not saved: ${e.message}`, true);
       } finally { this.busy = false; btn.disabled = false; btn.textContent = 'Save payment'; }
       await this.refresh();
-      if (!$('shPayments').hidden) await this.openPayments(jobId);
+      if (!$('shPayments').hidden) await this.openPayments(jobId, true);
     },
 
     async voidPayment(p, btn) {
@@ -648,13 +648,13 @@
         if (!this.handleAuthError(e)) this.message(`Not voided: ${e.message}`, true);
       } finally { this.busy = false; }
       await this.refresh();
-      if (!$('shPayments').hidden) await this.openPayments(p.job_id);
+      if (!$('shPayments').hidden) await this.openPayments(p.job_id, true);
     },
 
     // ---------- locked intake photos (shop-018) ----------
-    async openIntake(jobId) {
+    async openIntake(jobId, keepMessage = false) {
       if (this.busy) return;
-      this.message('');
+      if (!keepMessage) this.message('');   // after a save, leave its result on screen
       const j = this.jobs.find(x => x.id === jobId);
       if (!j) return;
       let photos;
@@ -712,7 +712,7 @@
         if (!this.handleAuthError(e)) this.message(`${saved ? `${saved} saved, then ` : ''}a photo was not saved: ${e.message}. Pick the rest again and press Save.`, true);
       } finally { this.busy = false; btn.disabled = false; btn.textContent = 'Save photos'; }
       await this.refresh();
-      if (!$('shIntake').hidden) await this.openIntake(jobId);
+      if (!$('shIntake').hidden) await this.openIntake(jobId, true);
     },
 
     // ---------- editor ----------
