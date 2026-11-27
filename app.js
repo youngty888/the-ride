@@ -1513,7 +1513,7 @@ const App = {
     if (!el || !window.D4D) return;
     const D = window.D4D;
     const member = this.dadsMember();
-    const amounts = [5, 10, 20, 50, 100];
+    const amounts = [10, 20, 30, 50, 100];
     const money = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 });
     el.innerHTML = `
       <div class="dads-head">
@@ -1525,10 +1525,10 @@ const App = {
         <div class="dads-progress" data-k="progressBox" hidden><div class="dads-bar"><i data-k="bar"></i></div><small data-k="next"></small></div>` : ''}
       <p class="dads-sub">Every $1 you give, and every $1 you spend on ManUp merch, is 1 point. Gifts check out at the SIC Cycles store and go to ManUp Movement.</p>
       <div class="dads-amounts" role="group" aria-label="Gift amount">
-        ${amounts.map(a => `<button type="button" class="chip${a === 20 ? ' active' : ''}" data-dads-amount="${a}">$${a}</button>`).join('')}
+        ${amounts.map(a => `<button type="button" class="chip${a === 30 ? ' active' : ''}" data-dads-amount="${a}">$${a}</button>`).join('')}
         <label class="dads-other">Other $<input type="number" inputmode="numeric" min="1" max="${D.MAX_GIFT}" step="1" placeholder="20" data-k="other" aria-label="Other amount in dollars"></label>
       </div>
-      <a class="btn-primary btn-large dads-give" data-k="give" target="_blank" rel="noopener noreferrer">Give $20 to Dollars for Dads</a>
+      <a class="btn-primary btn-large dads-give" data-k="give" target="_blank" rel="noopener noreferrer">Give $30 to Dollars for Dads</a>
       <details class="dads-roundup">
         <summary>Round up for Dads</summary>
         <label>What did you spend? <input type="text" inputmode="decimal" placeholder="37.40" data-k="spent" aria-label="Amount you spent"></label>
@@ -1563,7 +1563,7 @@ const App = {
       }
       box.innerHTML = choices.map(c => `<a class="btn-secondary dads-round" target="_blank" rel="noopener noreferrer" href="${this.escapeHtml(D.donateLink(c.add, { member, how: 'Round-up' }))}">Add ${money(c.add)} <small>${money(c.total)} total, next $${c.step}</small></a>`).join('');
     });
-    setAmount(20);
+    setAmount(30);
     if (withPoints) this.loadDadsPoints(el);
   },
 
@@ -1634,7 +1634,7 @@ const App = {
         k('progressBox').hidden = !reached; k('bar').style.width = '100%'; k('next').textContent = 'Top tier reached. Thank you!';
       }
       k('tiers').innerHTML = tiers.map(t => {
-        const state = t.given ? 'Handed out' : earned(t) ? 'Earned. Pick it up at SIC Cycles' : `Give $${Number(t.min).toLocaleString()} total`;
+        const state = t.given ? 'Handed out' : earned(t) ? 'Earned. SIC Cycles will get it to you' : `Give $${Number(t.min).toLocaleString()} total`;
         return `<li class="${earned(t) ? 'earned' : ''}"><strong>${this.escapeHtml(t.name)}</strong><span>${this.escapeHtml(t.gift)}</span><small>${this.escapeHtml(state)}</small></li>`;
       }).join('');
     };

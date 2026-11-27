@@ -62,9 +62,9 @@ test('a round-up joins a SIC Cycles cart and leaves every other link alone', () 
 
 test('tiers and points follow the total given', () => {
   assert.equal(D.tierFor(0).current, null);
-  assert.equal(D.tierFor(0).next.min, 20);
-  assert.equal(D.tierFor(19.5).toNext, 0.5);
-  assert.deepEqual(D.TIERS.map(t => [t.min, t.gift]), [[20, 'Thank-you neck gaiter'], [50, 'Thank-you T-shirt'], [100, 'Thank-you hoodie']]);
+  assert.equal(D.tierFor(0).next.min, 30);
+  assert.equal(D.tierFor(29.5).toNext, 0.5);
+  assert.deepEqual(D.TIERS.map(t => [t.min, t.gift]), [[30, 'ManUp T-shirt'], [50, 'ManUp long sleeve shirt'], [100, 'ManUp hoodie']]);
   assert.equal(D.tierFor(60).current.min, 50);
   assert.equal(D.tierFor(150).next, null);
   assert.equal(D.pointsFor(37.9), 37);
@@ -219,7 +219,7 @@ test('a paid gift lands on the rider by RIDE id, or by confirmed email, once', {
   assert.equal(mine.points, 72);
   assert.equal(Number(mine.donated), 35);
   assert.equal(Number(mine.merch), 37.9);
-  assert.deepEqual(mine.tiers.map(t => [Number(t.min), t.earned]), [[20, true], [50, false], [100, false]]);
+  assert.deepEqual(mine.tiers.map(t => [Number(t.min), t.earned]), [[30, true], [50, false], [100, false]]);
   assert.equal(mine.history.length, 2);
   assert.equal((await rpc('buyer', 'ride_my_dads')).points, 0);
 });
@@ -256,5 +256,5 @@ test('staff add a gift made on manup-movement.org and hand out the thank-you gif
   assert.equal(t50.earned, true); assert.equal(t50.given, true);
   const list = await as('tyler', 'select * from public.ride_dads_members()');
   const row = list.find(r => r.email === 'rider@test.local');
-  assert.deepEqual(row.gifts_to_hand_out, ['Thank-you neck gaiter']); assert.equal(row.tier, 'Riding Brother');
+  assert.deepEqual(row.gifts_to_hand_out, ['ManUp T-shirt']); assert.equal(row.tier, 'Riding Brother');
 });

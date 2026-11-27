@@ -6,8 +6,9 @@
    (supabase/functions/shopify-orders-paid + sql/shop/...-shop-016-dads-points.sql).
 
    Points: 1 point for every $1 donated and 1 point for every $1 spent on ManUp
-   merch. Thank-you gifts go by the total donated (TIERS below): $20 neck gaiter,
-   $50 T-shirt, $100 hoodie, the same gifts as the siccycles.com Dads Don't Quit
+   merch. Thank-you gifts go by the total donated (TIERS below): $30 T-shirt,
+   $50 long sleeve shirt, $100 hoodie (Tyler, Nov 27; ManUp items from the
+   ManUp store on Hostinger and Printful), the same gifts as the siccycles.com Dads Don't Quit
    page. Every rider starts as a Supporter Brother (the free tier). The tier names
    are placeholders for Tyler to change; the database has its own copy
    (ride_dads_tiers) that must match. */
@@ -25,9 +26,9 @@
   const POINTS_PER_DOLLAR = 1;
   const MAX_GIFT = 1000;
   const TIERS = [
-    { min: 20, name: 'Brother', gift: 'Thank-you neck gaiter' },
-    { min: 50, name: 'Riding Brother', gift: 'Thank-you T-shirt' },
-    { min: 100, name: 'Iron Brother', gift: 'Thank-you hoodie' },
+    { min: 30, name: 'Brother', gift: 'ManUp T-shirt' },
+    { min: 50, name: 'Riding Brother', gift: 'ManUp long sleeve shirt' },
+    { min: 100, name: 'Iron Brother', gift: 'ManUp hoodie' },
   ];
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
