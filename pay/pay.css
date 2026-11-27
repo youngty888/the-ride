@@ -2,3 +2,10 @@
 .my-view { max-width: 860px; margin: 0 auto; }
 .my-pay { margin: .25rem 0 1rem; }
 .my-paybtn { display: flex; justify-content: center; align-items: center; width: 100%; min-height: 52px; font-size: 1.1rem; text-decoration: none; }
+.my-dads { margin-top: .75rem; padding: .75rem; border: 1px dashed currentColor; border-radius: 10px; opacity: .95; }
+.my-dads label { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; font-weight: 600; }
+.my-dads select { min-height: 44px; flex: 1 1 12rem; font: inherit; }
+.my-dads-tally { margin-bottom: .5rem; font-size: .95rem; }
+.my-dads-tally i { font-style: normal; color: #ff6b1a; }
+.my-dads-tally b { font-size: 1.15rem; }
+.my-dads-tally span { opacity: .8; }

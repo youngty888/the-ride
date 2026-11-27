@@ -112,3 +112,10 @@ needs Playwright; it is skipped without it).
 - The Job box offers saved names (Brake pads, Tires, Mounting to start). Picking one refills its usual hours if Hours is still empty. Parts are never saved.
 - Hours are learned: each saved estimate stores the latest hours for every job on it. No hours are invented; a new name stays empty until used once.
 - Needs `sql/shop/2026-11-19-shop-007-saved-jobs.sql` run once on the server. Until then the screen works as before with no saved list.
+
+## Parts on order and Closed (Nov 26, needs SQL shop-016)
+- "+ Order a part" (on a job card, or on the Parts on order tab) saves what was ordered: part, vendor, cost, tracking number, ETA, vendor order # and date ordered. A part with no job is shop stock or tools.
+- The Parts on order tab lists every part not yet received, soonest ETA first, with a "late" flag past its ETA. "Received" moves it to Recently received, which has an undo. Job cards show "N parts on order".
+- Closed: a completed work order leaves the board by itself. An estimate leaves when someone presses "Close estimate" (done, declined or quote only) and comes back with "Reopen". Both live in the Closed tab, newest first. Search still finds them, and "Not paid" still lists any finished job that is owed money.
+- Needs `sql/shop/2026-11-26-shop-016-parts-on-order-closed.sql` (run the precheck at its top first). Until then the page loads as before, and the new buttons say the SQL is missing.
+- Tests: `tests/shop-parts-closed.test.cjs` (SQL) and the "parts on order" and "closed folder" tests in `tests/shop-e2e.test.cjs`.
