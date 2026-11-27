@@ -11,8 +11,10 @@
 --   * Staff add points by hand for gifts made elsewhere (the PayPal button on
 --     manup-movement.org, cash at an event) and ManUp gear bought on
 --     manup-movement.org: ride_dads_add.
---   * Thank-you gifts go by the total donated (ride_dads_tiers). The amounts and
---     names are a first proposal; change them here and in d4d.js together.
+--   * Thank-you gifts go by the total donated (ride_dads_tiers): $20 neck gaiter,
+--     $50 T-shirt, $100 hoodie, as on the siccycles.com Dads Don't Quit page.
+--     Every rider starts as a Supporter Brother (the free tier). Tier names are
+--     placeholders; change them here and in d4d.js together.
 --   * Riders see only their own points. Only the server records orders.
 -- Additive and safe to re-run. Needs shop-001 (staff list and audit log).
 
@@ -23,7 +25,7 @@ create table if not exists public.ride_dads_tiers (
   gift text not null check (length(gift) between 1 and 120)
 );
 insert into public.ride_dads_tiers (min_donated, name, gift) values
-  (25, 'Supporter Brother', 'Thank-you merch item'),
+  (20, 'Brother', 'Thank-you neck gaiter'),
   (50, 'Riding Brother', 'Thank-you T-shirt'),
   (100, 'Iron Brother', 'Thank-you hoodie')
 on conflict (min_donated) do nothing;

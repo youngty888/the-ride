@@ -54,8 +54,8 @@ $1 given through the "Dollars for Dads Donation" product on siccycles.com, and
    ```
    DADS_POINTS: ${DADS_POINTS}
    ```
-   Optional, same way: `D4D_VARIANT_IDS` (defaults to today's $1, $5, $10, $25
-   and $50 donation variants), `MANUP_VENDORS` (default `manup`: any product
+   Optional, same way: `D4D_VARIANT_IDS` (defaults to today's $1, $5, $10, $20,
+   $25, $50 and $100 donation variants), `MANUP_VENDORS` (default `manup`: any product
    whose vendor contains "ManUp" counts as merch), `MANUP_PRODUCT_IDS`.
 3. Restart the functions container: `docker compose up -d functions`.
 

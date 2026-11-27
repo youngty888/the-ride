@@ -6,9 +6,11 @@
    (supabase/functions/shopify-orders-paid + sql/shop/...-shop-016-dads-points.sql).
 
    Points: 1 point for every $1 donated and 1 point for every $1 spent on ManUp
-   merch. Thank-you gifts go by the total donated (TIERS below). The tier amounts
-   and the names of the second and third tier are a first proposal for Tyler to
-   change; the database has its own copy (ride_dads_tiers) that must match. */
+   merch. Thank-you gifts go by the total donated (TIERS below): $20 neck gaiter,
+   $50 T-shirt, $100 hoodie, the same gifts as the siccycles.com Dads Don't Quit
+   page. Every rider starts as a Supporter Brother (the free tier). The tier names
+   are placeholders for Tyler to change; the database has its own copy
+   (ride_dads_tiers) that must match. */
 (function (root) {
   'use strict';
   const SHOP = 'https://www.siccycles.com';
@@ -16,14 +18,14 @@
   const SHOP_HOSTS = ['www.siccycles.com', 'siccycles.com', 'siccycles.myshopify.com'];
   // "Dollars for Dads Donation" variants on siccycles.com, largest first.
   const VARIANTS = [
-    [50, '67925558362212'], [25, '67925558329444'], [10, '67925558296676'],
-    [5, '67925558263908'], [1, '67925558132836'],
+    [100, '69139665485924'], [50, '67925558362212'], [25, '67925558329444'], [20, '69139665453156'],
+    [10, '67925558296676'], [5, '67925558263908'], [1, '67925558132836'],
   ];
   const MANUP_DONATE = 'https://manup-movement.org/donate';
   const POINTS_PER_DOLLAR = 1;
   const MAX_GIFT = 1000;
   const TIERS = [
-    { min: 25, name: 'Supporter Brother', gift: 'Thank-you merch item' },
+    { min: 20, name: 'Brother', gift: 'Thank-you neck gaiter' },
     { min: 50, name: 'Riding Brother', gift: 'Thank-you T-shirt' },
     { min: 100, name: 'Iron Brother', gift: 'Thank-you hoodie' },
   ];

@@ -19,7 +19,7 @@ import { handleShopifyWebhook } from './lib.mjs';
 const env = (k: string) => (Deno.env.get(k) ?? '').trim();
 
 // "Dollars for Dads Donation" on siccycles.com: $1, $5, $10, $25, $50. Not secret.
-const D4D_DEFAULT = '67925558132836,67925558263908,67925558296676,67925558329444,67925558362212';
+const D4D_DEFAULT = '67925558132836,67925558263908,67925558296676,69139665453156,67925558329444,67925558362212,69139665485924';
 const list = (k: string, fallback = '') => (env(k) || fallback).split(',').map(s => s.trim()).filter(Boolean);
 
 async function rpc(fn: string, rec: Record<string, unknown>) {
