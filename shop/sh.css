@@ -229,3 +229,13 @@ a.sh-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .sh-home-buttons .sh-btn { flex: 1 1 10rem; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
 .sh-home-board { margin: .4rem 0 .6rem; font-size: 1.1rem; }
 @media print { .sh-home { display: none !important; } }
+
+/* Parts on order + Closed folder (Nov 26) */
+.sh-parts-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin-bottom: .75rem; }
+.sh-job-sub .sh-tag { padding: 0 .5rem; border-radius: 1rem; font-size: .8rem; background: var(--surface-2, #2a2a30); color: var(--text); }
+.sh-job-sub .sh-tag-parts { background: #2d5f8a; color: #fff; }
+.sh-job-sub .sh-tag-closed { background: #55555c; color: #fff; }
+.sh-job-sub .sh-tag-late { background: var(--red); color: #fff; }
+.sh-part .sh-part-track { font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+.sh-parts-received { margin-top: 1.2rem; font-size: 1rem; color: var(--muted); }
+.sh-part.sh-part-done { opacity: .7; }
