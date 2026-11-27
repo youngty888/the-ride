@@ -27,3 +27,8 @@ h2 { font-size: 1.05rem; margin: 1rem 0 .4rem; color: var(--orange); }
 .rw-refunded td { color: var(--muted); text-decoration: line-through; }
 #rwSearch { margin-bottom: .75rem; }
 @media (max-width: 620px) { .rw-hist th:nth-child(5), .rw-hist td:nth-child(5) { display: none; } }
+h3 { font-size: .95rem; margin: 1rem 0 .4rem; }
+.rw-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.rw-item { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.rw-item.rw-off { opacity: .55; }
+.rw-item small { display: block; color: var(--muted); }

@@ -96,17 +96,26 @@ test('rewards: a rider (non-staff) and signed-out users see nothing and can chan
   }
   await assert.rejects(rpc('rider', 'shop_rewards_adjust', { p_entry_id: 'x', p_customer_id: 'old-cust', p_points: 50, p_note: 'hack' }), /not authorized/);
   await assert.rejects(rpc('rider', 'shop_d4d_save_donation', { p_id: 'x', p_d: { donor_name: 'X', amount: '5' } }), /not authorized/);
-  await assert.rejects(rpc(null, 'shop_rewards_redeem', { p_entry_id: 'x', p_customer_id: 'old-cust', p_points: 1, p_job_id: null, p_note: null }), /permission denied/);
+  await assert.rejects(rpc(null, 'shop_rewards_redeem', { p_entry_id: 'x', p_customer_id: 'old-cust', p_reward_id: 'x', p_job_id: null, p_note: null }), /permission denied/);
+  await assert.rejects(rpc('rider', 'shop_save_reward_item', { p_id: 'x', p_item: { name: 'Free bike', points_cost: '1' } }), /not authorized/);
+  for (const who of ['rider', null]) {
+    const rows = await as(who, 'select * from public.shop_reward_catalog').catch(e => e);
+    assert.ok(rows instanceof Error ? /permission denied/.test(rows.message) : rows.length === 0, `${who || 'anon'} sees the rewards list`);
+  }
   for (const who of ['tyler', 'garrett']) {
     await assert.rejects(as(who, `insert into public.shop_reward_entries (id, customer_id, kind, points, note) values ('z', 'old-cust', 'adjust', 999, 'x')`), /permission denied/);
     await assert.rejects(as(who, `update public.shop_d4d_donations set amount = 1`), /permission denied/);
     await assert.rejects(as(who, `delete from public.shop_reward_entries`), /permission denied/);
+    await assert.rejects(as(who, `insert into public.shop_reward_catalog (id, name, kind, points_cost) values ('z', 'x', 'prize', 1)`), /permission denied/);
   }
 });
 
-test('rewards: defaults are on, 1 point per $1, 100 points = $5, and jobs paid before the program earn nothing', { skip }, async () => {
+test('rewards: defaults are on, 1 point per $1, points have no cash value, and jobs paid before the program earn nothing', { skip }, async () => {
   const [s] = await owner('select * from public.shop_settings where id = 1');
-  assert.equal(s.rewards_enabled, true); assert.equal(Number(s.rewards_points_per_dollar), 1); assert.equal(Number(s.rewards_point_value_cents), 5);
+  assert.equal(s.rewards_enabled, true); assert.equal(Number(s.rewards_points_per_dollar), 1);
+  assert.ok(!('rewards_point_value_cents' in s), 'no cash value per point');
+  const cols = await owner(`select column_name from information_schema.columns where table_name in ('shop_reward_entries','shop_reward_balances') and column_name ~ 'dollar|value|cash'`);
+  assert.deepEqual(cols, [], 'nothing in rewards is a dollar amount');
   assert.equal((await balance('tyler', 'old-cust')).balance, 0);
 });
 
@@ -125,7 +134,7 @@ test('rewards: marking a job Paid earns points on the total before tax, once; un
   assert.equal((await balance('tyler', c)).balance, 0, 'moved back to unpaid takes the points back');
   await pay('tyler', job, 'paid');
   const b = await balance('tyler', c);
-  assert.equal(b.balance, 300); assert.equal(b.points_earned, 300); assert.equal(Number(b.balance_value), 15);
+  assert.equal(b.balance, 300); assert.equal(b.points_earned, 300);
   const entries = await as('tyler', 'select kind, points, created_by from public.shop_reward_entries where job_id = $1 order by created_at, id', [job]);
   assert.deepEqual(entries.map(e => [e.kind, e.points]).sort(), [['earn', 300], ['earn', 300], ['reverse', -300]].sort());
   assert.ok(entries.every(e => e.created_by === U.garrett || e.created_by === U.tyler), 'who marked it is recorded');
@@ -143,19 +152,43 @@ test('rewards: changing a paid job\'s total corrects the points', { skip }, asyn
   assert.equal((await balance('tyler', c)).balance, 150);
 });
 
-test('rewards: redeem takes points off, never more than the balance, and a double tap only counts once', { skip }, async () => {
+test('rewards list: staff add prizes and discounts, change them and switch them off; bad input is refused', { skip }, async () => {
+  await rpc('tyler', 'shop_save_reward_item', { p_id: 'rw-shirt', p_item: { name: 'SIC Cycles t-shirt', kind: 'prize', points_cost: '250' } });
+  await rpc('garrett', 'shop_save_reward_item', { p_id: 'rw-labor', p_item: { name: '10% off labor', kind: 'discount', points_cost: '500', details: 'One job' } });
+  let list = await as('tyler', 'select id, name, kind, points_cost, active from public.shop_reward_catalog order by points_cost');
+  assert.deepEqual(list.map(r => [r.id, r.kind, r.points_cost, r.active]), [['rw-shirt', 'prize', 250, true], ['rw-labor', 'discount', 500, true]]);
+  await rpc('tyler', 'shop_save_reward_item', { p_id: 'rw-shirt', p_item: { name: 'SIC Cycles t-shirt', kind: 'prize', points_cost: '300', active: false } });
+  [list] = await as('tyler', `select * from public.shop_reward_catalog where id = 'rw-shirt'`).then(r => [r[0]]);
+  assert.equal(list.points_cost, 300); assert.equal(list.active, false);
+  await assert.rejects(rpc('tyler', 'shop_save_reward_item', { p_id: id('i'), p_item: { name: ' ', points_cost: '10' } }), /name/);
+  await assert.rejects(rpc('tyler', 'shop_save_reward_item', { p_id: id('i'), p_item: { name: 'Cash', kind: 'cash', points_cost: '10' } }), /prize or a discount/);
+  await assert.rejects(rpc('tyler', 'shop_save_reward_item', { p_id: id('i'), p_item: { name: 'X', points_cost: '2.5' } }), /whole number/);
+  await assert.rejects(rpc('tyler', 'shop_save_reward_item', { p_id: id('i'), p_item: { name: 'X', points_cost: '0' } }), /whole number/);
+  const audit = await owner(`select action from public.shop_audit_log where table_name = 'shop_reward_catalog' and row_id = 'rw-shirt' order by id`);
+  assert.deepEqual(audit.map(a => a.action), ['insert', 'update']);
+  await rpc('tyler', 'shop_save_reward_item', { p_id: 'rw-shirt', p_item: { name: 'SIC Cycles t-shirt', kind: 'prize', points_cost: '250', active: true } });
+});
+
+test('rewards: using points needs a reward from the list, takes its cost, never more than the balance, and a double tap only counts once', { skip }, async () => {
   const c = id('c'); const job = await newJob('tyler', c); await pay('tyler', job, 'paid');
   const e = id('r');
-  const r = await rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_points: 100, p_job_id: job, p_note: 'Took $5 off' });
-  assert.equal(r.balance, 200); assert.equal(Number(r.dollar_value), 5);
-  const again = await rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_points: 100, p_job_id: job, p_note: 'Took $5 off' });
+  const r = await rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_reward_id: 'rw-shirt', p_job_id: job, p_note: 'Handed over' });
+  assert.equal(r.balance, 50); assert.equal(r.reward, 'SIC Cycles t-shirt');
+  const again = await rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_reward_id: 'rw-shirt', p_job_id: job, p_note: 'Handed over' });
   assert.equal(again.repeat, true);
-  assert.equal((await balance('tyler', c)).balance, 200);
-  assert.equal((await balance('tyler', c)).points_redeemed, 100);
-  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_points: 201, p_job_id: null, p_note: null }), /Only 200 points available/);
-  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_points: 0, p_job_id: null, p_note: null }), /more than 0/);
-  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_points: 5, p_job_id: 'old-job', p_note: null }), /not this customer/);
-  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_points: 50, p_job_id: null, p_note: null }), /already used/);
+  const b = await balance('tyler', c);
+  assert.equal(b.balance, 50); assert.equal(b.points_redeemed, 250);
+  const [ent] = await as('tyler', `select reward_id, reward_name, points from public.shop_reward_entries where id = $1`, [e]);
+  assert.deepEqual([ent.reward_id, ent.reward_name, ent.points], ['rw-shirt', 'SIC Cycles t-shirt', -250]);
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_reward_id: 'rw-labor', p_job_id: null, p_note: null }), /Needs 500 points, only 50 available/);
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_reward_id: null, p_job_id: null, p_note: null }), /Pick a reward/);
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_reward_id: 'nope', p_job_id: null, p_note: null }), /Pick a reward/);
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_reward_id: 'rw-shirt', p_job_id: 'old-job', p_note: null }), /not this customer/);
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: e, p_customer_id: c, p_reward_id: 'rw-labor', p_job_id: null, p_note: null }), /already used/);
+  // A switched-off reward can't be picked; a redeem straight into the table without a reward is refused.
+  await rpc('tyler', 'shop_save_reward_item', { p_id: 'rw-off', p_item: { name: 'Old sticker', points_cost: '1', active: false } });
+  await assert.rejects(rpc('garrett', 'shop_rewards_redeem', { p_entry_id: id('r'), p_customer_id: c, p_reward_id: 'rw-off', p_job_id: null, p_note: null }), /switched off/);
+  await assert.rejects(owner(`insert into public.shop_reward_entries (id, customer_id, kind, points) values ('raw', $1, 'redeem', -1)`, [c]), /check/);
 });
 
 test('rewards: adjust needs a reason and can\'t push a balance below zero', { skip }, async () => {
@@ -175,7 +208,7 @@ test('rewards: settings change the earn rate; turning rewards off stops new poin
   const c2 = id('c'); const job2 = await newJob('tyler', c2); await pay('tyler', job2, 'paid');
   assert.equal((await balance('tyler', c2)).balance, 0, 'off = no new points');
   await assert.rejects(rpc('tyler', 'shop_update_reward_settings', { p_settings: { rewards_points_per_dollar: 'lots' } }), /must be a number/);
-  await assert.rejects(rpc('tyler', 'shop_update_reward_settings', { p_settings: { rewards_point_value_cents: '500' } }), /check/);
+  await assert.rejects(rpc('tyler', 'shop_update_reward_settings', { p_settings: { rewards_points_per_dollar: '500' } }), /check/);
   await rpc('tyler', 'shop_update_reward_settings', { p_settings: { rewards_enabled: true } });
   const r = await rpc('tyler', 'shop_rewards_backfill', { p_from: '2026-01-01' });
   assert.ok(r.jobs >= 2, 'old-job and job2 get their points');

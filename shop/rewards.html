@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="sic-icon-180.png">
 <link rel="stylesheet" href="sh.css?v=20261119b">
-<link rel="stylesheet" href="rw.css?v=20261121a">
+<link rel="stylesheet" href="rw.css?v=20261127a">
 </head>
 <body>
 <header class="sh-header">
@@ -41,13 +41,32 @@
     <input type="search" id="rwSearch" placeholder="Search customers" aria-label="Search customers">
     <div id="rwCustomers" class="sh-jobs"></div>
 
+    <section class="sh-card" id="rwCatalogCard">
+      <h2>Rewards list</h2>
+      <p class="sh-muted">What customers can use points for. Points never turn into cash.</p>
+      <div id="rwCatalog"></div>
+      <form id="rwItemForm" novalidate>
+        <h3 id="rwItemTitle">Add a reward</h3>
+        <div class="sh-grid2">
+          <label>Name * <input id="rwItemName" autocomplete="off" placeholder="e.g. SIC Cycles t-shirt"></label>
+          <label>Type <select id="rwItemKind"><option value="prize">Prize</option><option value="discount">Discount</option></select></label>
+          <label>Points it costs * <input id="rwItemCost" inputmode="numeric"></label>
+          <label>Details <input id="rwItemDetails" autocomplete="off" placeholder="e.g. 10% off labor on one job"></label>
+        </div>
+        <label class="rw-check"><input type="checkbox" id="rwItemActive" checked> Customers can pick this now</label>
+        <div class="rw-actions">
+          <button type="submit" class="sh-btn sh-btn-primary" id="rwItemSave">Save reward</button>
+          <button type="button" class="sh-btn" id="rwItemCancel" hidden>Cancel edit</button>
+        </div>
+      </form>
+    </section>
+
     <details class="sh-card rw-settings">
       <summary>Rewards settings</summary>
       <form id="rwSetForm" novalidate>
         <label class="rw-check"><input type="checkbox" id="rwSetOn"> Rewards are on</label>
         <div class="sh-grid2">
           <label>Points per $1 spent (before tax) <input id="rwSetRate" inputmode="decimal"></label>
-          <label>Each point is worth (cents) <input id="rwSetValue" inputmode="decimal"></label>
           <label>Jobs dated on or after this earn <input id="rwSetStart" type="date"></label>
         </div>
         <button type="submit" class="sh-btn sh-btn-primary" id="rwSetSave">Save rewards settings</button>
@@ -68,7 +87,7 @@
       <div class="sh-muted" id="rwCSub"></div>
       <div class="rw-stats">
         <div><b id="rwCBal"></b><span>Points now</span></div>
-        <div><b id="rwCVal"></b><span>Worth</span></div>
+        <div><b id="rwCVal"></b><span>Rewards ready</span></div>
         <div><b id="rwCEarned"></b><span>Earned</span></div>
         <div><b id="rwCUsed"></b><span>Used</span></div>
       </div>
@@ -78,13 +97,13 @@
     <form id="rwRedeemForm" class="sh-card" novalidate>
       <h2>Use points</h2>
       <div class="sh-grid2">
-        <label>Points to use <input id="rwRedeemPts" inputmode="numeric"></label>
+        <label>Reward <select id="rwRedeemReward"></select></label>
         <label>On job (optional) <select id="rwRedeemJob"></select></label>
       </div>
       <p class="sh-muted" id="rwRedeemWorth"></p>
-      <label>Note <input id="rwRedeemNote" autocomplete="off" placeholder="e.g. took $5 off IV#1004"></label>
+      <label>Note <input id="rwRedeemNote" autocomplete="off" placeholder="e.g. handed over at pickup"></label>
       <button type="submit" class="sh-btn sh-btn-primary" id="rwRedeemSave">Use points</button>
-      <p class="sh-muted">Take the same dollar amount off the invoice (add a "Rewards credit" line).</p>
+      <p class="sh-muted">Points never turn into cash. For a discount, add it to that job's invoice as a "Rewards discount" line.</p>
     </form>
     <form id="rwAdjustForm" class="sh-card" novalidate>
       <h2>Add or remove points by hand</h2>
@@ -145,6 +164,6 @@
 <script src="../supabase-config.js"></script>
 <script src="../session-store.js"></script>
 <script src="sh-api.js?v=20261030a"></script>
-<script src="rw-app.js?v=20261121a"></script>
+<script src="rw-app.js?v=20261127a"></script>
 </body>
 </html>

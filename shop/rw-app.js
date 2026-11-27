@@ -1,6 +1,7 @@
 /* Rewards points and Dollars for Dads page (needs shop-010 on the server).
-   Rewards: every customer's points, their history, use points, add/remove by
-   hand, and the earn rules. Points are earned by the database when a job is
+   Rewards: every customer's points, their history, use points on a reward
+   from the rewards list (prizes or discounts; points never turn into cash),
+   add/remove by hand, the rewards list itself, and the earn rules. Points are earned by the database when a job is
    marked Paid; this page never types a balance.
    Dollars for Dads: add donations, see each donor's raffle entries and tier
    prizes, hand prizes out, mark donations sent to ManUp, refund.
@@ -30,9 +31,9 @@
   }
 
   const App = {
-    settings: {}, balances: [], entries: [], jobs: [], customers: [], staff: {},
+    settings: {}, catalog: [], editing: null, balances: [], entries: [], jobs: [], customers: [], staff: {},
     donations: [], donors: [], summary: [], tab: 'rewards', current: null, campaign: DEFAULT_CAMPAIGN,
-    ids: { redeem: genId(), adjust: genId(), donation: genId() }, busy: false,
+    ids: { redeem: genId(), adjust: genId(), donation: genId(), item: genId() }, busy: false,
 
     async init() {
       this.bind();
@@ -52,7 +53,9 @@
       $('rwSearch').addEventListener('input', () => this.renderCustomers());
       $('rwBack').addEventListener('click', () => this.go('rewards'));
       $('rwRedeemForm').addEventListener('submit', e => { e.preventDefault(); this.redeem(); });
-      $('rwRedeemPts').addEventListener('input', () => this.showWorth());
+      $('rwRedeemReward').addEventListener('change', () => this.showWorth());
+      $('rwItemForm').addEventListener('submit', e => { e.preventDefault(); this.saveItem(); });
+      $('rwItemCancel').addEventListener('click', () => this.editItem(null));
       $('rwAdjustForm').addEventListener('submit', e => { e.preventDefault(); this.adjust(); });
       $('rwSetForm').addEventListener('submit', e => { e.preventDefault(); this.saveSettings(); });
       $('rwBackfill').addEventListener('click', () => this.backfill());
@@ -76,8 +79,9 @@
 
     async refresh() {
       try {
-        const [settings, balances, entries, jobs, customers, staff, donations, donors, summary] = await Promise.all([
-          ShApi.select('shop_settings', 'select=rewards_enabled,rewards_points_per_dollar,rewards_point_value_cents,rewards_start_date'),
+        const [settings, catalog, balances, entries, jobs, customers, staff, donations, donors, summary] = await Promise.all([
+          ShApi.select('shop_settings', 'select=rewards_enabled,rewards_points_per_dollar,rewards_start_date'),
+          ShApi.select('shop_reward_catalog', 'select=*&order=active.desc,points_cost.asc,name.asc'),
           ShApi.select('shop_reward_balances', 'select=*&order=name.asc'),
           ShApi.select('shop_reward_entries', 'select=*&order=created_at.desc'),
           ShApi.select('shop_jobs', 'select=id,customer_id,invoice_number,estimate_number,job_date,total_amount,payment_status&order=job_date.desc'),
@@ -87,7 +91,7 @@
           ShApi.select('shop_d4d_donor_totals', 'select=*&order=total.desc'),
           ShApi.select('shop_d4d_campaign_summary', 'select=*'),
         ]);
-        Object.assign(this, { settings: settings[0] || {}, balances, entries, jobs, customers, donations, donors, summary });
+        Object.assign(this, { settings: settings[0] || {}, catalog, balances, entries, jobs, customers, donations, donors, summary });
         this.staff = Object.fromEntries(staff.map(s => [s.user_id, s.display_name]));
         return true;
       } catch (e) {
@@ -103,18 +107,17 @@
     },
 
     // ------------------------------------------------------------- rewards
-    pointValue() { return Number(this.settings.rewards_point_value_cents || 0) / 100; },
+    activeRewards() { return this.catalog.filter(r => r.active).sort((a, b) => a.points_cost - b.points_cost); },
     renderRewards() {
       const s = this.settings;
       $('rwRule').textContent = s.rewards_enabled
-        ? `Customers earn ${Number(s.rewards_points_per_dollar)} point per $1 (before tax) when a job is marked Paid. 100 points = ${money(100 * this.pointValue())}. Jobs dated ${fmtDate(s.rewards_start_date)} or later.`
+        ? `Customers earn ${Number(s.rewards_points_per_dollar)} point per $1 (before tax) when a job is marked Paid, on jobs dated ${fmtDate(s.rewards_start_date)} or later. Points are used for prizes or discounts on the rewards list, never cash.`
         : 'Rewards are turned off. Turn them on in Rewards settings below.';
       $('rwSetOn').checked = !!s.rewards_enabled;
       $('rwSetRate').value = s.rewards_points_per_dollar ?? '';
-      $('rwSetValue').value = s.rewards_point_value_cents ?? '';
       $('rwSetStart').value = s.rewards_start_date || '';
       if (!$('rwBackfillFrom').value) $('rwBackfillFrom').value = s.rewards_start_date || '';
-      this.renderCustomers(); this.show('rwRewards');
+      this.renderCustomers(); this.renderCatalog(); this.show('rwRewards');
     },
     renderCustomers() {
       const q = $('rwSearch').value.trim().toLowerCase();
@@ -125,20 +128,57 @@
       box.replaceChildren(...rows.map(b => el('button', { type: 'button', class: `sh-job rw-row${b.balance > 0 ? ' rw-has' : ''}`, onclick: () => this.openCustomer(b.customer_id) },
         el('div', { class: 'sh-job-top' }, el('strong', { text: b.name || 'Customer' }), el('span', { class: 'sh-job-total', text: `${pts(b.balance)} pts` })),
         el('div', { class: 'sh-job-sub' }, el('span', { text: [b.phone, b.email].filter(Boolean).join(' · ') || ' ' }),
-          el('span', { text: `Worth ${money(b.balance_value)}` })))));
+          el('span', { text: this.readyText(b.balance) })))));
+    },
+    readyText(balance) {
+      const act = this.activeRewards(); if (!act.length) return '';
+      const ready = act.filter(r => r.points_cost <= balance).length;
+      if (ready) return `${ready} reward${ready === 1 ? '' : 's'} ready`;
+      return `${pts(act[0].points_cost - balance)} to next reward`;
+    },
+    renderCatalog() {
+      const box = $('rwCatalog');
+      if (!this.catalog.length) { box.replaceChildren(el('p', { class: 'sh-muted', text: 'No rewards yet. Add the first one below.' })); return; }
+      box.replaceChildren(...this.catalog.map(r => el('div', { class: `rw-item${r.active ? '' : ' rw-off'}` },
+        el('div', {}, el('strong', { text: r.name }),
+          el('small', { text: [`${pts(r.points_cost)} points`, r.kind === 'discount' ? 'Discount' : 'Prize', r.details, r.active ? null : 'Switched off'].filter(Boolean).join(' · ') })),
+        el('button', { type: 'button', class: 'sh-btn rw-x', onclick: () => this.editItem(r.id), text: 'Edit' }))));
+    },
+    editItem(id) {
+      const r = id && this.catalog.find(x => x.id === id);
+      this.editing = r ? r.id : null; this.ids.item = r ? r.id : genId();
+      $('rwItemTitle').textContent = r ? 'Change reward' : 'Add a reward';
+      $('rwItemName').value = r ? r.name : ''; $('rwItemKind').value = r ? r.kind : 'prize';
+      $('rwItemCost').value = r ? r.points_cost : ''; $('rwItemDetails').value = r ? (r.details || '') : '';
+      $('rwItemActive').checked = r ? !!r.active : true; $('rwItemCancel').hidden = !r;
+      if (r) $('rwItemForm').scrollIntoView({ block: 'nearest' });
+    },
+    saveItem() {
+      const btn = $('rwItemSave');
+      return this.busyRun(btn, async () => {
+        const name = $('rwItemName').value.trim(), cost = $('rwItemCost').value.trim();
+        if (!name) throw new Error('Give the reward a name.');
+        if (!/^\d+$/.test(cost) || Number(cost) <= 0) throw new Error('Points cost must be a whole number above 0.');
+        await ShApi.rpc('shop_save_reward_item', { p_id: this.ids.item, p_item: { name, kind: $('rwItemKind').value,
+          points_cost: cost, details: $('rwItemDetails').value.trim(), active: $('rwItemActive').checked } });
+        const was = this.editing;
+        await this.refresh(); this.editItem(null); this.renderRewards();
+        this.message(was ? `Saved ${name}.` : `Added ${name} to the rewards list.`);
+      });
     },
     openCustomer(id) {
       const b = this.balances.find(x => x.customer_id === id); if (!b) return this.go('rewards');
       this.current = id; this.message('');
       $('rwCName').textContent = b.name || 'Customer';
       $('rwCSub').textContent = [b.phone, b.email].filter(Boolean).join(' · ');
-      $('rwCBal').textContent = pts(b.balance); $('rwCVal').textContent = money(b.balance_value);
+      $('rwCBal').textContent = pts(b.balance);
+      $('rwCVal').textContent = pts(this.activeRewards().filter(r => r.points_cost <= b.balance).length);
       $('rwCEarned').textContent = pts(b.points_earned); $('rwCUsed').textContent = pts(b.points_redeemed);
       const jobs = Object.fromEntries(this.jobs.map(j => [j.id, j]));
       const rows = this.entries.filter(e => e.customer_id === id);
       $('rwCRows').replaceChildren(...(rows.length ? rows.map(e => {
         const j = e.job_id && jobs[e.job_id];
-        const what = KIND[e.kind] + (j ? ` · IV#${j.estimate_number || j.invoice_number || ''}` : '') + (e.dollar_value ? ` (${money(e.dollar_value)})` : '');
+        const what = KIND[e.kind] + (j ? ` · IV#${j.estimate_number || j.invoice_number || ''}` : '') + (e.reward_name ? ` · ${e.reward_name}` : '');
         return el('tr', {}, el('td', { text: fmtDate(e.created_at) }), el('td', { text: what }),
           el('td', { class: 'rw-num', text: (e.points > 0 ? '+' : '') + pts(e.points) }), el('td', { text: e.note || '' }),
           el('td', { text: e.created_by ? (this.staff[e.created_by] || 'Staff') : 'Automatic' }));
@@ -146,23 +186,29 @@
       const sel = $('rwRedeemJob');
       sel.replaceChildren(el('option', { value: '', text: 'No job' }), ...this.jobs.filter(j => j.customer_id === id)
         .map(j => el('option', { value: j.id, text: `IV#${j.estimate_number || j.invoice_number || '?'} · ${fmtDate(j.job_date)} · ${money(j.total_amount)}` })));
-      $('rwRedeemPts').value = ''; $('rwRedeemNote').value = ''; $('rwAdjPts').value = ''; $('rwAdjNote').value = '';
+      const act = this.activeRewards();
+      $('rwRedeemReward').replaceChildren(...(act.length
+        ? [el('option', { value: '', text: 'Pick a reward' }), ...act.map(r => el('option', { value: r.id, disabled: r.points_cost > b.balance,
+            text: `${r.name} · ${pts(r.points_cost)} pts${r.points_cost > b.balance ? ' (not enough yet)' : ''}` }))]
+        : [el('option', { value: '', text: 'No rewards on the list yet' })]));
+      $('rwRedeemNote').value = ''; $('rwAdjPts').value = ''; $('rwAdjNote').value = '';
       this.ids.redeem = genId(); this.ids.adjust = genId(); this.showWorth();
       this.show('rwCustomer'); root.scrollTo(0, 0);
     },
     showWorth() {
-      const p = parseInt($('rwRedeemPts').value, 10);
-      $('rwRedeemWorth').textContent = p > 0 ? `${pts(p)} points = ${money(p * this.pointValue())} off.` : '';
+      const r = this.catalog.find(x => x.id === $('rwRedeemReward').value);
+      const b = this.balances.find(x => x.customer_id === this.current);
+      $('rwRedeemWorth').textContent = r && b ? [`Takes ${pts(r.points_cost)} points, leaves ${pts(b.balance - r.points_cost)}.`, r.details].filter(Boolean).join(' ') : '';
     },
     redeem() {
       const btn = $('rwRedeemSave');
       return this.busyRun(btn, async () => {
-        const p = $('rwRedeemPts').value.trim();
-        if (!/^\d+$/.test(p) || Number(p) <= 0) throw new Error('Enter how many points to use (a whole number).');
-        const r = await ShApi.rpc('shop_rewards_redeem', { p_entry_id: this.ids.redeem, p_customer_id: this.current, p_points: Number(p),
+        const reward = $('rwRedeemReward').value;
+        if (!reward) throw new Error('Pick a reward from the list.');
+        const r = await ShApi.rpc('shop_rewards_redeem', { p_entry_id: this.ids.redeem, p_customer_id: this.current, p_reward_id: reward,
           p_job_id: $('rwRedeemJob').value || null, p_note: $('rwRedeemNote').value.trim() || null });
         await this.refresh(); this.openCustomer(this.current);
-        this.message(`Used ${pts(p)} points${r.dollar_value ? ` (${money(r.dollar_value)} off)` : ''}. ${pts(r.balance)} left.`);
+        this.message(`Used points on ${r.reward || 'the reward'}. ${pts(r.balance)} points left.`);
       });
     },
     adjust() {
@@ -180,7 +226,7 @@
       const btn = $('rwSetSave');
       return this.busyRun(btn, async () => {
         await ShApi.rpc('shop_update_reward_settings', { p_settings: { rewards_enabled: $('rwSetOn').checked,
-          rewards_points_per_dollar: $('rwSetRate').value.trim(), rewards_point_value_cents: $('rwSetValue').value.trim(),
+          rewards_points_per_dollar: $('rwSetRate').value.trim(),
           rewards_start_date: $('rwSetStart').value } });
         await this.refresh(); this.renderRewards(); this.message('Rewards settings saved.');
       });
