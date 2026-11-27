@@ -24,14 +24,16 @@ const EventsModule = {
     box.className = 'events-banner';
     box.setAttribute('role', 'region');
     box.setAttribute('aria-label', 'Heads-up');
-    box.innerHTML = events.map(e => {
+    // The list scrolls on its own so several notices never cover the whole map,
+    // and the close button stays put.
+    box.innerHTML = '<div class="events-scroll" tabindex="0">' + events.map(e => {
       const src = this.safeUrl(e.source);
       return `<div class="events-item" data-id="${this.esc(e.id)}">
         <strong>${this.esc(e.title)}</strong>
         ${e.detail ? `<span>${this.esc(e.detail)}</span>` : ''}
         ${src ? `<a href="${this.esc(src)}" target="_blank" rel="noopener">Source</a>` : ''}
       </div>`;
-    }).join('') + '<button type="button" class="events-close" aria-label="Dismiss heads-up">&times;</button>';
+    }).join('') + '</div><button type="button" class="events-close" aria-label="Dismiss heads-up">&times;</button>';
     box.querySelector('.events-close').addEventListener('click', () => box.remove());
     host.appendChild(box);
   },
