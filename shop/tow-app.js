@@ -250,7 +250,7 @@
 
   async function start() {
     try { me = await ShApi.rpc('shop_tow_me', {}); }
-    catch (e) { if (e.status === 401) { show('twSignIn'); return; } msg(e.status === 404 ? 'The tow board is not set up on the server yet (ask Tyler to run the shop-014 SQL file).' : e.message, true); show('twBlocked'); return; }
+    catch (e) { if (e.status === 401) { show('twSignIn'); return; } if (!e.status) { show('twSignIn'); msg('Could not reach the shop. Check your signal and reload.', true); return; } msg(e.status === 404 ? 'The tow board is not set up on the server yet (ask Tyler to run the shop-014 SQL file).' : e.message, true); show('twBlocked'); return; }
     $('twSignOut').hidden = false;
     if (!me) { show('twBlocked'); return; }
     $('twTabSettings').hidden = !me.admin;
