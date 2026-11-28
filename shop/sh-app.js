@@ -623,17 +623,22 @@
       const payment = { amount: $('shPayAmount').value.replace(/[$,\s]/g, ''), paid_on: $('shPayDate').value, method: $('shPayMethod').value,
         reference: $('shPayRef').value, note: $('shPayNote').value };
       if (!payment.method) { this.message('Pick how they paid.', true); return; }
+      const typed = ['shPayAmount', 'shPayDate', 'shPayMethod', 'shPayRef', 'shPayNote'].map(id => [id, $(id).value]);
+      let saved = false;
       this.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
       try {
         if (!this.payDraftId || this.payDraftFor !== JSON.stringify([jobId, payment])) { this.payDraftId = genId(); this.payDraftFor = JSON.stringify([jobId, payment]); }
         const r = await ShApi.rpc('shop_record_job_payment', { p_id: this.payDraftId, p_job_id: jobId, p_payment: payment });
         this.payDraftId = null;
+        saved = true;
         this.message(`${money(payment.amount)} recorded on ${wo(j?.estimate_number)}. It is now ${(PAY_LABEL[r?.payment_status] || '').toLowerCase()}.`);
       } catch (e) {
         if (!this.handleAuthError(e)) this.message(`Payment not saved: ${e.message}`, true);
       } finally { this.busy = false; btn.disabled = false; btn.textContent = 'Save payment'; }
       await this.refresh();
       if (!$('shPayments').hidden) await this.openPayments(jobId, true);
+      // A failed save keeps what was typed, so it can be sent again without retyping.
+      if (!saved && !$('shPayments').hidden && this.payJobId === jobId) for (const [id, value] of typed) $(id).value = value;
     },
 
     async voidPayment(p, btn) {

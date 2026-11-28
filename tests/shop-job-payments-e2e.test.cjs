@@ -108,16 +108,19 @@ test('the result of saving a payment stays on screen, good or bad', { skip }, as
   await page.route('**/rpc/shop_record_job_payment', r => r.fulfill({ status: 400, contentType: 'application/json', body: '{"message":"Server said no."}' }));
   await page.fill('#shPayAmount', '5');
   await page.selectOption('#shPayMethod', 'cash');
+  await page.fill('#shPayNote', 'Typed once');
   await page.click('#shPaySave');
-  await page.waitForFunction(() => document.querySelector('#shPaySave').textContent === 'Save payment' && !document.querySelector('#shPayMethod').value);
+  await page.waitForFunction(() => document.querySelector('#shPaySave').textContent === 'Save payment' && !document.querySelector('#shMsg').hidden);
   await page.waitForTimeout(300);
+  // A failed save keeps what was typed.
+  assert.equal(await page.inputValue('#shPayAmount'), '5');
+  assert.equal(await page.inputValue('#shPayMethod'), 'cash');
+  assert.equal(await page.inputValue('#shPayNote'), 'Typed once');
   assert.equal(await page.isVisible('#shMsg'), true);
   assert.match(await page.locator('#shMsg').innerText(), /Payment not saved: Server said no\./);
 
   await page.unroute('**/rpc/shop_record_job_payment');
-  await page.fill('#shPayAmount', '5');
-  await page.selectOption('#shPayMethod', 'cash');
-  await page.click('#shPaySave');
+  await page.click('#shPaySave');                                        // retry without retyping
   await page.waitForFunction(() => !document.querySelector('#shPayMethod').value);
   await page.waitForTimeout(300);
   assert.equal(await page.isVisible('#shMsg'), true);
