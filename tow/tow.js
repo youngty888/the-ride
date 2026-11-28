@@ -11,7 +11,7 @@
   const cfg = window.SICC_RIDE_SUPABASE || {};
   let waiver = null;
 
-  function msg(t) { const m = $('mtMsg'); m.textContent = t || ''; m.hidden = !t; if (t) setTimeout(() => { if (m.textContent === t) m.hidden = true; }, 8000); }
+  function msg(t) { const m = $('mtMsg'); m.textContent = t || ''; m.hidden = !t; m.onclick = () => { m.hidden = true; }; if (t && !t.includes('520-999-5691')) setTimeout(() => { if (m.textContent === t) m.hidden = true; }, 8000); }
 
   // token: a signed-in rider's access token, or nothing for a guest.
   async function rpc(fn, args, token) {
@@ -24,6 +24,10 @@
     if (!res.ok) { const e = new Error((data && data.message) || 'Something went wrong. Call or text us.'); e.status = res.status; throw e; }
     return data;
   }
+
+  // A send with no answer: the browser's own words ("Failed to fetch") mean
+  // nothing to a stranded rider, and the request may or may not have arrived.
+  const sendError = err => err.status ? err.message : 'We could not confirm that went through. Check your signal, and call or text 520-999-5691 before sending again.';
 
   // ---------- signed-in RIDE rider ----------
   // Same sign-in the RIDE app keeps on this site (auth-guard.js). A refreshed
@@ -184,13 +188,13 @@
         let r;
         try { r = await rpc('shop_tow_request', { p }, token); }
         catch (err) { if (token && err.status === 401) r = await rpc('shop_tow_request', { p }); else throw err; }
-        $('mtSite').hidden = true; $('mtDone').hidden = false; window.scrollTo(0, 0);
+        msg(''); $('mtSite').hidden = true; $('mtDone').hidden = false; window.scrollTo(0, 0);
         $('mtDoneTitle').textContent = `Got it. Your tow number is ${r.ref}`;
         if (r.price == null) $('mtDoneText').textContent = 'We will call you with a price, then text or email you an invoice, or you can pay by Zelle. Once it is paid, we head your way.';
         else $('mtDoneText').textContent = `${r.price_is_start ? 'Price: ' + C.money(r.price) + ' if you are within 15 miles of our shop. We call to confirm the miles first.' : 'Price: ' + C.money(r.price) + '.'} Pay first, then a driver heads your way.`;
         if (r.pay_link && /^https:\/\//.test(r.pay_link)) { $('mtPay').href = r.pay_link; $('mtPay').hidden = false; }
         $('mtDoneNote').textContent = `${r.pay_link ? 'Put ' + r.ref + ' in the payment note.' : 'We will text or email you an invoice for ' + r.ref + ', or you can pay by Zelle with ' + r.ref + ' in the note.'} No pickup until it is paid. Same price day or night.`;
-      } catch (err) { msg(err.message); } finally { b.disabled = false; }
+      } catch (err) { msg(sendError(err)); } finally { b.disabled = false; }
     });
   }
 
@@ -223,8 +227,8 @@
       const b = f.querySelector('button[type=submit]'); b.disabled = true;
       try {
         await rpc('shop_tow_sign', { p_token: token, p_name: f.waiver_name.value, p_signature: sig.png(), p_version: waiver.version });
-        f.hidden = true; $('mtSignIntro').textContent = `Signed. Thank you. Once it's paid, we head your way for tow ${info.ref}.`;
-      } catch (err) { msg(err.message); } finally { b.disabled = false; }
+        msg(''); f.hidden = true; $('mtSignIntro').textContent = `Signed. Thank you. Once it's paid, we head your way for tow ${info.ref}.`;
+      } catch (err) { msg(sendError(err)); } finally { b.disabled = false; }
     });
     await loadInfo();
   }
