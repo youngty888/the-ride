@@ -17,9 +17,15 @@ test('a route up Mt Lemmon gets the tap-to-call road hotline, even if crash data
   for (const failed of [false, true]) assert.match(H.routeSectionHtml(failed), /href="tel:\+15203513351"/);
 });
 
+test('a route up Mt Lemmon links the county road and forest alert pages', () => {
+  const html = load({coords: [midtown, windyPoint]}).routeSectionHtml(false);
+  assert.match(html, /href="https:\/\/www\.pima\.gov\/road-closure-updates" target="_blank" rel="noopener"/);
+  assert.match(html, /href="https:\/\/www\.fs\.usda\.gov\/r03\/coronado\/alerts" target="_blank" rel="noopener"/);
+});
+
 test('routes elsewhere, and no route, do not show the hotline', () => {
   const sabino = [32.31, -110.822], tanqueVerde = [32.27, -110.76], oroValley = [32.42, -110.93];
   for (const route of [{coords: [midtown, sabino, tanqueVerde, oroValley]}, null]) {
-    assert.doesNotMatch(load(route).routeSectionHtml(false), /3351/);
+    assert.doesNotMatch(load(route).routeSectionHtml(false), /3351|road-closure|coronado/);
   }
 });
