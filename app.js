@@ -977,7 +977,7 @@ const App = {
     if (packs.length === 0) {
       listEl.innerHTML = `
         <div class="empty-state-container">
-          <p class="empty-state">No packs yet. Tap + to create a pack and invite riders.</p>
+          <p class="empty-state">No packs yet. Tap + to create a pack and add rider names.</p>
         </div>
       `;
       return;
@@ -1071,7 +1071,7 @@ const App = {
 
       <h3 class="section-title">Emergency Contacts</h3>
       <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-3);">
-        If a rider goes down, pack members can see their emergency contacts here.
+        Saved on this phone only. Other riders cannot see this.
       </p>
       ${pack.members.map((m) => {
         const profile = Storage.getProfile();
@@ -1088,14 +1088,20 @@ const App = {
       }).join('')}
 
       <button class="btn-secondary btn-large" id="btnInviteRider" style="width:100%;margin-top:var(--space-4);">
-        Invite Rider
+        Add Rider Name
       </button>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;">
+        Saved on this phone only. No invite is sent.
+      </p>
       <button class="btn-secondary btn-large" id="btnRateRider" style="width:100%;margin-top:var(--space-2);">
         Rate a Rider
       </button>
       <button class="btn-primary btn-large" id="btnStartGroupRide" style="margin-top:var(--space-2);">
-        Start Group Ride
+        Start My Ride Tracking
       </button>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;">
+        Tracks only you. Your pack is not told and cannot see you.
+      </p>
       <button class="btn-secondary btn-large" id="btnDeletePack" style="width:100%;margin-top:var(--space-2);color:var(--color-error);">
         Delete Pack
       </button>
@@ -1143,7 +1149,7 @@ const App = {
     document.getElementById('btnRateRider').addEventListener('click', () => {
       const otherMembers = pack.members.filter(m => !m.isYou);
       if (otherMembers.length === 0) {
-        alert('No other riders to rate. Invite riders to your pack first.');
+        alert('No other riders to rate. Add rider names to your pack first.');
         return;
       }
       const riderList = otherMembers.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
