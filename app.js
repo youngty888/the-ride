@@ -558,14 +558,8 @@ const App = {
   },
 
   notifyPack() {
-    const packs = Storage.getPacks();
-    if (packs.length === 0) {
-      alert('You have no packs yet. Create a pack first to notify your riding group.');
-      return;
-    }
-
     if (!MapModule.currentLocation) {
-      alert('Unable to get your location.');
+      alert('Unable to get your location. Nothing was sent.');
       return;
     }
 
@@ -576,19 +570,21 @@ const App = {
     const profile = Storage.getProfile();
     const contacts = profile.emergencyContacts || [];
 
-    let message = `EMERGENCY ALERT: Your pack member needs help.\nLocation: ${link}`;
+    let message = `EMERGENCY ALERT: I need help.\nLocation: ${link}`;
     if (contacts.length > 0) {
       message += `\n\nEmergency contacts:\n${contacts.map(c => `${c.name}: ${c.phone}`).join('\n')}`;
     }
 
-    // Try Web Share
+    // Nothing goes out by itself: the rider picks who gets it. If there is no
+    // share sheet, or it fails, say plainly that nothing was sent.
+    const notSent = () => alert(`Nothing was sent. Call or text someone and give them this:\n\n${message}`);
     if (navigator.share) {
       navigator.share({
         title: 'Emergency Alert',
         text: message,
-      }).catch(() => {});
+      }).catch((err) => { if (!err || err.name !== 'AbortError') notSent(); });
     } else {
-      alert(message);
+      notSent();
     }
   },
 
@@ -981,7 +977,7 @@ const App = {
     if (packs.length === 0) {
       listEl.innerHTML = `
         <div class="empty-state-container">
-          <p class="empty-state">No packs yet. Tap + to create a pack and invite riders.</p>
+          <p class="empty-state">No packs yet. Tap + to create a pack and add rider names.</p>
         </div>
       `;
       return;
@@ -1075,7 +1071,7 @@ const App = {
 
       <h3 class="section-title">Emergency Contacts</h3>
       <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-3);">
-        If a rider goes down, pack members can see their emergency contacts here.
+        Saved on this phone only. Other riders cannot see this.
       </p>
       ${pack.members.map((m) => {
         const profile = Storage.getProfile();
@@ -1092,14 +1088,20 @@ const App = {
       }).join('')}
 
       <button class="btn-secondary btn-large" id="btnInviteRider" style="width:100%;margin-top:var(--space-4);">
-        Invite Rider
+        Add Rider Name
       </button>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;">
+        Saved on this phone only. No invite is sent.
+      </p>
       <button class="btn-secondary btn-large" id="btnRateRider" style="width:100%;margin-top:var(--space-2);">
         Rate a Rider
       </button>
       <button class="btn-primary btn-large" id="btnStartGroupRide" style="margin-top:var(--space-2);">
-        Start Group Ride
+        Start My Ride Tracking
       </button>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;">
+        Tracks only you. Your pack is not told and cannot see you.
+      </p>
       <button class="btn-secondary btn-large" id="btnDeletePack" style="width:100%;margin-top:var(--space-2);color:var(--color-error);">
         Delete Pack
       </button>
@@ -1147,7 +1149,7 @@ const App = {
     document.getElementById('btnRateRider').addEventListener('click', () => {
       const otherMembers = pack.members.filter(m => !m.isYou);
       if (otherMembers.length === 0) {
-        alert('No other riders to rate. Invite riders to your pack first.');
+        alert('No other riders to rate. Add rider names to your pack first.');
         return;
       }
       const riderList = otherMembers.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
