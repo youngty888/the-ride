@@ -558,14 +558,8 @@ const App = {
   },
 
   notifyPack() {
-    const packs = Storage.getPacks();
-    if (packs.length === 0) {
-      alert('You have no packs yet. Create a pack first to notify your riding group.');
-      return;
-    }
-
     if (!MapModule.currentLocation) {
-      alert('Unable to get your location.');
+      alert('Unable to get your location. Nothing was sent.');
       return;
     }
 
@@ -576,19 +570,21 @@ const App = {
     const profile = Storage.getProfile();
     const contacts = profile.emergencyContacts || [];
 
-    let message = `EMERGENCY ALERT: Your pack member needs help.\nLocation: ${link}`;
+    let message = `EMERGENCY ALERT: I need help.\nLocation: ${link}`;
     if (contacts.length > 0) {
       message += `\n\nEmergency contacts:\n${contacts.map(c => `${c.name}: ${c.phone}`).join('\n')}`;
     }
 
-    // Try Web Share
+    // Nothing goes out by itself: the rider picks who gets it. If there is no
+    // share sheet, or it fails, say plainly that nothing was sent.
+    const notSent = () => alert(`Nothing was sent. Call or text someone and give them this:\n\n${message}`);
     if (navigator.share) {
       navigator.share({
         title: 'Emergency Alert',
         text: message,
-      }).catch(() => {});
+      }).catch((err) => { if (!err || err.name !== 'AbortError') notSent(); });
     } else {
-      alert(message);
+      notSent();
     }
   },
 
