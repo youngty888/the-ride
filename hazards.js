@@ -296,7 +296,9 @@ const HazardModule = {
     if (!this.onMtLemmon(route)) return '';
     return `<h3 class="plan-section-title">Mt Lemmon Road Status</h3>
       <p class="plan-section-note">Check for ice or closures before you climb: Pima County Sheriff road condition hotline.</p>
-      <a class="btn-secondary btn-large shop-call" href="tel:+15203513351">Call (520) 351-3351</a>`;
+      <a class="btn-secondary btn-large shop-call" href="tel:+15203513351">Call (520) 351-3351</a>
+      <a class="btn-secondary btn-large shop-call" href="https://www.pima.gov/road-closure-updates" target="_blank" rel="noopener">County road closure updates</a>
+      <a class="btn-secondary btn-large shop-call" href="https://www.fs.usda.gov/r03/coronado/alerts" target="_blank" rel="noopener">Coronado Forest alerts</a>`;
   },
 
   routeSectionHtml(failed) {
