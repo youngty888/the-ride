@@ -42,7 +42,13 @@
     if (!s.refresh_token) throw new ApiError('Sign in to continue.', 401);
     if (!refreshing) {
       refreshing = raw('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token } })
-        .then(next => { saveSession(next); return next; }, err => { if (err.status === 400 || err.status === 401) clearSession(); throw new ApiError('Sign in to continue.', 401); })
+        .then(next => { saveSession(next); return next; }, err => {
+          // Only a rejected sign-in means "sign in again". No signal or a server
+          // error is passed on as it is, so the page can offer a retry.
+          if (![400, 401, 403].includes(err.status)) throw err;
+          if (err.status !== 403) clearSession();
+          throw new ApiError('Sign in to continue.', 401);
+        })
         .finally(() => { refreshing = null; });
     }
     return refreshing;
